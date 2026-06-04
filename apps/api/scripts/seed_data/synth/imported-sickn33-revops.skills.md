@@ -1,0 +1,89 @@
+---
+id: skillsgit-curated/imported-sickn33-revops
+version: 1.0.0
+name: RevOps
+description: Design and improve revenue operations - lead lifecycle rules, scoring, routing, handoffs, and CRM process automation - unifying marketing, sales, and customer success.
+authors:
+  - name: coreyhaines31 (via sickn33)
+    handle: sickn33
+    role: author
+  - name: skillsgit-curated
+    handle: skillsgit-curated
+    role: maintainer
+category: sales
+tags: [imported, source-sickn33, revops, lead-scoring, crm, automation]
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6, gpt-4o]
+  min_context_tokens: 32000
+  estimated_tokens_per_invocation: 6000
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Imported from sickn33/antigravity-awesome-skills (re-citing upstream coreyhaines31/marketingskills) under MIT (code) / CC BY 4.0 (content).
+---
+
+# RevOps
+
+## Overview
+
+Design revenue operations systems that unify marketing, sales, and customer success into a cohesive revenue engine.
+
+## When to use
+
+Use this skill when establishing lead lifecycle definitions for the first time, redesigning a scoring or routing model that no longer reflects how deals close, or formalizing handoff SLAs between marketing, sales, and CS.
+
+## How to apply
+
+### Key Focus Areas
+
+**Lead Lifecycle Management**: Define stages from subscriber through evangelist with clear entry/exit criteria and ownership.
+
+**Lead Scoring**: Combine explicit fit signals (company attributes, ICP match) with implicit engagement signals (behavior, recency, frequency). Use negative scoring to filter out students, competitors, and non-decision-makers.
+
+**Lead Routing**: Route by territory, account assignment, skill level, or round-robin. Treat speed-to-lead as a primary metric.
+
+**Pipeline Stage Configuration**: Establish required fields per stage, stage hygiene rules, and stage-to-stage conversion tracking.
+
+**CRM Automation**: Trigger workflows for handoffs, SLA breaches, task creation, and cross-team notifications.
+
+### Implementation Approach
+
+Before designing anything, request:
+- GTM motion (PLG, sales-led, hybrid)
+- ACV range
+- Sales cycle length
+- Current tech stack
+- Existing pain points
+- Specific goals for the redesign
+
+Deliverables typically include:
+- Lifecycle stage documentation
+- Scoring specification (rule catalog)
+- Routing decision tree
+- Metrics dashboard outline
+
+Each output should be ready for direct implementation by an admin.
+
+### Core Principle
+
+**Define before automate.** Broken processes accelerate faster when automated. Align teams on definitions and SLAs first; only then build workflows. Automating a broken process at scale is the most expensive way to surface its flaws.
+
+## Limitations
+
+- Use this skill only when the task clearly matches the scope described above.
+- Do not treat the output as a substitute for environment-specific validation, testing, or expert review.
+- Stop and ask for clarification if required inputs, permissions, safety boundaries, or success criteria are missing.
+
+## Attribution
+
+This skill was imported from `sickn33/antigravity-awesome-skills` under the MIT license (code) and CC BY 4.0 license (content/documentation). The upstream repo credits `coreyhaines31/marketingskills` as the original source. Modifications by skillsgit: frontmatter normalization; rewrote condensed summary into structured sections; addition of attribution and sources sections.
+
+## Sources reviewed
+
+- https://github.com/sickn33/antigravity-awesome-skills/tree/main/skills/revops (MIT / CC BY 4.0)
+- https://github.com/coreyhaines31/marketingskills (upstream credit per source frontmatter)

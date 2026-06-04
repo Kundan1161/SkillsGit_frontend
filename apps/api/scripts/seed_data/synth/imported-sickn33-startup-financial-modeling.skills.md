@@ -1,0 +1,112 @@
+---
+id: skillsgit-curated/imported-sickn33-startup-financial-modeling
+version: 1.0.0
+name: Startup Financial Modeling
+description: Build 3-5 year financial models for early-stage startups with cohort-based revenue projections, cost structures, cash flow analysis, and scenario planning.
+authors:
+  - name: sickn33 community
+    handle: sickn33
+    role: author
+  - name: skillsgit-curated
+    handle: skillsgit-curated
+    role: maintainer
+category: finance
+tags: [imported, source-sickn33, startup, financial-model, saas-metrics]
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6, gpt-4o]
+  min_context_tokens: 32000
+  estimated_tokens_per_invocation: 6000
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Imported from sickn33/antigravity-awesome-skills under MIT (code) / CC BY 4.0 (content).
+---
+
+# Startup Financial Modeling
+
+## Overview
+
+Build 3-5 year financial models for early-stage startups covering revenue projections, cost structures, cash flow analysis, and scenario planning.
+
+## When to use
+
+Use this skill when preparing a fundraise model, building a board-ready operating plan, or stress-testing runway against alternate growth scenarios.
+
+## How to apply
+
+### Four Foundational Components
+
+**1. Revenue Model**
+
+Use cohort-based projections. MRR per cohort = (cohort size) x (retention curve) x (ARPU). Roll cohorts forward monthly. Capture expansion and contraction separately from new-logo MRR.
+
+**2. Cost Structure**
+
+Organize expenses into four buckets:
+- COGS (hosting, payment processing, customer-facing infrastructure)
+- Sales & Marketing
+- R&D / Engineering
+- G&A (finance, legal, HR, office)
+
+Distinguish fixed from variable components in each bucket.
+
+**3. Cash Flow Analysis**
+
+Track beginning balance, inflows, outflows, ending balance, and runway. Use:
+
+`Runway months = Current Cash Balance / Average Monthly Net Burn`
+
+Account for timing differences between revenue recognition and cash collection.
+
+**4. Headcount Planning**
+
+Model hiring by department. Typical early-stage SaaS distribution:
+- Engineering: 40-50%
+- Sales & Marketing: 25-35%
+- G&A: 10-15%
+
+Tie hire dates to revenue or milestone triggers, not calendar.
+
+## Three-Scenario Framework
+
+Model three scenarios:
+- **Conservative (P10)** - missed targets, higher churn
+- **Base (P50)** - planning case used for hiring and budget
+- **Optimistic (P90)** - upside case
+
+Vary customer acquisition, churn, and pricing assumptions across scenarios. Keep the pricing **structure** consistent across scenarios (only quantities and rates flex).
+
+## Validation Checks
+
+A model passes sanity review if:
+- Year-over-year growth is achievable (~3x Y2, ~2x Y3 for early-stage SaaS is reasonable; higher needs justification)
+- LTV/CAC > 3
+- Burn multiple < 2.0 (Net New ARR / Net Burn)
+- Gross margin trending toward category benchmark (75%+ for SaaS)
+
+## Common Pitfalls
+
+1. Overly optimistic revenue projections (no churn, perfect conversion)
+2. Underestimated costs (forgetting payroll taxes, benefits load, tooling)
+3. Ignored cash flow timing (annual prepay vs monthly recognition)
+4. Static headcount planning (linear hiring regardless of revenue)
+5. No scenario analysis (single point estimate presented as certainty)
+
+## Limitations
+
+- Use this skill only when the task clearly matches the scope described above.
+- Do not treat the output as a substitute for environment-specific validation, testing, or expert review.
+- Stop and ask for clarification if required inputs, permissions, safety boundaries, or success criteria are missing.
+
+## Attribution
+
+This skill was imported from `sickn33/antigravity-awesome-skills` under the MIT license (code) and CC BY 4.0 license (content/documentation). Original community author. Modifications by skillsgit: frontmatter normalization; rewrote condensed prose from upstream into structured sections; addition of attribution and sources sections.
+
+## Sources reviewed
+
+- https://github.com/sickn33/antigravity-awesome-skills/tree/main/skills/startup-financial-modeling (MIT / CC BY 4.0)

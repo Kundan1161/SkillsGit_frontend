@@ -1,0 +1,149 @@
+---
+id: skillsgit-curated/lut-and-cdl-management
+version: 1.0.0
+name: LUT and CDL Management
+description: Manage LUTs and CDLs across a production — on-set monitoring vs grading vs delivery LUTs, ASC CDL slope-offset-power roundtrips through editorial and VFX, baking versus preserving, and QC against scopes.
+authors:
+  - name: skillsgit Curated
+    handle: skillsgit-curated
+    role: author
+category: creative
+tags: [niche:color-grading, lut, cdl, asc-cdl, on-set, dailies, qc-workflow, color-pipeline]
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6, claude-haiku-4-5, gpt-4o, gpt-4.1, gemini-1.5-pro]
+  tools_required: []
+  tools_optional: [web_search]
+  min_context_tokens: 24000
+  estimated_tokens_per_invocation: 5000
+trigger_keywords:
+  - lut management
+  - cdl roundtrip
+  - asc cdl
+  - on set lut
+  - dailies lut
+  - delivery lut
+  - bake or preserve
+  - lut qc
+  - cdl edl
+  - show lut
+  - cube file
+  - lut versioning
+example_invocations:
+  - "Set up the LUT and CDL workflow for a feature shooting in two weeks."
+  - "We are getting CDLs back from dailies but they do not match in the grade. How do I diagnose the roundtrip?"
+  - "Should we bake the show LUT into the editorial proxies or keep it as metadata?"
+  - "Plan QC of our delivery LUTs against the grading bay scopes."
+inputs:
+  - name: production_phase
+    type: choice
+    required: true
+    description: Where the production is in its lifecycle.
+    choices: [prep, principal_photography, post_in_progress, grading_started, delivery]
+  - name: pipeline_brief
+    type: text
+    required: true
+    description: Cameras, NLE, grading suite, VFX vendor list, and whether the project uses an OCIO config end-to-end.
+  - name: deliverable_set
+    type: text
+    required: false
+    description: List of deliverables that need a delivery LUT or output transform path.
+  - name: known_issues
+    type: text
+    required: false
+    description: Current pain points — CDLs not roundtripping, on-set monitors not matching dailies, delivery LUT clipping highlights.
+outputs:
+  - name: lut_inventory
+    type: markdown
+    description: A categorized inventory of LUTs by purpose (on-set monitoring, dailies, editorial proxy, look, delivery) with the input and output color space of each.
+  - name: cdl_workflow
+    type: markdown
+    description: The CDL authoring, storage, and roundtrip plan from on-set DIT through dailies, editorial, VFX, and grading.
+  - name: bake_or_preserve_decisions
+    type: markdown
+    description: Per artifact (proxy, plate, deliverable), the explicit choice to bake or preserve the LUT/CDL with rationale.
+  - name: qc_checklist
+    type: markdown
+    description: Scope and visual checks for each LUT before it is locked to the show.
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Initial release.
+---
+
+# LUT and CDL Management
+
+## When to use
+
+Use this skill when a production needs to coordinate LUTs and CDLs across departments that cannot all open the same OCIO config. That covers nearly every live-action production: DIT on set carts a monitoring LUT, dailies vendor bakes a proxy LUT, editorial cuts on proxies with a viewer LUT, VFX needs a working transform plus a viewer LUT, and grading delivers final output LUTs. A look or a CDL written in one of those rooms has to survive transit to the next room without silent drift.
+
+Use it before principal photography to set the architecture; use it again at any point where someone says "the dailies do not match what I saw on set," "the editor's render does not match the offline LUT," or "the deliverable looks different from the QC pass."
+
+## How to apply
+
+1. **Classify every LUT by purpose.** A production has at least five categories: on-set monitoring LUTs (the DIT loads them in the on-set monitor), dailies/proxy LUTs (the dailies vendor bakes them into watchable proxies), editorial viewer LUTs (the NLE applies them as a clip-level or sequence-level viewer transform), VFX viewer LUTs (the comp app applies them as a viewer transform on linear plates), and delivery LUTs (the grading suite applies them as part of the output chain). Each category has a different input color space and a different output color space; mixing them produces visible errors.
+2. **Document each LUT's color space contract.** For every LUT, write down: input color space (camera log encoding A, working log space B, scene-linear with primaries C, etc.), input range (legal, full, or extended), output color space, output range, and the LUT format (3D cube of stated size, 1D shaper plus 3D, DCTL, etc.). A LUT applied to the wrong input range silently shifts the entire image.
+3. **Pick a single show LUT.** The "show LUT" is the creative look the production aims for. It exists as one canonical artifact, ideally authored from a graded reference shot. All downstream LUTs (on-set, dailies, editorial) are derivatives of it that match their respective input domains. Without a canonical show LUT, every department invents its own look and dailies stop matching grading.
+4. **Derive the on-set monitoring LUT** from the camera log to monitoring display, with the show look baked in. If the monitor is Rec.709, the on-set LUT inputs camera log and outputs Rec.709 with the show look. If the on-set monitor is HDR, the LUT outputs HDR. The on-set LUT is committed to the camera or DIT cart before the first day of shooting; revisions during the shoot trigger explicit notification to dailies and editorial.
+5. **Derive the dailies/proxy LUT** from camera log to the editorial proxy color space, with the show look baked in. For most workflows that is Rec.709. The dailies LUT must produce visually similar imagery to the on-set monitor LUT for the same shot — same exposure point, same midtone, same saturation. If it does not, either the LUTs disagree or one of the input transforms is wrong.
+6. **Define the editorial viewer LUT** if editorial is conforming to camera originals rather than baked proxies. In that case editorial loads the camera-log files and applies the show LUT as a viewer transform. The editorial NLE needs to support the input log encoding and the LUT format; document this constraint.
+7. **Specify the VFX viewer LUT.** VFX receives linear scene-referred plates and needs a viewer transform that gets them to the same on-set/dailies look so artists are not flying blind. The viewer LUT is a linear-to-display transform with the show look folded in. It is a viewer LUT only — VFX must not bake it into renders.
+8. **Plan the delivery LUTs.** Each deliverable's output transform is a LUT (or a transform stack) from the grading working space to the deliverable's display color space. The Rec.709 SDR delivery LUT, the P3-D65 deliverable LUT, the HDR PQ output transform — each is a separate artifact, authored and QCed.
+9. **Set up the CDL roundtrip.** ASC CDL is a primitive primary correction (slope, offset, power per RGB channel, plus a single saturation) authored on set by the DIT to tone a shot to the director's intent. CDLs travel as ALE, EDL with CDL fields, CCC files, CDL XML, or RCDL — a sidecar format, not a baked artifact. The CDL is applied at dailies time on top of the show LUT, and ideally rides into editorial metadata and into grading as a starting point. CDL roundtrip requires every tool in the chain to read, preserve, and write the CDL fields in matching formats. Verify the chain with a test shot before locking.
+10. **Decide bake versus preserve** for each artifact. Bake means the LUT is applied destructively, producing pixels that no longer carry the source range; preserve means the LUT travels as metadata, applied non-destructively, leaving the underlying file unchanged. The rules: editorial offline proxies bake (editorial does not need to ungrade); editorial online conform preserves (grading needs to ungrade); VFX plates preserve absolutely (any bake destroys VFX flexibility); deliverables bake (the consumer cannot ungrade). Document the bake/preserve choice per artifact in writing.
+11. **Version every LUT.** A LUT change mid-production must trigger a versioned new file with a clear filename convention (showname_purpose_input_output_vNN.cube), a date, and a changelog. Old versions are archived, not deleted, because old footage was graded under the old LUT. Conflicting versions are the leading cause of dailies-to-grading mismatch.
+12. **Store LUTs in one authoritative location** with read-only distribution to departments. The DIT, dailies vendor, editorial, VFX, and grading all pull from the same source. A LUT emailed to one department is a divergent fork waiting to bite.
+13. **QC each LUT before locking** with a controlled chart-and-scope test. Send a known test signal (a chart shot under controlled light in the project's primary camera) through the LUT in the destination application; read the scopes; compare to the same chart graded directly in the grading suite. The LUT is locked only when the readings match the grading reference within tolerance.
+14. **QC each CDL roundtrip** with a known test shot. Take a shot with a known CDL applied on set, send it through dailies, editorial, and back into grading; load the original camera-log file in grading with the same CDL applied; compare scopes. Any difference is a CDL roundtrip bug — usually a slope/offset/power field that got truncated, reordered, or interpreted in a different gamma space.
+15. **Document the LUT-and-CDL contract in the color bible.** One section names every LUT, its purpose, its input/output color space, where it lives, and who owns its changes. The same section names the CDL workflow — which formats travel between which applications, who authors, who consumes.
+16. **Plan the failure-mode response.** When a LUT-or-CDL roundtrip breaks mid-production, the colorist needs a triage path: identify the symptom (dailies-vs-grade mismatch, CDL not loading, look drift), test each link in the chain with a known reference shot, isolate the breaking link, and produce a corrected artifact. Pre-stage a "diagnostic kit" — a known reference frame, a known CDL, and a known LUT — so the test can be run in minutes rather than hours when production is waiting.
+17. **Audit the LUT collection periodically.** A production accumulates LUTs: experimental looks the colorist tried, vendor-provided LUTs that turned out not to apply, vendor-revised LUTs that orphaned old versions. At each major production milestone (end of prep, start of post, start of grading) audit the LUT folder: archive obsolete versions, verify the active set against the show's recorded contract, delete or rename anything ambiguous. A clean LUT folder is a precondition for a stable pipeline.
+18. **Train the departments on what their LUT does.** The DIT, the dailies operator, the editorial assistant, the VFX artist, and the colorist each touch a LUT but use it for a different reason. A 20-minute walkthrough at the start of production — what each LUT is, why it has the input/output color space it has, and what NOT to bake — prevents most pipeline incidents better than any document.
+
+## Inputs
+
+- Production phase (prep, principal photography, post, delivery).
+- Pipeline brief covering cameras, NLE, grading suite, VFX vendors, and OCIO support.
+- The deliverable set requiring output transforms.
+- Known issues if any.
+
+## Outputs
+
+- A categorized LUT inventory with input/output color spaces per LUT.
+- A CDL roundtrip plan with formats and storage locations.
+- Bake-or-preserve decisions per artifact with rationale.
+- A QC checklist for each LUT against scopes and reference shots.
+
+## Examples
+
+**Episodic drama, two cameras, dailies vendor offsite, in-house grade.** Show LUT authored from a hero scene reference: input wide-gamut log working space, output Rec.709 with show look. On-set LUT: input camera log (per camera), output Rec.709 with show look — distributed to the DIT before production, two versions (one per camera). Dailies LUT: same input/output as on-set, derived from the show LUT — sent to the dailies vendor with a chart-test confirmation. Editorial viewer LUT: editorial conforms to camera originals; the show LUT is applied as a viewer transform inside the NLE. VFX viewer LUT: linear scene-referred plate to Rec.709 with show look, distributed to VFX vendors as their viewer transform. Delivery LUTs: grading suite outputs through a Rec.709 SDR delivery LUT for the SDR master; HDR delivery is via the output transform stack, not a 3D LUT. CDL workflow: DIT authors a CDL per setup, exports an ALE per day. Dailies vendor applies the CDL on top of the show LUT during proxy bake. Editorial preserves the CDL in metadata (NLE must support it). Grading suite loads the CDL as the starting primary node for each shot.
+
+**Indie feature, single camera, no dedicated DIT, post-only grading.** No on-set monitoring LUT — director monitors with the camera's native rec709 monitoring mode and accepts that on-set look is approximate. Show LUT is authored during the first week of grading and re-applied retroactively to dailies for review. CDL workflow is skipped — there is no DIT to author. The grading suite is the only place primary correction is authored, and a coarse grade is committed early as a "look reference" for VFX. Delivery LUTs: grading suite outputs through a Rec.709 LUT for the streaming SDR; theatrical DCI-P3 is via the output transform stack.
+
+**Diagnosis: dailies look 5 IRE lower than the on-set monitor.** Inventory the two LUTs. The on-set LUT's input is documented as camera log full range; the dailies LUT's input is documented as camera log legal range. The camera writes legal range. The on-set LUT is being given legal-range data but interpreting it as full range, lifting the entire image. Fix: re-author or re-range the on-set LUT to match legal range input. QC: rerun the chart test, confirm the dailies and on-set match within tolerance.
+
+**Diagnosis: CDL slope value is being preserved but the offset is dropping.** Take the known reference shot through the chain with a CDL whose offset values are non-zero on all three channels. Inspect the CDL representation at each handoff: the DIT's ALE has the offset; the dailies vendor's CDL XML has the offset; the editorial timeline metadata is missing the offset; the grading suite reads zero offset. The break is at the editorial export — the NLE's timeline-to-grading export format truncates offset fields. Fix: switch the editorial-to-grading handoff format to one that preserves offset (typically a CCC export rather than the NLE's native CDL export), or carry the CDL as a separate sidecar file referenced by clip name. Verify the fix on the reference shot.
+
+**Pre-production setup, indie feature, two-camera shoot starting in three weeks.** Step 1: get a calibrated reference shot from each camera with a chart. Step 2: in the grading suite, derive the show LUT from a graded version of a hero shot (the colorist sits with the cinematographer for an afternoon and produces the canonical look). Step 3: from the show LUT, derive the on-set monitoring LUT per camera and the dailies LUT per camera. Step 4: distribute the on-set LUTs to the DIT with the chart-test confirmation embedded as a reference still. Step 5: ship the dailies LUT and the chart-test reference to the dailies vendor; require they send back a test proxy of the chart that the colorist verifies on the same monitor as the show LUT was authored. Step 6: place the show LUT, on-set LUT, and dailies LUT in the central LUT library with version numbers; communicate the LUT paths to every department. Step 7: write the bake-or-preserve rules into the color bible. Production starts.
+
+## Limitations
+
+- This skill assumes the production is willing to centralize LUT authority. A production that lets each department invent its own LUTs cannot be saved by methodology; it needs a producer to enforce centralization.
+- CDL roundtrip is only as good as the weakest application in the chain. If a vendor's tool truncates the power field, the roundtrip is broken at that vendor regardless of how disciplined the rest of the pipeline is. Verify each tool before relying on it.
+- Format conversions between CDL representations (ALE, EDL+CDL, CCC, CDL XML, RCDL) are mostly mechanical but have edge cases. Use an established conversion utility and verify the result on a test case before trusting it on a show.
+- Delivery LUTs cannot substitute for an output transform stack for HDR. HDR delivery needs proper PQ/HLG encoding, peak luminance handling, and metadata authoring — not a single 3D LUT.
+
+## Sources reviewed
+
+- https://github.com/shidarin/cdl_convert — ASC CDL parser/writer covering ALE, FLEx, CC, CCC, RCDL formats — informed CDL roundtrip format mapping (MIT)
+- https://github.com/walter-arrighetti/edl2cdl — EDL-to-CDL extraction informing editorial-to-grading handoff (license check before use)
+- https://github.com/AcademySoftwareFoundation/OpenColorIO — config-driven LUT and look management informing centralized authority pattern (BSD-3-Clause)
+- https://github.com/AcademySoftwareFoundation/OpenTimelineIO — timeline interchange that can carry CDL metadata (Apache-2.0)
+- https://github.com/AcademySoftwareFoundation/OpenTimelineIO/issues/142 — discussion of CDL metadata structure in timeline exchange (Apache-2.0)
+- https://en.wikipedia.org/wiki/ASC_CDL — ASC CDL slope/offset/power semantics reference (CC BY-SA 4.0)
+- https://github.com/colour-science/colour — LUT interpolation and color space reference (BSD-3-Clause)
+- https://github.com/aces-aswf/CTL — transform language informing LUT-vs-CTL trade-off discussion (Modified BSD 3-Clause)

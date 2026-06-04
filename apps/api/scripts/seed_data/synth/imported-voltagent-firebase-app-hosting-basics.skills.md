@@ -1,0 +1,105 @@
+---
+id: skillsgit-curated/imported-voltagent-firebase-app-hosting-basics
+version: 1.0.0
+name: Firebase App Hosting Basics
+description: Deploy full-stack frameworks with SSR/ISR on Firebase App Hosting — Next.js, Angular, and other supported frameworks with GitHub-driven CI/CD.
+authors:
+  - name: Firebase
+    handle: firebase
+    role: author
+  - name: skillsgit Curated
+    handle: skillsgit-curated
+    role: maintainer
+category: engineering
+tags: [imported, source-voltagent, firebase, app-hosting, nextjs, ssr, isr]
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6, gpt-4o]
+  min_context_tokens: 32000
+  estimated_tokens_per_invocation: 6000
+trigger_keywords: [firebase app hosting, next.js firebase, ssr firebase, isr firebase, apphosting.yaml]
+example_invocations:
+  - Deploy my Next.js app to Firebase App Hosting
+  - Set up apphosting.yaml for an Angular SSR app
+  - Wire up GitHub auto-deploy for App Hosting
+inputs: []
+outputs: []
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Imported from VoltAgent/awesome-agent-skills under Apache-2.0.
+---
+
+# Firebase App Hosting Basics
+
+## When to use
+
+> Choose Firebase App Hosting if: You are using a supported full-stack framework like Next.js or Angular. You need Server-Side Rendering (SSR) or ISR.
+
+For static sites or SPAs without SSR, use **Firebase Hosting (Classic)** instead.
+
+## How to apply
+
+Configure two files (`firebase.json` and `apphosting.yaml`), set up secrets if needed, and deploy with `firebase-tools`. For "git push to deploy" workflows, connect your GitHub repository for CI/CD.
+
+## Prerequisites
+
+Your Firebase project must be on the **Blaze pricing plan**. Upgrade at:
+
+```
+https://console.firebase.google.com/project/_/overview?purchaseBillingPlan=metered
+```
+
+## Deployment Steps
+
+1. **Configure `firebase.json`** with an `apphosting` block specifying your `backendId` and `rootDir`.
+
+   ```json
+   {
+     "apphosting": {
+       "backendId": "my-backend",
+       "rootDir": "./"
+     }
+   }
+   ```
+
+2. **Create `apphosting.yaml`** for framework-specific configuration.
+
+   ```yaml
+   runConfig:
+     minInstances: 0
+     maxInstances: 4
+     concurrency: 80
+   env:
+     - variable: NEXT_PUBLIC_APP_NAME
+       value: "My App"
+   ```
+
+3. **Set up secrets** (if needed):
+
+   ```bash
+   npx -y firebase-tools@latest apphosting:secrets:set DATABASE_URL
+   ```
+
+4. **Deploy**:
+
+   ```bash
+   npx -y firebase-tools@latest deploy
+   ```
+
+## Alternative — GitHub CI/CD
+
+Automated "git push to deploy" workflows can be configured by connecting a GitHub repository, though this requires additional CLI setup.
+
+## Attribution
+
+This skill was imported from `VoltAgent/awesome-agent-skills` under the MIT license, originating from the `firebase/skills` repository under the Apache-2.0 license. Original content authored by the listed contributor(s) at the source repository. Modifications by skillsgit: frontmatter normalization to fit marketplace spec; addition of attribution and sources sections.
+
+## Sources reviewed
+
+- https://github.com/VoltAgent/awesome-agent-skills (MIT)
+- https://github.com/firebase/skills/tree/main/skills/firebase-app-hosting-basics (Apache-2.0)

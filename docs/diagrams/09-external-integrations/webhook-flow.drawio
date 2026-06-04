@@ -1,0 +1,449 @@
+<mxfile host="app.diagrams.net" agent="skillsgit-arch" version="24.7.17" type="device">
+  <diagram name="webhook-flow" id="webhook-flow-skillsgit">
+    <mxGraphModel dx="1422" dy="827" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="3188" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="title" value="Inbound Stripe webhook — /v1/webhooks/stripe  (webhooks/router.py:stripe_webhook + webhooks/service.py:process_event)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=none;fontSize=18;fontStyle=1;align=left;" vertex="1" parent="1">
+          <mxGeometry x="40" y="20" width="1574" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="p-stripe" value="Stripe&#10;(webhook sender)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fce7f3;strokeColor=#be185d;fontStyle=1;align=center;" vertex="1" parent="1">
+          <mxGeometry x="40" y="90" width="180" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="lifeline-stripe" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#999999;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="129" y="150" width="2" height="2998" as="geometry"/>
+        </mxCell>
+        <mxCell id="p-router" value="webhooks/router.py&#10;stripe_webhook" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontStyle=1;align=center;" vertex="1" parent="1">
+          <mxGeometry x="260" y="90" width="180" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="lifeline-router" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#999999;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="349" y="150" width="2" height="2998" as="geometry"/>
+        </mxCell>
+        <mxCell id="p-sdk" value="billing/stripe_client.py&#10;(stripe SDK wrapper)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1;align=center;" vertex="1" parent="1">
+          <mxGeometry x="480" y="90" width="180" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="lifeline-sdk" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#999999;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="569" y="150" width="2" height="2998" as="geometry"/>
+        </mxCell>
+        <mxCell id="p-service" value="webhooks/service.py&#10;process_event" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1;align=center;" vertex="1" parent="1">
+          <mxGeometry x="700" y="90" width="180" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="lifeline-service" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#999999;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="789" y="150" width="2" height="2998" as="geometry"/>
+        </mxCell>
+        <mxCell id="p-db" value="Postgres" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ede9fe;strokeColor=#5b21b6;fontStyle=1;align=center;" vertex="1" parent="1">
+          <mxGeometry x="920" y="90" width="180" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="lifeline-db" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#999999;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="1009" y="150" width="2" height="2998" as="geometry"/>
+        </mxCell>
+        <mxCell id="p-audit" value="core.db.write_audit" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#999999;fontStyle=1;align=center;" vertex="1" parent="1">
+          <mxGeometry x="1140" y="90" width="180" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="lifeline-audit" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#999999;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="1229" y="150" width="2" height="2998" as="geometry"/>
+        </mxCell>
+        <mxCell id="grp-1" value="alt: settings.is_test (CI / unit tests)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#999999;opacity=30;fontStyle=2;align=left;verticalAlign=top;spacingLeft=8;spacingTop=2;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="30" y="460" width="1360" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="grp-2" value="alt: signature invalid" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fee2e2;strokeColor=#b91c1c;opacity=30;fontStyle=2;align=left;verticalAlign=top;spacingLeft=8;spacingTop=2;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="30" y="804" width="1360" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="grp-3" value="else: production" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;opacity=30;fontStyle=2;align=left;verticalAlign=top;spacingLeft=8;spacingTop=2;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="30" y="582" width="1360" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="grp-4" value="alt: already exists (replay / re-delivery)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;opacity=30;fontStyle=2;align=left;verticalAlign=top;spacingLeft=8;spacingTop=2;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="30" y="1186" width="1360" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="grp-5" value="else: new event" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;opacity=30;fontStyle=2;align=left;verticalAlign=top;spacingLeft=8;spacingTop=2;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="30" y="1328" width="1360" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="grp-6" value="alt: etype == &quot;checkout.session.completed&quot;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;opacity=30;fontStyle=2;align=left;verticalAlign=top;spacingLeft=8;spacingTop=2;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="30" y="1530" width="1360" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="grp-7" value="else: etype == &quot;payment_intent.succeeded&quot;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;opacity=30;fontStyle=2;align=left;verticalAlign=top;spacingLeft=8;spacingTop=2;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="30" y="1872" width="1360" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="grp-8" value="alt: order exists" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;opacity=30;fontStyle=2;align=left;verticalAlign=top;spacingLeft=8;spacingTop=2;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="30" y="2096" width="1360" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="grp-9" value="else: etype == &quot;payment_intent.payment_failed&quot;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;opacity=30;fontStyle=2;align=left;verticalAlign=top;spacingLeft=8;spacingTop=2;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="30" y="1994" width="1360" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="grp-10" value="loop: for each active license sourced from those items" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;opacity=30;fontStyle=2;align=left;verticalAlign=top;spacingLeft=8;spacingTop=2;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="30" y="2380" width="1360" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="grp-11" value="else: etype == &quot;charge.refunded&quot;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;opacity=30;fontStyle=2;align=left;verticalAlign=top;spacingLeft=8;spacingTop=2;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="30" y="2198" width="1360" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="grp-12" value="else: etype == &quot;account.updated&quot;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;opacity=30;fontStyle=2;align=left;verticalAlign=top;spacingLeft=8;spacingTop=2;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="30" y="2522" width="1360" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="grp-13" value="else: unhandled type (subscription.*, invoice.*, ...)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#999999;opacity=30;fontStyle=2;align=left;verticalAlign=top;spacingLeft=8;spacingTop=2;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="30" y="2724" width="1360" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="grp-14" value="alt: handled successfully" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;opacity=30;fontStyle=2;align=left;verticalAlign=top;spacingLeft=8;spacingTop=2;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="30" y="2846" width="1360" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="msg-1" value="1. POST /v1/webhooks/stripe" style="endArrow=classic;html=1;rounded=0;strokeColor=#6c8ebf;" edge="1" parent="1" source="p-stripe" target="p-router">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="130" y="200" as="sourcePoint"/>
+            <mxPoint x="350" y="200" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="note-1" value="Headers — Content-Type: application/json — Stripe-Signature: t=unix_ts, v1=HMAC-SHA256, v0=..." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="32" y="240" width="416" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="note-2" value="Body — raw JSON event payload (checkout.session.completed, payment_intent.succeeded, payment_intent.payment_failed, charge.refunded, account.updated, ...)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="32" y="300" width="416" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="msg-2" value="2. payload = await request.body()" style="endArrow=classic;html=1;rounded=0;strokeColor=#6c8ebf;curved=1;" edge="1" parent="1" source="p-router" target="p-router">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="350" y="360" as="sourcePoint"/>
+            <mxPoint x="350" y="390" as="targetPoint"/>
+            <Array as="points">
+              <mxPoint x="470" y="360"/>
+              <mxPoint x="470" y="390"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="note-3" value="raw bytes — DO NOT json-parse before HMAC verify, the signature covers the raw bytes" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="252" y="400" width="196" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="msg-3" value="3. event = json.loads(payload)" style="endArrow=classic;html=1;rounded=0;strokeColor=#6c8ebf;curved=1;" edge="1" parent="1" source="p-router" target="p-router">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="350" y="482" as="sourcePoint"/>
+            <mxPoint x="350" y="512" as="targetPoint"/>
+            <Array as="points">
+              <mxPoint x="470" y="482"/>
+              <mxPoint x="470" y="512"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="note-4" value="skip signature check — tests post raw JSON directly. 400 webhooks.invalid_payload on JSONDecodeError." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="252" y="522" width="196" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="msg-4" value="4. assert stripe_signature header present" style="endArrow=classic;html=1;rounded=0;strokeColor=#6c8ebf;curved=1;" edge="1" parent="1" source="p-router" target="p-router">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="350" y="604" as="sourcePoint"/>
+            <mxPoint x="350" y="634" as="targetPoint"/>
+            <Array as="points">
+              <mxPoint x="470" y="604"/>
+              <mxPoint x="470" y="634"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="note-5" value="400 webhooks.missing_signature if Stripe-Signature absent" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="252" y="644" width="196" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="msg-5" value="5. construct_webhook_event(payload, stripe_signature, settings.STRIPE_WEBHOOK_SECRET)" style="endArrow=classic;html=1;rounded=0;strokeColor=#6c8ebf;" edge="1" parent="1" source="p-router" target="p-sdk">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="350" y="704" as="sourcePoint"/>
+            <mxPoint x="570" y="704" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="note-6" value="Stripe SDK verifies HMAC-SHA256 over (timestamp + '.' + body) using the webhook secret. Also checks timestamp tolerance (5 min default)." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="472" y="744" width="196" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="msg-6" value="6. SignatureVerificationError" style="endArrow=classic;html=1;rounded=0;dashed=1;strokeColor=#999999;" edge="1" parent="1" source="p-sdk" target="p-router">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="570" y="826" as="sourcePoint"/>
+            <mxPoint x="350" y="826" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-7" value="7. 401 webhooks.invalid_signature" style="endArrow=classic;html=1;rounded=0;dashed=1;strokeColor=#999999;" edge="1" parent="1" source="p-router" target="p-stripe">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="350" y="866" as="sourcePoint"/>
+            <mxPoint x="130" y="866" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="note-7" value="Do NOT log raw payload or signature — both are sensitive." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="32" y="906" width="416" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="msg-8" value="8. verified event dict" style="endArrow=classic;html=1;rounded=0;dashed=1;strokeColor=#999999;" edge="1" parent="1" source="p-sdk" target="p-router">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="570" y="966" as="sourcePoint"/>
+            <mxPoint x="350" y="966" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-9" value="9. assert event[&quot;id&quot;] present" style="endArrow=classic;html=1;rounded=0;strokeColor=#6c8ebf;curved=1;" edge="1" parent="1" source="p-router" target="p-router">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="350" y="1006" as="sourcePoint"/>
+            <mxPoint x="350" y="1036" as="targetPoint"/>
+            <Array as="points">
+              <mxPoint x="470" y="1006"/>
+              <mxPoint x="470" y="1036"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="note-8" value="400 webhooks.invalid_payload on missing event.id" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="252" y="1046" width="196" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="msg-10" value="10. process_event(session, event)" style="endArrow=classic;html=1;rounded=0;strokeColor=#6c8ebf;" edge="1" parent="1" source="p-router" target="p-service">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="350" y="1106" as="sourcePoint"/>
+            <mxPoint x="790" y="1106" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-11" value="11. _persist_event(session, event) — session.get(WebhookEvent, event.id)" style="endArrow=classic;html=1;rounded=0;strokeColor=#6c8ebf;" edge="1" parent="1" source="p-service" target="p-db">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="790" y="1146" as="sourcePoint"/>
+            <mxPoint x="1010" y="1146" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-12" value="12. existing WebhookEvent row" style="endArrow=classic;html=1;rounded=0;dashed=1;strokeColor=#999999;" edge="1" parent="1" source="p-db" target="p-service">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1010" y="1208" as="sourcePoint"/>
+            <mxPoint x="790" y="1208" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-13" value="13. deduped=true, event_id, status" style="endArrow=classic;html=1;rounded=0;dashed=1;strokeColor=#999999;" edge="1" parent="1" source="p-service" target="p-router">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="790" y="1248" as="sourcePoint"/>
+            <mxPoint x="350" y="1248" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-14" value="14. 200 OK (re-deliveries are explicit no-ops)" style="endArrow=classic;html=1;rounded=0;dashed=1;strokeColor=#999999;" edge="1" parent="1" source="p-router" target="p-stripe">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="350" y="1288" as="sourcePoint"/>
+            <mxPoint x="130" y="1288" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-15" value="15. INSERT webhook_events (id=event.id, type=event.type, payload_json=event, received_at=now, status=RECEIVED)" style="endArrow=classic;html=1;rounded=0;strokeColor=#6c8ebf;" edge="1" parent="1" source="p-service" target="p-db">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="790" y="1350" as="sourcePoint"/>
+            <mxPoint x="1010" y="1350" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-16" value="16. row, is_new=true" style="endArrow=classic;html=1;rounded=0;dashed=1;strokeColor=#999999;curved=1;" edge="1" parent="1" source="p-service" target="p-service">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="790" y="1390" as="sourcePoint"/>
+            <mxPoint x="790" y="1420" as="targetPoint"/>
+            <Array as="points">
+              <mxPoint x="910" y="1390"/>
+              <mxPoint x="910" y="1420"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-17" value="17. etype = event.type" style="endArrow=classic;html=1;rounded=0;strokeColor=#6c8ebf;curved=1;" edge="1" parent="1" source="p-service" target="p-service">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="790" y="1430" as="sourcePoint"/>
+            <mxPoint x="790" y="1460" as="targetPoint"/>
+            <Array as="points">
+              <mxPoint x="910" y="1430"/>
+              <mxPoint x="910" y="1460"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="note-9" value="HANDLED_EVENTS = checkout.session.completed, payment_intent.succeeded, payment_intent.payment_failed, charge.refunded, account.updated" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="692" y="1470" width="196" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="msg-18" value="18. _on_checkout_session_completed(event)" style="endArrow=classic;html=1;rounded=0;strokeColor=#6c8ebf;curved=1;" edge="1" parent="1" source="p-service" target="p-service">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="790" y="1552" as="sourcePoint"/>
+            <mxPoint x="790" y="1582" as="targetPoint"/>
+            <Array as="points">
+              <mxPoint x="910" y="1552"/>
+              <mxPoint x="910" y="1582"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-19" value="19. dedup — SELECT orders WHERE stripe_payment_intent_id=PI (skip if already inserted)" style="endArrow=classic;html=1;rounded=0;strokeColor=#6c8ebf;" edge="1" parent="1" source="p-service" target="p-db">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="790" y="1592" as="sourcePoint"/>
+            <mxPoint x="1010" y="1592" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-20" value="20. Parse metadata (skill_id, skill_version_id, buyer_id) — ValueError re-raised (promotes to 500 so Stripe retries)" style="endArrow=classic;html=1;rounded=0;strokeColor=#6c8ebf;" edge="1" parent="1" source="p-service" target="p-db">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="790" y="1632" as="sourcePoint"/>
+            <mxPoint x="1010" y="1632" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-21" value="21. INSERT orders, INSERT order_items" style="endArrow=classic;html=1;rounded=0;strokeColor=#6c8ebf;" edge="1" parent="1" source="p-service" target="p-db">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="790" y="1672" as="sourcePoint"/>
+            <mxPoint x="1010" y="1672" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-22" value="22. issue_one_time_license (source=ONE_TIME, max_version=cap, status=ACTIVE)" style="endArrow=classic;html=1;rounded=0;strokeColor=#6c8ebf;" edge="1" parent="1" source="p-service" target="p-db">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="790" y="1712" as="sourcePoint"/>
+            <mxPoint x="1010" y="1712" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-23" value="23. UPDATE skills SET total_sales += 1" style="endArrow=classic;html=1;rounded=0;strokeColor=#6c8ebf;" edge="1" parent="1" source="p-service" target="p-db">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="790" y="1752" as="sourcePoint"/>
+            <mxPoint x="1010" y="1752" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-24" value="24. order.placed, license.granted" style="endArrow=classic;html=1;rounded=0;strokeColor=#6c8ebf;" edge="1" parent="1" source="p-service" target="p-audit">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="790" y="1792" as="sourcePoint"/>
+            <mxPoint x="1230" y="1792" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-25" value="25. best-effort notify creator webhook (creator/webhooks.notify_creator_webhook if module present — never blocks)" style="endArrow=classic;html=1;rounded=0;strokeColor=#6c8ebf;curved=1;" edge="1" parent="1" source="p-service" target="p-service">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="790" y="1832" as="sourcePoint"/>
+            <mxPoint x="790" y="1862" as="targetPoint"/>
+            <Array as="points">
+              <mxPoint x="910" y="1832"/>
+              <mxPoint x="910" y="1862"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-26" value="26. no-op" style="endArrow=classic;html=1;rounded=0;strokeColor=#6c8ebf;curved=1;" edge="1" parent="1" source="p-service" target="p-service">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="790" y="1894" as="sourcePoint"/>
+            <mxPoint x="790" y="1924" as="targetPoint"/>
+            <Array as="points">
+              <mxPoint x="910" y="1894"/>
+              <mxPoint x="910" y="1924"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="note-10" value="checkout.session.completed already issued the license. This event is just marked PROCESSED to clear the row." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="692" y="1934" width="196" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="msg-27" value="27. _on_payment_intent_payment_failed(event)" style="endArrow=classic;html=1;rounded=0;strokeColor=#6c8ebf;curved=1;" edge="1" parent="1" source="p-service" target="p-service">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="790" y="2016" as="sourcePoint"/>
+            <mxPoint x="790" y="2046" as="targetPoint"/>
+            <Array as="points">
+              <mxPoint x="910" y="2016"/>
+              <mxPoint x="910" y="2046"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-28" value="28. SELECT orders WHERE PI=..." style="endArrow=classic;html=1;rounded=0;strokeColor=#6c8ebf;" edge="1" parent="1" source="p-service" target="p-db">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="790" y="2056" as="sourcePoint"/>
+            <mxPoint x="1010" y="2056" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-29" value="29. UPDATE orders SET status=FAILED" style="endArrow=classic;html=1;rounded=0;strokeColor=#6c8ebf;" edge="1" parent="1" source="p-service" target="p-db">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="790" y="2118" as="sourcePoint"/>
+            <mxPoint x="1010" y="2118" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-30" value="30. order.payment_failed" style="endArrow=classic;html=1;rounded=0;strokeColor=#6c8ebf;" edge="1" parent="1" source="p-service" target="p-audit">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="790" y="2158" as="sourcePoint"/>
+            <mxPoint x="1230" y="2158" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-31" value="31. _on_charge_refunded(event)" style="endArrow=classic;html=1;rounded=0;strokeColor=#6c8ebf;curved=1;" edge="1" parent="1" source="p-service" target="p-service">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="790" y="2220" as="sourcePoint"/>
+            <mxPoint x="790" y="2250" as="targetPoint"/>
+            <Array as="points">
+              <mxPoint x="910" y="2220"/>
+              <mxPoint x="910" y="2250"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-32" value="32. SELECT orders WHERE PI=..." style="endArrow=classic;html=1;rounded=0;strokeColor=#6c8ebf;" edge="1" parent="1" source="p-service" target="p-db">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="790" y="2260" as="sourcePoint"/>
+            <mxPoint x="1010" y="2260" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-33" value="33. amount vs amount_refunded — full=REFUNDED, partial=PARTIALLY_REFUNDED" style="endArrow=classic;html=1;rounded=0;strokeColor=#6c8ebf;" edge="1" parent="1" source="p-service" target="p-db">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="790" y="2300" as="sourcePoint"/>
+            <mxPoint x="1010" y="2300" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-34" value="34. SELECT order_items.id WHERE order_id=..." style="endArrow=classic;html=1;rounded=0;strokeColor=#6c8ebf;" edge="1" parent="1" source="p-service" target="p-db">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="790" y="2340" as="sourcePoint"/>
+            <mxPoint x="1010" y="2340" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-35" value="35. UPDATE licenses SET status=REVOKED" style="endArrow=classic;html=1;rounded=0;strokeColor=#6c8ebf;" edge="1" parent="1" source="p-service" target="p-db">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="790" y="2402" as="sourcePoint"/>
+            <mxPoint x="1010" y="2402" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-36" value="36. license.revoked (reason=refund, order_id)" style="endArrow=classic;html=1;rounded=0;strokeColor=#6c8ebf;" edge="1" parent="1" source="p-service" target="p-audit">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="790" y="2442" as="sourcePoint"/>
+            <mxPoint x="1230" y="2442" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-37" value="37. order.refunded" style="endArrow=classic;html=1;rounded=0;strokeColor=#6c8ebf;" edge="1" parent="1" source="p-service" target="p-audit">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="790" y="2482" as="sourcePoint"/>
+            <mxPoint x="1230" y="2482" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-38" value="38. _on_account_updated(event)" style="endArrow=classic;html=1;rounded=0;strokeColor=#6c8ebf;curved=1;" edge="1" parent="1" source="p-service" target="p-service">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="790" y="2544" as="sourcePoint"/>
+            <mxPoint x="790" y="2574" as="targetPoint"/>
+            <Array as="points">
+              <mxPoint x="910" y="2544"/>
+              <mxPoint x="910" y="2574"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-39" value="39. SELECT users WHERE stripe_connect_account_id=acct_id" style="endArrow=classic;html=1;rounded=0;strokeColor=#6c8ebf;" edge="1" parent="1" source="p-service" target="p-db">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="790" y="2584" as="sourcePoint"/>
+            <mxPoint x="1010" y="2584" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-40" value="40. UPDATE users SET payouts_enabled = obj.payouts_enabled" style="endArrow=classic;html=1;rounded=0;strokeColor=#6c8ebf;" edge="1" parent="1" source="p-service" target="p-db">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="790" y="2624" as="sourcePoint"/>
+            <mxPoint x="1010" y="2624" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="note-11" value="Keeps the creator's payouts_enabled flag in sync with Stripe's view — used by assert_skill_purchasable to block checkout if disabled." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="692" y="2664" width="416" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="msg-41" value="41. row.status stays RECEIVED (processed_at = NULL)" style="endArrow=classic;html=1;rounded=0;strokeColor=#6c8ebf;curved=1;" edge="1" parent="1" source="p-service" target="p-service">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="790" y="2746" as="sourcePoint"/>
+            <mxPoint x="790" y="2776" as="targetPoint"/>
+            <Array as="points">
+              <mxPoint x="910" y="2746"/>
+              <mxPoint x="910" y="2776"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="note-12" value="Stripe gets 200 anyway — Cycle-2 handlers will pick these up by re-querying RECEIVED rows." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="692" y="2786" width="196" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="msg-42" value="42. UPDATE webhook_events SET status=PROCESSED, processed_at=now" style="endArrow=classic;html=1;rounded=0;strokeColor=#6c8ebf;" edge="1" parent="1" source="p-service" target="p-db">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="790" y="2868" as="sourcePoint"/>
+            <mxPoint x="1010" y="2868" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="note-13" value="If a handler raises — 1. service catches, sets row.status=FAILED + error=ExcName. 2. session.flush. 3. RE-RAISES so the router returns 5xx. 4. Router rolls back business writes, commits the failure row, then raises webhooks.handler_error (500). 5. Stripe retries per its exponential-backoff policy. (Idempotency at INSERT layer ensures retries are safe.)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="692" y="2908" width="416" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="msg-43" value="43. session.commit()" style="endArrow=classic;html=1;rounded=0;strokeColor=#6c8ebf;" edge="1" parent="1" source="p-router" target="p-db">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="350" y="2968" as="sourcePoint"/>
+            <mxPoint x="1010" y="2968" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-44" value="44. 200 OK (deduped, event_id, type, handled, status)" style="endArrow=classic;html=1;rounded=0;dashed=1;strokeColor=#999999;" edge="1" parent="1" source="p-router" target="p-stripe">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="350" y="3008" as="sourcePoint"/>
+            <mxPoint x="130" y="3008" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="note-14" value="Failure modes summary — 400 missing_signature or invalid_payload — 401 invalid_signature — 500 handler_error so Stripe retries — 200 success or unhandled-but-acked (Stripe done). Stripe's retry policy: exponential backoff up to 3 days. Every handler is idempotent at the DB INSERT layer (stripe_payment_intent_id is unique on orders, webhook_events.id PK dedups before dispatch)." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="32" y="3048" width="1296" height="50" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

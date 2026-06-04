@@ -1,0 +1,84 @@
+---
+id: skillsgit-curated/imported-voltagent-sentry-agents-md
+version: 1.0.0
+name: AGENTS.md Maintenance
+description: Author and maintain a concise, actionable AGENTS.md — under 60 lines, only non-obvious value, verified commands, package manager, key conventions, and commit attribution.
+authors:
+  - name: Sentry
+    handle: getsentry
+    role: author
+  - name: skillsgit Curated
+    handle: skillsgit-curated
+    role: maintainer
+category: engineering
+tags: [imported, source-voltagent, sentry, agents-md, repo-conventions, claude-code]
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6, gpt-4o]
+  min_context_tokens: 32000
+  estimated_tokens_per_invocation: 6000
+trigger_keywords: [agents.md, claude.md, ai-agent instructions, repo agent doc]
+example_invocations:
+  - Write an AGENTS.md for this monorepo
+  - Audit my AGENTS.md against the 60-line rule
+  - Symlink CLAUDE.md to AGENTS.md
+inputs: []
+outputs: []
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Imported from VoltAgent/awesome-agent-skills under Apache-2.0.
+---
+
+# AGENTS.md Maintenance
+
+## When to use
+
+Use this skill when creating or updating an `AGENTS.md` file at a repository root — the concise, actionable instructions for AI agents working in the repo.
+
+## How to apply
+
+Inspect the repository (lock files, manifests, existing docs, build commands), determine scope (root vs nested), and write only non-obvious instructions. Verify every referenced command and path. Keep the file under 60 lines (never exceed 100). Symlink `CLAUDE.md` to `AGENTS.md` rather than maintaining duplicates.
+
+## Core Purpose
+
+`AGENTS.md` provides concise, actionable instructions for AI agents working in a repository. It should stay **under 60 lines** and never exceed 100.
+
+## Workflow
+
+1. **Inspect the repository** — examine lock files, package manifests, build commands, existing documentation, and code conventions.
+2. **Determine scope** — decide whether instructions belong at the root level or in nested subdirectories.
+3. **Write minimally** — include only sections that add non-obvious value.
+4. **Verify commands** — ensure all referenced paths and commands actually exist.
+
+## Essential Sections (only what's non-obvious)
+
+- **Package Manager** — which tool to use (`pnpm`, `npm`, etc.).
+- **Commands** — test, lint, build tasks (table format when multiple).
+- **External References** — links to setup, architecture, security, and policy docs.
+- **Key Conventions** — critical patterns (generated files, naming).
+- **Commit Attribution** — AI-specific requirements (co-author tags).
+
+## What to Avoid
+
+- Welcome text or pleasantries.
+- Generic quality statements ("write good code").
+- Duplicating content from `README.md`.
+- Generic explanations of why the instructions matter.
+
+## File Setup
+
+Create `AGENTS.md` at the repo root. If `CLAUDE.md` is also expected, symlink it to `AGENTS.md` rather than maintaining separate copies.
+
+## Attribution
+
+This skill was imported from `VoltAgent/awesome-agent-skills` under the MIT license, originating from the `getsentry/skills` repository under the Apache-2.0 license. Original content authored by the listed contributor(s) at the source repository. Modifications by skillsgit: frontmatter normalization to fit marketplace spec; addition of attribution and sources sections.
+
+## Sources reviewed
+
+- https://github.com/VoltAgent/awesome-agent-skills (MIT)
+- https://github.com/getsentry/skills/tree/main/skills/agents-md (Apache-2.0)

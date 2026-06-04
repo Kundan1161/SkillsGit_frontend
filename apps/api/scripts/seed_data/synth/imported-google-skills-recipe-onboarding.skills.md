@@ -1,0 +1,121 @@
+---
+id: skillsgit-curated/imported-google-skills-recipe-onboarding
+version: 1.0.0
+name: Google Cloud Onboarding Recipe
+description: A developer's first steps on Google Cloud — account creation, billing, project management, and deploying a first resource.
+authors:
+  - name: Google (original)
+    handle: google
+    role: author
+  - name: skillsgit Curated
+    handle: skillsgit-curated
+    role: maintainer
+category: engineering
+tags: [imported, source-google, gcp, onboarding, billing, cloud-run]
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6, gpt-4o, gemini-2.0-pro]
+trigger_keywords: [google cloud onboarding, gcp free trial, create project, enable api, first deploy]
+example_invocations:
+  - "Walk me through creating my first Google Cloud project."
+  - "Set up billing and the gcloud CLI on a new account."
+  - "Deploy a 'Hello World' container to Cloud Run."
+inputs: []
+outputs: []
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Imported from google/skills under Apache-2.0.
+---
+
+# Onboarding to Google Cloud
+
+## When to use
+
+Use this skill for guidance on a developer's first steps on Google Cloud — account creation, billing setup, project management, and deploying a first resource.
+
+## How to apply
+
+Clarify the user's status (Google Account, organization context, intended workload, preferred interface). Walk them through sign-up, project creation, billing linkage, gcloud CLI install, API enablement, and a first deployment (Cloud Run recommended). Validate completion with the included checklist.
+
+## Overview
+
+For an individual developer, onboarding to Google Cloud involves establishing a personal identity, setting up a billing method, and creating a Project workspace where resources can be managed. Google Cloud offers a Free Tier and Free Trial for multiple products.
+
+## Clarifying Questions
+
+1. Do you already have a Google Account (Gmail or Google Workspace)?
+2. Are you setting up a personal account for learning, or part of an organization with existing infrastructure?
+3. Are you an IT admin setting up Google Cloud for your organization?
+4. What is the first type of resource or application you want to build (website, data pipeline, VM)?
+5. Do you prefer the CLI, an IDE (VSCode, Antigravity), or the Google Cloud console?
+
+## Prerequisites
+
+- A Google Account.
+- A valid payment method for billing verification (even for the free trial).
+
+## Steps
+
+### 1. Sign Up and Activate Free Credit
+1. Go to https://console.cloud.google.com/.
+2. Sign in with your Google Account to activate your $300 free credit.
+
+### 2. Create Your First Project
+1. In the console, click the project picker dropdown.
+2. Click New Project.
+3. Enter a Project Name (e.g., `my-first-gcp-project`).
+4. Note the generated Project ID.
+5. Click Create.
+
+### 3. Set Up Billing
+1. Go to the Billing section.
+2. Confirm your new project is listed under "Projects linked to this billing account."
+
+### 4. Install and Initialize the Google Cloud CLI
+1. Install the gcloud CLI.
+2. Run `gcloud init` and follow the prompts.
+
+### 5. Enable Necessary APIs
+For Cloud Run, for example:
+```bash
+gcloud services enable run.googleapis.com
+```
+Some APIs (including Cloud Logging) are enabled by default.
+
+### 6. Deploy Your First Resource
+
+Cloud Run example:
+```bash
+gcloud run deploy hello-world \
+    --image=gcr.io/cloudrun/hello \
+    --platform=managed \
+    --region=us-central1 \
+    --allow-unauthenticated --quiet
+```
+Open the printed URL in a browser.
+
+### 7. Next Steps
+- Explore the Google Cloud Free Program.
+- Read the Google Cloud Overview and product list.
+- Review the Enterprise Setup Guide if onboarding a team.
+- Compare AWS/Azure products to Google Cloud.
+
+## Validation Logic
+
+- Project Created: Does the user have a Project ID?
+- Billing Linked: `gcloud beta billing projects describe PROJECT_ID`.
+- CLI Authenticated: `gcloud config list` shows correct account and project.
+- Resource Verified: User can access the deployed resource's URL or IP.
+
+## Attribution
+
+This skill was imported from `google/skills` under the Apache-2.0 license. Original content authored by Google. Modifications by skillsgit: frontmatter normalization to fit marketplace spec; addition of attribution and sources sections; addition of `## When to use` and `## How to apply` stubs required by our validator. The original LICENSE and NOTICE files are preserved at the source repository.
+
+## Sources reviewed
+
+- https://github.com/google/skills/tree/main/skills/cloud/google-cloud-recipe-onboarding (Apache-2.0)

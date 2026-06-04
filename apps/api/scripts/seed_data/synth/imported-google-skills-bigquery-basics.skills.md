@@ -1,0 +1,101 @@
+---
+id: skillsgit-curated/imported-google-skills-bigquery-basics
+version: 1.0.0
+name: BigQuery Basics
+description: Manage datasets, tables, and jobs in BigQuery and integrate with BigQuery ML and Gemini for advanced data analytics and AI-driven insights.
+authors:
+  - name: Google (original)
+    handle: google
+    role: author
+  - name: skillsgit Curated
+    handle: skillsgit-curated
+    role: maintainer
+category: data
+tags: [imported, source-google, gcp, bigquery, sql, analytics, ml]
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6, gpt-4o, gemini-2.0-pro]
+trigger_keywords: [bigquery, sql, dataset, table, bigquery ml, analytics]
+example_invocations:
+  - "Create a BigQuery dataset and table with a schema."
+  - "Run a SQL query against a BigQuery public dataset."
+  - "Use BigQuery ML for forecasting."
+inputs: []
+outputs: []
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Imported from google/skills under Apache-2.0.
+---
+
+# BigQuery Basics
+
+## When to use
+
+Use this skill when you need to interact with BigQuery, run SQL queries, manage BigQuery resources, or leverage BigQuery's built-in ML capabilities. Also use when performing data analysis, ingesting data into BigQuery, or developing AI applications on BigQuery.
+
+## How to apply
+
+Enable the BigQuery API, create a dataset, define a table schema, then run queries with `bq` or a client library. For ML workloads, install the companion BigQuery AI & ML skill referenced below.
+
+## Overview
+
+BigQuery is a serverless, AI-ready data platform that enables high-speed analysis of large datasets using SQL and Python. Its disaggregated architecture separates compute and storage, allowing them to scale independently while providing built-in machine learning, geospatial analysis, and business intelligence capabilities.
+
+## Setup and Basic Usage
+
+1. Enable the BigQuery API:
+   ```bash
+   gcloud services enable bigquery.googleapis.com --quiet
+   ```
+
+2. Create a Dataset:
+   ```bash
+   bq mk --dataset --location=US my_dataset
+   ```
+
+3. Create a Table. Create a file named `schema.json`:
+   ```json
+   [
+     {"name": "name", "type": "STRING", "mode": "REQUIRED"},
+     {"name": "post_abbr", "type": "STRING", "mode": "NULLABLE"}
+   ]
+   ```
+   Then:
+   ```bash
+   bq mk --table my_dataset.mytable schema.json
+   ```
+
+4. Run a Query:
+   ```bash
+   bq query --use_legacy_sql=false \
+   'SELECT name FROM `bigquery-public-data.usa_names.usa_1910_2013` \
+   WHERE state = "TX" LIMIT 10'
+   ```
+
+## Reference Directory
+
+- Core Concepts: Storage types, analytics workflows, and BigQuery Studio features.
+- CLI Usage: Essential `bq` command-line tool operations.
+- Client Libraries: Using Google Cloud client libraries for Python, Java, Node.js, and Go.
+- MCP Usage: Using the BigQuery remote MCP server and Gemini CLI extension.
+- Infrastructure as Code: Terraform examples for datasets, tables, and reservations.
+- IAM and Security: Roles, permissions, and data governance best practices.
+
+If you need product information not found in these references, use the Developer Knowledge MCP server `search_documents` tool.
+
+## Related Skills
+
+- BigQuery AI and ML Skill: see https://github.com/google/adk-python/tree/main/src/google/adk/tools/bigquery/skills/bigquery-ai-ml for the upstream companion skill covering `AI.CLASSIFY`, `AI.GENERATE`, `AI.FORECAST`, and friends.
+
+## Attribution
+
+This skill was imported from `google/skills` under the Apache-2.0 license. Original content authored by Google. Modifications by skillsgit: frontmatter normalization to fit marketplace spec; addition of attribution and sources sections; addition of `## When to use` and `## How to apply` stubs required by our validator. The original LICENSE and NOTICE files are preserved at the source repository.
+
+## Sources reviewed
+
+- https://github.com/google/skills/tree/main/skills/cloud/bigquery-basics (Apache-2.0)

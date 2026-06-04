@@ -1,0 +1,277 @@
+---
+id: skillsgit-curated/synthetic-data-augmentation-strategist
+version: 1.0.0
+name: Synthetic Data and Augmentation Strategist
+description: Decide when synthetic data and augmentation policies help a CV task — domain randomization, sim-to-real mitigation, augmentation choice, paired-validation discipline, hidden-imbalance traps.
+authors:
+  - name: skillsgit Curated
+    handle: skillsgit-curated
+    role: author
+category: robotics
+tags: [niche:cv-dataset-curation, synthetic-data, domain-randomization, sim-to-real, augmentation-policy, paired-validation, hidden-imbalance, generative-augmentation]
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6, gpt-4o, gpt-4.1, gemini-1.5-pro]
+  tools_required: []
+  tools_optional: [web_search, code_execution, file_io]
+  min_context_tokens: 32000
+  estimated_tokens_per_invocation: 8000
+trigger_keywords:
+  - synthetic data
+  - data augmentation
+  - domain randomization
+  - sim to real
+  - sim2real gap
+  - mixup
+  - cutmix
+  - copy paste augmentation
+  - random crop
+  - color jitter
+  - augmentation policy
+  - paired validation
+  - hidden class imbalance
+example_invocations:
+  - "Decide whether to invest in a 3D-rendered synthetic dataset for our pallet detector or to expand real-world collection."
+  - "Design the augmentation policy for our segmentation pipeline — mixup, cutmix, copy-paste — and the validation discipline that proves it helps."
+  - "Our model overfits to synthetic data. Diagnose the sim-to-real gap and produce a mitigation plan."
+inputs:
+  - name: task_and_baseline
+    type: text
+    required: true
+    description: Brief of the CV task, the current baseline model, current dataset composition (real vs synthetic), and the headline metric on a real holdout.
+  - name: real_holdout_cohort
+    type: text
+    required: false
+    description: Description of the real-data holdout used for validation — size, cohort breakdown, conditions covered, when it was frozen.
+  - name: synthetic_capability
+    type: text
+    required: false
+    description: Synthetic-data generation capability — 3D renderer, simulator, asset library, procedural pipeline, generative model — and the cost and fidelity profile of each.
+  - name: target_gap
+    type: text
+    required: false
+    description: The gap synthetic data or augmentation is meant to close — rare-condition coverage, class imbalance, demographic under-representation, viewpoint coverage, sensor variant.
+  - name: constraints
+    type: text
+    required: false
+    description: Constraints — compute, licensing of asset library, privacy regime preventing real collection, deadline.
+outputs:
+  - name: strategy_plan
+    type: markdown
+    description: Structured plan covering when synthetic helps, generation policy, augmentation policy, validation discipline, and hidden-imbalance audits.
+  - name: plan_json
+    type: json
+    description: Structured plan with `decision`, `generation_policy`, `augmentation_policy`, `sim_to_real_mitigation`, `paired_validation`, `imbalance_audits`, `stop_conditions`, `risk_register`.
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Initial release.
+---
+
+# Synthetic Data and Augmentation Strategist
+
+## When to use
+
+Use this skill when a team needs a written decision about *whether and how* to use synthetic data and image augmentations for a computer-vision task. The plan covers the up-front decision (does synthetic help, hurt, or do nothing for this task), the generation policy (how to render or simulate, what to randomise, what to keep fixed), the sim-to-real mitigation strategy (how to close the gap between the synthetic distribution and the deployed distribution), the augmentation policy on real data (random crop, color jitter, geometric transforms, mixup, cutmix, copy-paste, generative augmentations), the validation discipline that proves each addition is helping rather than hurting on a real holdout, and the audit programme that catches the failure modes synthetic data is famous for — hidden class imbalance, distribution shift in the synthetic-to-real direction, label leakage from synthetic into evaluation, and over-confidence on synthetic-style scenes.
+
+The skill is downstream of `cv-dataset-curation-architect` (which decides whether synthetic is even in scope) and runs alongside `active-learning-loop-designer` (which determines when synthetic is the right answer to a gap the loop has flagged). It is appropriate for any CV task: detection, segmentation, classification, keypoint, tracking, 3D detection from camera or LiDAR. Augmentation policies differ by task; the strategist's structure does not.
+
+**Mandatory safety disclaimer.** This skill produces methodology guidance. CV systems deployed to safety-critical contexts cause physical harm when they misperceive. Every recommendation must be validated in simulation, on representative real cohorts, and reviewed by qualified ML engineers before deployment.
+
+## Inputs
+
+| Input | Required | Purpose |
+| --- | --- | --- |
+| `task_and_baseline` | yes | Anchors the decision, the augmentation choice, and the validation discipline. |
+| `real_holdout_cohort` | no | Drives paired-validation; the holdout is the only honest measure of whether synthetic and augmentation help. |
+| `synthetic_capability` | no | Drives the generation-policy section and the cost-benefit analysis. |
+| `target_gap` | no | Drives the rare-condition focus and the per-cohort impact measurement. |
+| `constraints` | no | Caps the plan to realistic compute, licensing, privacy, and deadline. |
+
+## How to apply
+
+The skill walks a fifteen-stage pipeline. Early stages frame the decision and quantify the gap. Middle stages design the synthetic-generation policy, the sim-to-real mitigation, and the augmentation policy on real data. Late stages cover paired-validation, imbalance audits, stop conditions, and the deliverable.
+
+### Stage 1 — Frame the decision
+
+1. Restate the precise gap the user is trying to close: rare-condition coverage, class imbalance, demographic under-representation, viewpoint coverage, sensor variant, novel-environment generalisation, or pretraining-style scale.
+2. Decide *whether synthetic data is even a candidate*. Synthetic helps when (a) the gap is structured and parametric — viewpoint, lighting, pose, occlusion; (b) real collection of the gap is dangerous, illegal, or impossible — child-actor pedestrian scenarios, near-miss collisions, controlled-substance recognition; (c) the cost of a real-data sprint exceeds the cost of a generation pipeline. Synthetic hurts when (a) the gap is *texture-bound* and the generator cannot match the real texture; (b) the consumer is calibration-sensitive and synthetic skews confidence; (c) the team lacks the validation discipline to keep synthetic from contaminating evaluation.
+3. Decide *whether augmentation on real data is even a candidate*. Augmentation always has a role for moderate gains and regularisation; the question is which family and at what intensity. Some augmentations break specific tasks — strong color jitter on a colour-classification task, aggressive geometric transforms on a keypoint task, mixup on a fine-grained classifier.
+4. Set the *budget envelope*. Synthetic pipelines have a setup cost (asset library, renderer, randomisation logic, validation harness) and a marginal cost per image. The decision compares marginal value per labelled real image against marginal value per synthetic image, accounting for setup amortisation.
+
+### Stage 2 — Quantify the gap with a real holdout
+
+5. Confirm the real-data holdout exists and is frozen. If no real holdout is frozen, stop the strategy work and run the `cv-dataset-curation-architect` flow first; a strategy that cannot be validated against real data should not start.
+6. Stratify the real holdout by the cohorts that matter for the gap. Per-cohort metrics are the only honest measure of synthetic-or-augmentation lift; aggregate metrics hide cohort regressions.
+7. Compute *current performance* per cohort. The performance gap per cohort is the target the strategy is trying to close. A strategy that lifts the dominant cohort by one point and regresses a rare cohort by five points has not improved.
+
+### Stage 3 — Generation policy: what to render
+
+8. Enumerate the parameters that can be randomised in the generator: object pose (translation, rotation, scale), object identity (asset selection), inter-object configuration (spacing, occlusion, layering), camera pose (extrinsics), camera intrinsics (focal length, distortion), lighting (number, position, intensity, colour temperature, shadow softness), surface materials (albedo, roughness, normal, metalness), background scene, atmospheric effects (fog, haze, rain), sensor effects (noise, motion blur, exposure, rolling-shutter artefacts, lens flare, vignetting), and post-processing (compression, demosaicing).
+9. Distinguish *domain-randomisation* parameters (varied aggressively so the model treats the real-world appearance as one more random sample) from *domain-matching* parameters (held to a narrow distribution that matches the deployed sensor). The strategy is explicit about which is which. Aggressive randomisation across the board often produces models that work on no real distribution at all.
+10. For each parameter, define the randomisation range. Ranges should bracket the deployed envelope and exceed it slightly so the model is robust to deployed-distribution shift. Ranges that vastly exceed plausible deployment are wasted; they teach the model to handle situations it will never see.
+11. Plan *structured rare-condition emphasis*. Synthetic generation's biggest advantage is the ability to over-sample rare cases — child pedestrians, retro-reflective vests at night, ground glare on wet pavement, sensor occlusion patterns — to densities impossible to collect in the wild. The plan names these rare cases explicitly with target frame counts.
+12. Plan *asset diversity*. A renderer that uses three pedestrian models will overfit to those three models regardless of how aggressive the parameter randomisation is. Asset-level diversity is the single most important randomisation; texture-level diversity is the second.
+
+### Stage 4 — Generation policy: photoreal vs. domain-randomised
+
+13. Decide on the *fidelity philosophy*. Two strategies dominate: photoreal (try to match the real distribution as closely as possible) and domain-randomised (deliberately exceed the real distribution in many directions so the model treats real as a sample). Photoreal works better when the generator can plausibly match the real domain; domain-randomisation works better when matching is infeasible and aggressive variation produces a robust prior.
+14. Hybrid strategies are common: photoreal backgrounds with domain-randomised object placement, photoreal lighting with domain-randomised materials, etc. The plan picks per-parameter rather than per-pipeline.
+15. For sensor-specific tasks (LiDAR, polarisation, multi-spectral), the sensor model in the generator must be faithful to the deployed sensor's noise, dropout, and bias characteristics, or the synthetic data will teach the model to rely on synthetic-only signals that the real sensor does not produce.
+
+### Stage 5 — Sim-to-real gap mitigation
+
+16. Enumerate the four classes of sim-to-real gap: *appearance* (textures, lighting, post-processing), *content* (scenes, objects, scenarios), *behaviour* (motion patterns, agent dynamics), and *sensor* (noise, artefacts, geometry). The strategy addresses each separately.
+17. Appearance gap is closed by photorealistic rendering, by neural-style appearance transfer trained on real exemplars, by post-hoc image-to-image translation, or by domain randomisation that makes the appearance gap moot for the downstream task. The plan picks one and validates against the real holdout.
+18. Content gap is closed by asset-library expansion, by procedural scenario generation seeded from real recording metadata, and by pairing synthetic with real in every training batch so the model never sees an all-synthetic batch.
+19. Behaviour gap is closed for tasks where temporal correlation matters (tracking, prediction) by using simulator dynamics calibrated against real recordings, not by hand-set heuristics.
+20. Sensor gap is closed by an explicit sensor model — geometric calibration, noise injection matched to real sensor statistics, optical effects matched to the deployed lens, intrinsics matched per camera variant.
+21. Document the *known unclosed gap*. There will always be some residual sim-to-real gap; the plan names it, sets a tolerance for it on the real holdout, and notes which downstream consumers can tolerate it.
+
+### Stage 6 — Augmentation policy: geometric and photometric
+
+22. For most CV tasks, the default geometric augmentations are random crop, horizontal flip (if class-symmetric), small rotations, and aspect-ratio jitter within sensor-plausible bounds. Vertical flip is usually inappropriate (a flipped pedestrian is not a pedestrian); rotation beyond a few degrees is task-dependent.
+23. The default photometric augmentations are colour jitter (brightness, contrast, saturation, hue), Gaussian noise, blur, and JPEG-quality jitter. The intensity of each is bounded by the task: a sign-classifier under-tolerates hue shift; a generic detector tolerates more.
+24. For detection and segmentation, geometric transforms must update the label coordinates; the plan names the augmentation library used and verifies that label transforms are correct on a sanity-check slice. Silent label-misalignment from augmentation is a common, costly bug.
+25. Document the per-task *forbidden* augmentation list: transforms that would break the task's semantics or that the consumer requires the model to be sensitive to. The forbidden list is as important as the allowed list.
+
+### Stage 7 — Augmentation policy: sample-mixing
+
+26. Mixup blends two images and their labels in linear combination with a Beta-distributed weight. It is a regulariser that improves calibration and robustness; it can blur sharp class boundaries for fine-grained classification and is rarely appropriate for keypoint or pose tasks.
+27. CutMix replaces a rectangular region of one image with a region from another and mixes labels by area. It preserves local features more faithfully than mixup and is often preferred for detection-style tasks; the rectangle boundary is unrealistic, and the model can learn to ignore it.
+28. Copy-paste augmentation pastes instances from one image (with their masks) into another. For instance segmentation it is one of the strongest augmentation gains documented in the literature; for detection it is also strong. The pasted-object boundary requires either alpha compositing or careful mask-edge handling to avoid teaching the model to detect rectangle-shaped object outlines.
+29. Generative augmentation — diffusion-based or GAN-based content insertion — extends copy-paste to non-rectangular, semantically-plausible insertions. It is the highest-investment augmentation; the plan only recommends it when simpler augmentations have plateaued and a generative pipeline exists.
+30. Mosaic / four-image tiling is a strong augmentation for detection; it increases per-batch diversity and instance density but distorts scale statistics and is incompatible with fixed-receptive-field analyses.
+31. The plan picks a small augmentation stack — typically three to six transforms — and validates the stack as a unit on the real holdout. Augmentation-by-augmentation tuning over-fits the holdout; stack-level validation is the discipline.
+
+### Stage 8 — Synthetic-and-real mixing policy
+
+32. Decide the *mixing ratio* in the training batch. All-synthetic batches teach the model synthetic-specific shortcuts; all-real batches discard the synthetic budget. Mixed batches with a fixed real:synthetic ratio (commonly between one-to-one and four-to-one real:synthetic) are the default. The ratio is a hyperparameter validated by the paired-validation harness.
+33. Decide the *curriculum*. Synthetic-first then real-finetune is common; mixed-from-start is common; real-first then synthetic-augment is less common but useful when synthetic is added to a mature pipeline. The plan picks one and documents it.
+34. Decide the *evaluation policy*. Synthetic appears in training only; evaluation partitions are real-only unless an explicit synthetic-eval suite is reported separately. Mixing synthetic into the real eval inflates metrics that do not transfer to deployment.
+35. Decide the *loss-weighting policy*. Synthetic samples can be loss-down-weighted if their labels are less trustworthy or if the consumer wants real-data fit to dominate; equal weighting is the default unless the validation shows otherwise.
+
+### Stage 9 — Paired-validation discipline
+
+36. Pair every synthetic-or-augmentation change with an A/B comparison on the real holdout. Side A trains with the change, side B trains without it; both train with identical seeds, data orderings, schedules, and compute. The metric difference on the real holdout is the signal.
+37. Run the comparison with enough seeds (three to five minimum) to estimate noise. A change that lifts the metric by less than the seed-variance band on the real holdout is not lift; it is noise.
+38. Stratify the comparison by cohort. A change that lifts the dominant cohort by a point but regresses a rare cohort by three points should not be promoted without explicit acceptance by qualified ML engineers.
+39. Maintain a *paired-validation ledger* — every synthetic addition, every augmentation, every mixing-ratio change, with date, seeds used, cohort-stratified result, and decision. The ledger is the audit trail.
+40. Periodically *re-run* prior paired comparisons. As the model and the corpus evolve, an augmentation that helped at version one may hurt at version five. Stale promotion decisions become silent regressions.
+
+### Stage 10 — Hidden-imbalance traps
+
+41. Synthetic data is dangerously easy to over-generate in convenient directions. The plan audits the synthetic corpus for: class balance (the obvious one), pose balance (objects pasted in repeated orientations), lighting balance (rendered scenes clustered around a few lighting setups), background balance (asset libraries with few backgrounds), and inter-object configuration balance (objects always in the same spatial relationships).
+42. Even when each parameter is randomised, the *joint* distribution can be skewed — daytime pedestrians never wearing dark clothes, night-time scenes never with retro-reflective surfaces, child-sized actors always in pose categories that adults rarely take. The audit looks at joint distributions, not marginals.
+43. Synthetic-class boundaries can be artificially sharp — a generator that never produces ambiguous edge cases teaches the model that the class boundary is sharper than it is, and the model becomes over-confident at deployment.
+44. Augmentation policies can introduce hidden imbalances too. Heavy random-crop that always crops out object centres under-represents whole-object views; aggressive copy-paste with a small instance bank teaches the model the instance bank rather than the class.
+45. The audit produces a *coverage matrix* over the synthetic corpus mirroring the ODD matrix from the curation plan. Cells that the synthetic corpus over-fills are flagged; cells the synthetic corpus under-fills are flagged. Both bias the trained model.
+
+### Stage 11 — Failure-mode catalogue
+
+46. Catalogue the synthetic-related failure modes the strategy must prevent:
+    - **Synthetic-domain shortcut.** The model learns synthetic-specific texture or rendering artefacts and fails on real data. Detected by synthetic-only vs real-only paired evaluation.
+    - **Calibration drift.** Synthetic-heavy training inflates confidence on synthetic-like scenes; deployed confidence is misleading. Detected by reliability diagrams on the real holdout.
+    - **Label leakage from generator to evaluation.** A scene generated for training and a near-identical scene generated for evaluation share the same generator seed; the model has effectively seen the eval. Detected by seed-and-asset-hash auditing across partitions.
+    - **Asset-bank overfit.** The model learns the dozen pedestrian models in the asset bank, not the concept of pedestrian. Detected by per-asset performance audits and by deployment-time per-region performance.
+    - **Augmentation-induced label error.** Geometric transforms that did not propagate to keypoint labels, copy-paste that pasted across class boundaries, mixup applied to inappropriate tasks. Detected by sanity-check rendering of augmented batches and by label-validation passes.
+    - **Sensor-model overfit.** The sensor noise model in the simulator differs from the deployed sensor; the model learns to denoise the simulator's noise and fails on the real noise. Detected by paired evaluation on real sensor logs.
+47. For each failure mode, the plan names the detector, the mitigation, and the escalation path.
+
+### Stage 12 — Stop conditions and reset triggers
+
+48. The synthetic / augmentation strategy stops adding when one of: (a) marginal lift per added synthetic image or per added augmentation has fallen below threshold; (b) a paired comparison has shown no lift over two consecutive cycles; (c) hidden-imbalance audits flag a critical bias the generator cannot quickly fix.
+49. The strategy *resets* when one of: (a) the deployed sensor or platform changes such that the generator's sensor model is no longer faithful; (b) a major taxonomy revision invalidates prior synthetic labels; (c) a regression on the real holdout is traced to synthetic-induced shortcut learning.
+50. The strategy *retires* a synthetic source when it has done its job — the gap it was filling is now real-data covered, and continued use only risks bias.
+
+### Stage 13 — Cost and procurement
+
+51. Estimate generation cost per synthetic image and compare against the marginal cost of real labelled images. Synthetic dominates when real collection is dangerous, expensive, or impossible; real dominates when the generator's fidelity is inadequate.
+52. For licence-encumbered asset banks, document the licence per asset, the redistribution permission, and the commercial-use permission. Asset banks with non-commercial licences cannot back a product.
+53. For generative-model-based augmentation (diffusion or GAN), document the licence of the generative model, the licence of its training data (where known), and the risk that generated outputs reproduce protected content.
+54. Track the *all-in cost* of synthetic — pipeline engineering, asset-library curation, validation-harness maintenance, ongoing audits — not only the marginal render cost. Synthetic programmes that under-budget for ongoing maintenance silently rot.
+
+### Stage 14 — Risk register
+
+55. Enumerate strategy risks with owner, detector, mitigation:
+    - Hidden imbalance in the synthetic corpus that biases per-cohort performance.
+    - Sim-to-real gap that closes on the holdout but reopens on deployed distribution shift.
+    - Synthetic-to-eval contamination through shared assets or seeds.
+    - Augmentation-induced label error that goes undetected because batch visualisation is not part of the workflow.
+    - Generator-licence change that retroactively makes part of the corpus non-redistributable.
+    - Generator update that invalidates prior calibration of the sim-to-real harness.
+    - Stale augmentation policy that helps at version one and hurts at version five but was never re-validated.
+    - Over-investment in synthetic when the real bottleneck is labelling-quality on existing real data.
+56. For each risk, the plan names the detector (the audit, the dashboard, the paired comparison), the mitigation, and the escalation path.
+
+### Stage 15 — Compose the deliverable
+
+57. Open with the *decision*: synthetic-yes / synthetic-no / augmentation-only / both. State the gap being closed and the alternative (more real data, different model architecture, different label policy) the decision was made against.
+58. Render the plan as a markdown document covering generation policy, sim-to-real mitigation, augmentation policy, synthetic-and-real mixing, paired validation, hidden-imbalance audits, failure-mode catalogue, stop conditions, cost analysis, and risk register.
+59. Emit `plan_json` with structured fields: `decision`, `generation_policy` (parameters, ranges, fidelity philosophy, asset diversity), `augmentation_policy` (geometric, photometric, sample-mixing, forbidden list), `sim_to_real_mitigation` (per gap class), `paired_validation` (ledger schema, seed counts, cohort stratification), `imbalance_audits` (joint-distribution audit, coverage matrix), `stop_conditions` (when to stop adding, when to reset, when to retire), `risk_register`.
+60. Close with the mandatory safety disclaimer and a "what this plan does not cover" note that points the user at the `cv-dataset-curation-architect` for the underlying corpus and at the `annotation-quality-program-designer` for trust in the labels the synthetic plan augments.
+
+## Outputs
+
+The skill returns:
+
+1. `strategy_plan` (markdown) — full synthetic and augmentation strategy document.
+2. `plan_json` (JSON) — structured plan suitable for hand-off to data-engineering, modelling, and procurement.
+
+## Examples
+
+**Input (placeholder):**
+
+`task_and_baseline`: "Detection of fallen-person scenarios for an indoor service robot; baseline trained on 18k real frames; real-data collection of fallen-person scenes is impractical (consent, safety); current recall 0.78 on a 1.5k-frame fallen-person eval set."
+
+`real_holdout_cohort`: "1.5k real fallen-person frames stratified by lighting (bright, dim, mixed) and pose (prone, supine, side, partial-obstruction); frozen since last quarter."
+
+`synthetic_capability`: "In-house 3D rendering pipeline with a 12-character asset bank and one indoor-room template; can render ~20k frames per day; no neural style-transfer in place; sensor model approximates the deployed camera but is not calibrated."
+
+`target_gap`: "Fallen-person recall to 0.95 at precision 0.97; coverage of side-pose and partial-obstruction sub-cohorts is the weakest."
+
+`constraints`: "Six-week deadline; deployment to a single sensor variant; commercial use; no third-party asset purchases approved."
+
+**Plan (abbreviated):**
+
+- Decision: synthetic-yes (real-data collection of the gap is impractical) plus augmentation-yes on the real-data slice.
+- Generation policy: photoreal background with domain-randomised pose, lighting, and clothing; randomise camera pose around the deployed mount geometry; expand asset bank from 12 to ~40 characters via free-licence body-pose libraries; explicit emphasis on side-pose and partial-obstruction.
+- Sim-to-real mitigation: (a) appearance gap addressed by calibrating the renderer's tone curve and lens model against three real recordings; (b) content gap addressed by procedural room layouts seeded from real-floorplan metadata; (c) sensor gap addressed by an explicit noise model matched to real-camera dark-frame statistics; (d) known unclosed gap on natural-clothing wrinkles disclosed.
+- Augmentation policy on real: random crop (sensor-plausible bounds), horizontal flip, mild colour jitter, Gaussian noise; copy-paste of fallen-person instances onto non-fallen-person frames with mask alpha-feather; mosaic disabled (distorts pose-scale statistics); mixup disabled (blurs class boundary for a binary safety classifier).
+- Mixing ratio: 1 real : 2 synthetic per batch; real-first warmup of one epoch, then mixed; eval is real-only.
+- Paired validation: every change run with five seeds, cohort-stratified, ledgered. Three pairs planned: synthetic-on vs off; copy-paste-on vs off; calibrated-sensor vs default-sensor.
+- Hidden-imbalance audit: clothing colour balance, pose-and-lighting joint distribution, character-asset balance per cohort; audit re-run weekly during the six-week sprint.
+- Failure-mode preventive controls: asset-hash audit between training and eval partitions; reliability-diagram check on the real holdout each model version; per-asset performance reporting to catch asset-bank overfit; sanity-check rendering of every augmentation pipeline change.
+- Stop conditions: pause adding synthetic once side-pose and partial-obstruction sub-cohort recall reach target on the real holdout for two consecutive evals; reset if the sensor mount geometry changes.
+- Cost: setup ~6 engineer-weeks (asset bank expansion + sensor calibration), marginal render cost ~$0.002/image, validation-harness maintenance ~0.5 FTE ongoing.
+- Risk register: synthetic-shortcut on rendered-skin texture (detector: real-vs-synth confidence gap, mitigation: aggressive material randomisation); calibration drift (detector: reliability diagram, mitigation: temperature scaling at finetune); asset-bank overfit (detector: per-asset eval, mitigation: continue asset expansion); generator-license drift (detector: quarterly audit, mitigation: in-house assets only).
+
+**Output excerpt:** the markdown plan plus a JSON object whose `decision` records the chosen strategy with rationale, whose `generation_policy` enumerates the randomised parameters and their ranges, whose `augmentation_policy` lists the stack and the forbidden transforms with reasons, whose `paired_validation` describes the seed counts and cohort stratification, and whose `imbalance_audits` defines the joint-distribution checks and the coverage matrix.
+
+## Limitations
+
+- The skill plans the strategy; it does not generate synthetic data, train models, or run paired validations. It is the contract between data-engineering, simulation, and modelling.
+- The decision about whether synthetic helps is task-dependent and ultimately empirical. The plan recommends a default and a fallback; pilot paired-validations are required to confirm. The fidelity-philosophy choice (photoreal vs domain-randomised) is rarely settled by argument; it is settled by the real holdout.
+- The plan assumes a frozen real holdout exists. Without one, no synthetic or augmentation claim can be validated and the strategy cannot start.
+- Asset-bank expansion is typically the highest-leverage and most-underestimated investment in a synthetic programme. The plan flags this but cannot procure assets.
+- Generative-model-based augmentation (diffusion, GAN) raises content-licence and provenance issues beyond the scope of this plan; legal review is required before use in commercial models.
+- Sim-to-real gap mitigation is heuristic. A residual gap is expected; the plan names it but cannot guarantee it stays small under deployed-distribution shift.
+- For safety-critical deployments, no synthetic-trained model should be promoted without explicit qualified-ML-engineer review of the per-cohort paired-validation results, the calibration audit, and the hidden-imbalance audit.
+- For very small teams without simulation engineering capacity, the synthetic-yes branch may exceed budget; the plan flags this and the augmentation-only branch is the conservative default.
+- The plan defers corpus design and label-trust to companion skills; it presumes both are in good order.
+
+## Sources reviewed
+
+- https://github.com/Unity-Technologies/com.unity.perception (Apache-2.0)
+- https://github.com/NVIDIA-Omniverse/synthetic-data-examples (Apache-2.0)
+- https://github.com/NVIDIA-AI-IOT/synthetic_data_generation_training_workflow (Apache-2.0)
+- https://github.com/google-research/kubric (Apache-2.0)
+- https://github.com/albumentations-team/albumentations (MIT)
+- https://github.com/clovaai/CutMix-PyTorch (MIT)
+- https://github.com/conradry/copy-paste-aug (MIT)
+- https://github.com/RocketFlash/CAP_augmentation (MIT)
+- https://github.com/JasonZhang156/awesome-mixed-sample-data-augmentation (MIT)

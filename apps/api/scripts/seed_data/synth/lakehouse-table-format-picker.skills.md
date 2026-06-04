@@ -1,0 +1,200 @@
+---
+id: skillsgit-curated/lakehouse-table-format-picker
+version: 1.0.0
+name: Lakehouse Table Format Picker
+description: Choose between Apache Iceberg, Delta Lake, and Apache Hudi for a lakehouse workload based on write pattern, engines, schema evolution, and catalog needs.
+authors:
+  - name: Wave-3 Data Synth
+    handle: wave3-data
+    role: author
+category: data
+tags:
+  - niche:lakehouse-architecture
+  - iceberg
+  - delta-lake
+  - hudi
+  - table-formats
+  - catalog
+  - acid
+license_type: free
+ai:
+  required_models:
+    - claude-opus-4-7
+    - claude-sonnet-4-6
+  compatible_models:
+    - gpt-4o
+  min_context_tokens: 32000
+  estimated_tokens_per_invocation: 6500
+trigger_keywords:
+  - iceberg
+  - delta lake
+  - hudi
+  - lakehouse
+  - table format
+  - acid lake
+  - parquet table
+  - data lakehouse choice
+example_invocations:
+  - "Should we use Iceberg or Delta for our new analytics lakehouse?"
+  - "We have heavy upserts from CDC into Parquet — Hudi vs Iceberg?"
+  - "We need to read from Trino and Spark — which open table format?"
+  - "Pick a table format: hourly batch ingest, S3, multi-engine reads."
+inputs:
+  - name: workload_profile
+    type: text
+    required: true
+    description: Write pattern (append, CDC, upsert), volume, frequency, latency target.
+  - name: query_engines
+    type: text
+    required: true
+    description: Engines that will read or write (Spark, Trino, Flink, Snowflake, DuckDB, etc.).
+  - name: catalog_environment
+    type: text
+    required: false
+    description: Existing catalog (Hive Metastore, Glue, Unity, Polaris, REST, Nessie) or "none".
+  - name: retention_requirements
+    type: text
+    required: false
+    description: Time travel, GDPR delete SLAs, snapshot retention, branching needs.
+outputs:
+  - name: recommendation
+    type: markdown
+    description: A ranked recommendation with rationale, runner-up, and migration warnings.
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Initial release.
+---
+
+# Lakehouse Table Format Picker
+
+## When to use
+
+Use this skill when a team is starting (or migrating) a lakehouse on object storage and must pick **one** of the three production-ready open table formats: **Apache Iceberg**, **Delta Lake**, or **Apache Hudi**. All three give you ACID transactions, schema evolution, and time travel on Parquet — but they make different tradeoffs that matter once you scale. The choice is hard to reverse cheaply.
+
+Trigger on phrases like:
+
+- "Iceberg vs Delta vs Hudi"
+- "open table format" / "lakehouse format"
+- "ACID on S3 / GCS / ADLS / MinIO"
+- "we need upserts on Parquet"
+- "we're on Hive — what's next?"
+
+Do **not** trigger when the user has already chosen a format and is asking implementation questions — route to the format-specific architect skills instead.
+
+## How to apply
+
+Walk the user through six axes in order. Do **not** answer until you have at least the first three.
+
+### 1. Capture the write pattern
+
+Ask: how does data arrive?
+
+- **Append-only** (event logs, clickstream, IoT, append-batches): all three formats handle this well; Iceberg and Delta are cleaner.
+- **Periodic batch overwrites** (daily full snapshots, dimensional refreshes): Iceberg and Delta excel; Hudi over-engineered.
+- **CDC / upserts / late-arriving data** (Debezium, Kafka Connect to lake, MERGE INTO patterns): Hudi was purpose-built for this. Delta does it well. Iceberg added equality deletes and row-level operations and is now competitive; check engine support.
+- **High-frequency streaming sinks** (per-minute or sub-minute commits): Hudi (MOR) and Delta have strongest stories; Iceberg streaming is improving fast (Flink + REST catalog).
+- **Mostly read, rare writes** (curated marts): any format works; pick on read ecosystem, not writes.
+
+### 2. Enumerate the query engines
+
+This is usually the deciding axis.
+
+- **Spark-centric, Databricks customer**: default to **Delta Lake**. Delta is native; Unity Catalog, Photon, OPTIMIZE/ZORDER, Liquid Clustering all assume Delta. Using Iceberg on Databricks is possible (UniForm) but second-class.
+- **Trino / Presto-centric, multi-engine BYO compute**: default to **Iceberg**. Trino's Iceberg connector is the most mature open lakehouse path; AWS, Snowflake, BigQuery, Dremio, ClickHouse all read Iceberg natively or via UniForm.
+- **Flink-heavy streaming pipelines with upserts**: **Hudi** or **Iceberg**. Hudi has the most mature Flink writer for MOR; Iceberg's Flink sink is solid for append + equality deletes.
+- **Snowflake / BigQuery / Redshift as primary consumer**: **Iceberg** is the lingua franca — Snowflake Iceberg tables, BigLake, Redshift external Iceberg. Delta works via UniForm but adds a sync step. Hudi external reads are weakest here.
+- **Polyglot (Spark + Trino + Flink + DuckDB)**: **Iceberg** has the broadest read coverage; Delta is catching up with UniForm Iceberg view.
+
+Always ask: which engine **writes** and which engines **read**? Writer choice is more locked-in than reader choice.
+
+### 3. Identify the catalog
+
+Catalog choice constrains format choice.
+
+- **Hive Metastore / Glue Data Catalog (legacy)**: all three formats support these, but you lose features (Iceberg can't safely do schema/partition evolution under HMS without table-level lock); migrate to a modern catalog first.
+- **Unity Catalog**: Delta-native; Iceberg via UniForm read-only. Pick Delta.
+- **AWS Glue + REST**: Iceberg-friendly.
+- **Polaris / Nessie / Lakekeeper / Tabular-style REST**: Iceberg-native; offer branching (Nessie) and RBAC (Polaris).
+- **No catalog, just object store paths**: Delta supports this best (Delta is "self-describing" via `_delta_log`); Iceberg can use the file-system catalog but is awkward without a real catalog; Hudi has its own timeline metadata in `.hoodie/`.
+
+### 4. Schema and partition evolution needs
+
+- **Frequent partition strategy changes** (you'll change `day` to `hour` later, or add a new partition column without rewriting): **Iceberg wins** — hidden partitioning and partition evolution are unique. Delta uses Liquid Clustering as an answer; Hudi requires rewrite.
+- **Schema changes are rare and append-only**: all three are equivalent.
+- **Need column renames without rewrites**: Iceberg supports rename via column ID; Delta supports column mapping mode; Hudi requires care.
+- **Need branching / tagging of table state for ML experiments or "what-if" backfills**: Iceberg + Nessie is the clearest path; Delta has no first-class branching.
+
+### 5. Retention, deletes, and GDPR
+
+- **Hard delete SLAs (e.g., GDPR 30-day right-to-erasure)**: all three support row-level deletes, but verify the **compaction/vacuum cadence**. Delta `VACUUM` removes stale files past retention; Iceberg `expire_snapshots` + `remove_orphan_files`; Hudi `clean` policies. Document the worst-case lag between delete and physical removal.
+- **Long time-travel windows (e.g., 90-day point-in-time queries)**: increases storage cost; budget for it. All three support it; Iceberg snapshot retention is the most surgical.
+- **Audit / regulatory replay**: Iceberg snapshots with tags give the cleanest immutable history.
+
+### 6. Operational maturity in your team
+
+- Who will run **compaction**? Delta has `OPTIMIZE` (manual or Auto Optimize on Databricks); Iceberg needs you to schedule rewrites (Spark procedures or service like Tabular/AWS Glue auto-compaction); Hudi has inline + async compaction modes for MOR tables.
+- Who will manage **metadata bloat**? All three accumulate manifest/log files; without housekeeping, list operations slow down.
+- Who debugs **small-file problems**? Hudi has the most knobs (and the most footguns); Delta is most automatic; Iceberg is middle.
+
+### Decision shortcut (use only after walking the axes)
+
+| Primary signal                          | Lean toward |
+| --------------------------------------- | ----------- |
+| Databricks / Spark-first / Unity        | Delta Lake  |
+| Trino / Snowflake / multi-engine reads  | Iceberg     |
+| Heavy CDC / upserts, Flink writer       | Hudi        |
+| Need partition evolution or branching   | Iceberg     |
+| Want fewest knobs, batch-only           | Delta Lake  |
+| Need lowest-latency streaming upserts   | Hudi (MOR)  |
+
+If two formats tie, prefer the one whose **community is most active in your primary engine's ecosystem** — that's where bug fixes will land first.
+
+## Inputs
+
+- **workload_profile** (required): describe write cadence, average + peak ingest rate, update vs append ratio, freshness target (minutes/hours/days), retention window.
+- **query_engines** (required): list every engine that will touch the table, marking each as Reader, Writer, or Both. Note managed vs self-hosted.
+- **catalog_environment** (optional): current catalog and any constraints (security, RBAC, lineage tools).
+- **retention_requirements** (optional): GDPR, SOX, time-travel SLA, snapshot retention budget.
+
+## Outputs
+
+A markdown recommendation with this shape:
+
+1. **Recommendation** — one format, one sentence.
+2. **Why** — three bullets tied directly to the user's stated workload, engines, and catalog.
+3. **Runner-up** — the format you'd pick if axis X changed; name the axis.
+4. **Avoid** — the format that's the worst fit and why, in one sentence.
+5. **Setup checklist** — five concrete first steps (catalog choice, write engine, compaction owner, retention config, monitoring).
+6. **Migration risks** — what's painful if they later change their mind.
+
+## Examples
+
+> "We have 200 GB/day of Kafka events, write from Flink, read from Trino and Snowflake, want sub-5-minute freshness, no upserts."
+
+Recommendation: **Iceberg** with a REST catalog (Polaris or Nessie). Flink Iceberg sink handles streaming appends; Trino reads natively; Snowflake reads via external Iceberg tables. Runner-up: Hudi (only if you grow into heavy upserts). Avoid Delta — Snowflake read story requires UniForm sync and adds operational drag.
+
+> "We're on Databricks, ingest 50 GB/day via Spark Structured Streaming with frequent MERGE INTO for slowly-changing dimensions, read mostly from Databricks SQL."
+
+Recommendation: **Delta Lake**. Native to Databricks; Liquid Clustering removes partition-tuning toil; MERGE INTO is the original Delta use case. Runner-up: Iceberg if the team plans to leave Databricks within 18 months. Avoid Hudi — Databricks does not first-class support it.
+
+> "Uber-style use case: Kafka CDC of mutable transactions, need sub-minute freshness, downstream Spark and Flink consumers."
+
+Recommendation: **Hudi MOR**. The MOR table type was designed precisely for this. Configure inline writes + async compaction. Runner-up: Iceberg if you can tolerate 5-minute freshness instead of 1-minute. Avoid Delta — outside Databricks the operational tooling is thinner for this pattern.
+
+## Limitations
+
+- This skill assumes the user has already decided to go open table format. If they're choosing between "Parquet + Hive" vs "lakehouse", redirect first.
+- The skill does **not** cover proprietary formats (Snowflake native, BigQuery native) — those are not lakehouse choices.
+- Recommendations assume current (2026) connector maturity; re-check before locking in.
+- The skill does not size compute or estimate cloud bills.
+- For sub-second OLAP latency, no lakehouse format wins — point to ClickHouse / Druid / Pinot instead.
+
+## Sources
+
+- https://github.com/apache/iceberg
+- https://github.com/delta-io/delta
+- https://github.com/apache/hudi
+- https://iceberg.apache.org/docs/latest/partitioning/
+- https://hudi.apache.org/docs/concepts/
+- https://github.com/trinodb/trino

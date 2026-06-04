@@ -1,0 +1,99 @@
+%% Full capture pipeline — sequence from creator typing in the UI to a
+%% published memory_neuron skill. Source: apps/api/src/capture/.
+%% Two paths shown for the LLM step: SKG_CAPTURE_LLM_STUB (test/CI) runs
+%% in-process; production goes through the Arq worker.
+
+sequenceDiagram
+    autonumber
+    actor Creator
+    participant UI as web-creator UI (deferred /capture/[id])
+    participant R as capture/router.py
+    participant S as capture/service.py
+    participant Q as capture/quota.py (Redis)
+    participant LLM as capture/llm.py
+    participant Stub as tests/stubs/llm.py
+    participant Anthropic as Anthropic API
+    participant Arq as Arq worker (capture/jobs.py)
+    participant PII as capture/pii.py
+    participant DB as Postgres
+    participant Audit as core.write_audit
+
+    Note over Stub: enabled when SKG_CAPTURE_LLM_STUB=1
+    Note over Anthropic: model = claude-sonnet-4-7
+
+    %% 1. Create session
+    Creator->>UI: type Title + Situation + Decision + Outcome + Context
+    UI->>R: POST /v1/capture/sessions {persona_id, title, situation_md, ...}
+    R->>S: service.create_session(creator, payload)
+    S->>DB: SELECT persona, parent occupation (ownership + kind=PERSONA checks)
+    S->>DB: INSERT capture_sessions (status=DRAFT)
+    S->>Audit: capture_session.created
+    R->>UI: 201 Created — Location /v1/capture/sessions/{id}
+
+    %% 2. Enqueue extract
+    Creator->>UI: click "Generate draft"
+    UI->>R: POST /v1/capture/sessions/{id}/extract
+    R->>S: service.enqueue_extract(creator, session_id)
+
+    alt SKG_CAPTURE_LLM_STUB=1 (tests / CI)
+        S->>S: run_extract synchronously
+        S->>Q: quota.reserve(creator.id)
+        Note over Q: INCR capture:quota:{creator}:{YYYY-MM} — EXPIRE 32 days — fail returns 429
+        S->>DB: status=EXTRACTING
+        S->>LLM: extract_draft(payload)
+        LLM->>Stub: client.extract(payload)
+        Stub-->>LLM: CaptureExtractResult (deterministic)
+        LLM-->>S: draft_md, suggested_links, llm_model, token_usage
+        S->>PII: pii.scan(draft_md)
+        PII-->>S: list[PIIFinding]
+        S->>DB: UPDATE capture_sessions (draft_md, suggested_links_json, pii_flags_json, llm_model, token_usage_json, status=DRAFT_READY)
+        S->>Audit: capture_session.extracted
+        R->>UI: 202 Accepted — JobAccepted{job_id, status=completed}
+    else Production (real LLM)
+        S->>Arq: enqueue_job("extract_neuron", session_id)
+        R->>UI: 202 Accepted — JobAccepted{job_id, status=queued}
+        Note over UI,Arq: UI now polls GET /v1/capture/sessions/{id} until status=DRAFT_READY (or error)
+        Arq->>S: run_extract(creator, session_id, consume_quota=False)
+        Note over Arq,S: Quota already reserved by enqueue path. Job sets consume_quota=False to avoid double-charging on Arq retries.
+        S->>DB: status=EXTRACTING
+        S->>LLM: extract_draft(payload)
+        LLM->>Anthropic: messages.create(model=claude-sonnet-4-7, system, user prompt)
+        Anthropic-->>LLM: JSON {frontmatter, body_sections, suggested_links} + usage
+        LLM-->>S: CaptureExtractResult
+        S->>PII: pii.scan(draft_md)
+        PII-->>S: list[PIIFinding]
+        S->>DB: UPDATE row (same as stub path)
+        S->>Audit: capture_session.extracted
+    end
+
+    %% 3. Failure path: LLM parse fails
+    Note over S,LLM: On llm.LLMExtractError — S calls quota.refund(creator), writes status=DRAFT_READY + draft_md=None, raises capture.extract_parse_error (502).
+
+    %% 4. Review + edit loop
+    UI->>R: GET /v1/capture/sessions/{id} (poll until status=DRAFT_READY)
+    R-->>UI: CaptureSessionRead (draft_md, suggested_links, pii_flags)
+    Creator->>UI: review draft, accept / reject suggested links, redact PII flags
+    UI->>R: PATCH /v1/capture/sessions/{id} (draft_md, pii_flags, links)
+    R->>S: service.update_session(patch)
+    S->>DB: UPDATE row (status unchanged)
+    S->>Audit: capture_session.updated
+
+    %% 5. Finalize
+    Creator->>UI: click "Publish into persona"
+    UI->>R: POST /v1/capture/sessions/{id}/finalize {neuron_slug, neuron_version, section, links_accept}
+    R->>S: service.finalize_session(payload)
+    Note over S: See capture-finalize-transaction.mmd for the per-step atomic detail.
+    S->>DB: BEGIN savepoint
+    S->>PII: pii.scan(draft_md) — hard-block re-check
+    S->>S: validate_file(draft_md)
+    S->>DB: SELECT 1 from skills WHERE creator_id, slug — collision?
+    S->>DB: INSERT skills (kind=memory_neuron, status=DRAFT)
+    S->>DB: INSERT skill_versions (1.0.0, content_hash)
+    S->>S: storage.put_object s3://skills/{id}/{ver}/{hash}.md
+    S->>DB: INSERT persona_neurons (sort_order=max+1, section)
+    S->>DB: copy attachments to permanent prefix (s3 server-side — best-effort)
+    S->>DB: UPDATE capture_sessions (status=FINALIZED, finalized_at, finalized_neuron_skill_id)
+    S->>Audit: capture_session.finalized — skill.created — persona.neuron_added
+    S->>DB: COMMIT savepoint
+    R-->>UI: 201 Created — NeuronCreated{neuron_skill_id, neuron_version, vault_path_hint}
+    UI-->>Creator: redirect to /personas/{id}/neurons (deferred Cycle 2 route)

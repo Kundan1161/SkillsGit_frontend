@@ -1,0 +1,147 @@
+---
+id: jane-devops-demo/2024-11-cost-spike-egress-debug
+version: 1.0.0
+name: 2024-11 Cost spike — $4.2k/day egress from a forgotten cross-region backup
+description: "[sample data] AWS bill jumped 38% in 9 days; root cause was a Lambda that retried cross-region S3 GetObject calls in a loop after a typo in a destination bucket name."
+authors:
+  - name: Jane Devops (sample)
+    handle: jane-devops-demo
+    role: author
+category: personas
+tags:
+  - sample-data
+  - cost
+  - aws
+  - egress
+  - finops
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models:
+    - claude-opus-4-7
+trigger_keywords:
+  - cost spike
+  - egress
+  - AWS bill
+  - data transfer charges
+example_invocations:
+  - "Our AWS data-transfer line item just jumped 30%. Where do I look first?"
+kind: memory_neuron
+parent_occupation_id: skillsgit-curated/ai-devops-engineer
+links:
+  - target: base/cloud-cost-audit
+    relation: applies
+  - target: base/cloud-cost-alert-designer
+    relation: extends
+  - target: base/kubernetes-cost-optimizer
+    relation: see-also
+neuron:
+  situation: |
+    Weekly cost report flagged that the platform-team AWS sub-account's
+    Data Transfer line had risen 38% over 9 days while infrastructure
+    headcount stayed flat. The Cost Explorer breakdown pointed at
+    us-west-2 -> us-east-1 cross-region transfer specifically. No
+    architectural change had shipped in 2 weeks.
+  decision: |
+    Pulled VPC Flow Logs for the spike window into Athena, narrowed
+    by destination region and bytes-transferred per source ENI. Found
+    a single Lambda ENI accounted for 92% of the cross-region traffic
+    — a nightly backup Lambda that had silently been failing then
+    retrying. Inspecting the function logs revealed a typo in the
+    destination bucket name introduced in a PR 11 days earlier.
+  outcome: |
+    Fixed the bucket name (15-line PR, 90 seconds to ship). Cross-region
+    egress returned to baseline within 6 hours as the in-flight retry
+    queue drained. Total wasted spend: $38,400 across the 9 days plus
+    a $4,200 cap day. Added a CloudWatch alarm on
+    sum(bytes_transferred) per Lambda function ARN over 24h with a
+    threshold derived from the prior 14-day median + 3 sigma.
+  recorded_at: "2024-11-12"
+  confidence: 0.95
+---
+
+# 2024-11 Cost spike — $4.2k/day egress from a forgotten cross-region backup
+
+> SAMPLE DATA — this neuron is part of the seeded `@jane-devops-demo`
+> persona shipped alongside the Cycle-1 demo. Real persona neurons are
+> published by named DevOps practitioners and replace this content.
+
+## When to use
+Use this neuron when a sudden cost spike shows up in a specific line
+item — especially Data Transfer or NAT Gateway — without a matching
+architectural change. The investigation pattern is: top-level cost
+explorer to identify the line item, VPC Flow Logs to identify the
+source workload, function/pod logs to identify the failure mode. The
+same shape applies to GCP/Azure with their flow-log equivalents.
+
+## How to apply
+1. In Cost Explorer, narrow to the affected service + usage type
+   and confirm the trajectory is sustained (not a one-day blip).
+2. Spin up an Athena (or BigQuery / Log Analytics) table over the
+   flow-log bucket. Group by source ENI/IP, destination region/AZ,
+   and bytes-transferred for the spike window.
+3. Map the top-bytes ENI back to the workload (Lambda function
+   ARN, EC2 instance, EKS pod). Pull the workload's logs for the
+   spike window and look for retry loops, missing-resource errors,
+   or new code paths.
+4. Fix the bug. Then add a per-resource cost alarm keyed on rolling
+   median + sigma so the same shape gets caught on day 1 next time.
+
+## What happened
+Friday morning cost-review ritual flagged the spike. The platform
+sub-account's Data Transfer line had jumped from a 7-day median of
+~$1,100/day to a 3-day median of $4,200/day. Compute and storage
+were flat. The Cost Explorer "Service: Data Transfer / Usage Type:
+DataTransfer-Regional-Bytes" chart showed it was specifically
+us-west-2 -> us-east-1 traffic that had grown, where prior weeks had
+been roughly symmetric east-west and west-east.
+
+Two cheap hypotheses ruled out fast: nothing had been migrated
+cross-region in the past 30 days, and no S3 cross-region replication
+rules had been edited in the past 14.
+
+To find the actual source we needed Flow Logs. Spun up an Athena
+table over the flow-log bucket, restricted to the spike window
+(Nov 4 onward), grouped by source ENI and destination region. One
+ENI accounted for 92% of the cross-region bytes. ENI lookup mapped
+it to the platform team's nightly-backup Lambda's hyperplane ENI.
+
+CloudWatch logs for that Lambda over the spike window: every
+invocation was retrying an S3 PutObject in a `while True` loop with
+no max-attempts. The logs showed `NoSuchBucket: The specified bucket
+does not exist`. PR-grep for the bucket-name change found a
+typo-introducing PR 11 days earlier — someone had renamed
+`platform-backups-east` to `platofrm-backups-east` (the L and O
+swapped) and the unit tests had mocked the S3 client.
+
+Restoring the bucket name was a 15-line PR. Cross-region egress
+returned to baseline over the next 6 hours as the in-flight retry
+queue drained. Total cost of the bug: $38,400 in egress fees that
+billed cleanly to our AWS bill with no refund possible.
+
+Two follow-ups:
+- Added a CloudWatch metric alarm on `sum(bytes_transferred)` per
+  Lambda function ARN over a 24h window with a threshold of
+  (14-day rolling median + 3 sigma). Costs an extra $11/month for
+  the alarms; would have caught this on day 1 instead of day 9.
+- Added a lint rule to our terraform-modules linter that flags any
+  S3 bucket-name string literal in a Lambda environment variable
+  unless it's read from SSM with a defined fallback. Catches the
+  typo class without forcing every team to use SSM.
+
+## Lessons
+- A bare `while True` retry loop with no cap and no exponential
+  backoff is a financial accelerant when it talks across regions.
+  Any cross-region call deserves a `max_attempts` and a circuit
+  breaker, not just a backoff.
+- Mocking the S3 client in unit tests papered over a real string
+  typo that integration tests would have caught. The taxonomy
+  matters: unit tests should mock; integration tests should not.
+- VPC Flow Logs + Athena is the right cost-debug primitive for AWS.
+  Don't skip the cheap query because the bill is large; the cheap
+  query is what tells you which workload to look at.
+- Cost alerts keyed on rolling-median+sigma per-resource catch this
+  class of bug on day 1. Tag-based or account-level alerts are too
+  coarse — a single resource going rogue gets averaged out.

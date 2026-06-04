@@ -1,0 +1,138 @@
+<mxfile host="app.diagrams.net" agent="skillsgit-arch" version="24.7.17" type="device">
+  <diagram name="docker-compose-stack" id="skg-docker-stack">
+    <mxGraphModel dx="2400" dy="1600" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2800" pageHeight="2200" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <mxCell id="title" value="Local development stack — infra/docker-compose.yml&#10;Three apps (apps/api, apps/web-marketplace, apps/web-creator) run on the host (not in containers) and dial the dockerised services via published host ports" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=none;fontSize=16;fontStyle=1;align=left;" vertex="1" parent="1">
+          <mxGeometry x="40" y="20" width="2700" height="60" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== Host-side apps ===== -->
+        <mxCell id="g-host" value="Host-side apps (uv run / pnpm dev)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0EA5E9;strokeColor=#0369A1;fontColor=#FFFFFF;verticalAlign=top;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="100" width="2720" height="240" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-API" value="API: apps/api (FastAPI)&#10;port 8000&#10;uv run uvicorn src.main:app" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#0369A1;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="60" y="140" width="660" height="180" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-MKT" value="MKT: apps/web-marketplace (Next.js)&#10;port 3000&#10;pnpm --filter @skillsgit/web-marketplace dev" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#0369A1;" vertex="1" parent="1">
+          <mxGeometry x="740" y="140" width="660" height="180" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-CRE" value="CRE: apps/web-creator (Next.js)&#10;port 3001&#10;pnpm --filter @skillsgit/web-creator dev" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#0369A1;" vertex="1" parent="1">
+          <mxGeometry x="1420" y="140" width="660" height="180" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-ARQ" value="ARQ: apps/api Arq worker&#10;uv run arq capture.jobs.WorkerSettings&#10;(separate process, same .env)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#0369A1;" vertex="1" parent="1">
+          <mxGeometry x="2100" y="140" width="660" height="180" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== Docker network ===== -->
+        <mxCell id="g-net" value="docker network: skillsgit (bridge driver)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;verticalAlign=top;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="380" width="2720" height="1240" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== Postgres ===== -->
+        <mxCell id="g-pg" value="postgres — image postgres:16-alpine" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;verticalAlign=top;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="60" y="430" width="1320" height="560" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-PG1" value="PG1: container: skillsgit-postgres&#10;restart: unless-stopped" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="80" y="470" width="620" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-PG2" value="PG2: host 5433 to container 5432&#10;(remapped to avoid colliding&#10;with locally-installed Postgres)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="720" y="470" width="640" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-PG3" value="PG3: env:&#10;POSTGRES_USER=skillsgit&#10;POSTGRES_PASSWORD=skillsgit&#10;POSTGRES_DB=skillsgit" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="80" y="580" width="620" height="140" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-PG4" value="PG4: volume: pgdata to /var/lib/postgresql/data" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="720" y="580" width="640" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-PG5" value="PG5: healthcheck: pg_isready&#10;(5s interval, 10 retries)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="80" y="740" width="1280" height="100" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== Redis ===== -->
+        <mxCell id="g-rd" value="redis — image redis:7-alpine" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;verticalAlign=top;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1400" y="430" width="1340" height="560" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-RD1" value="RD1: container: skillsgit-redis&#10;restart: unless-stopped" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="1420" y="470" width="640" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-RD2" value="RD2: host 6379 to container 6379" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="2080" y="470" width="640" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-RD3" value="RD3: healthcheck: redis-cli ping&#10;(5s interval, 10 retries)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="1420" y="580" width="1300" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-RD4" value="RD4: No volume — ephemeral by design.&#10;Used for capture quota counters, compose cache, billing idempotency,&#10;auth lockout counters and JWT denylist, Arq job queue." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="1420" y="690" width="1300" height="160" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== MinIO ===== -->
+        <mxCell id="g-mn" value="minio — image minio/minio" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;verticalAlign=top;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="60" y="1020" width="1320" height="560" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-MN1" value="MN1: container: skillsgit-minio&#10;restart: unless-stopped" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="80" y="1060" width="620" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-MN2" value="MN2: host 9000 to S3 API&#10;host 9001 to web console" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="720" y="1060" width="640" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-MN3" value="MN3: env:&#10;MINIO_ROOT_USER=skillsgit&#10;MINIO_ROOT_PASSWORD=skillsgit" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="80" y="1170" width="620" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-MN4" value="MN4: volume: miniodata to /data" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="720" y="1170" width="640" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-MN5" value="MN5: healthcheck: GET /minio/health/live&#10;(10s interval)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="80" y="1310" width="620" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-MN6" value="MN6: Bucket auto-created at startup&#10;via S3Storage.ensure_bucket&#10;(no manual bucket setup required)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="720" y="1310" width="640" height="100" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== Mailhog ===== -->
+        <mxCell id="g-mh" value="mailhog — image mailhog/mailhog" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;verticalAlign=top;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1400" y="1020" width="1340" height="560" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-MH1" value="MH1: container: skillsgit-mailhog&#10;restart: unless-stopped" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="1420" y="1060" width="1300" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-MH2" value="MH2: host 1025 to SMTP&#10;host 8025 to web UI" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1420" y="1170" width="1300" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-MH3" value="MH3: Captures all outbound email in dev&#10;(verification, password reset, etc.)&#10;— no real delivery." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="1420" y="1300" width="1300" height="160" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== Top-level docker-compose ===== -->
+        <mxCell id="g-tl" value="docker-compose top-level" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;verticalAlign=top;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="1660" width="2720" height="280" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-TL1" value="TL1: name: skillsgit" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="60" y="1700" width="880" height="220" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-TL2" value="TL2: volumes:&#10;  pgdata: (named)&#10;  miniodata: (named)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="960" y="1700" width="880" height="220" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-TL3" value="TL3: networks:&#10;  skillsgit:&#10;    name: skillsgit&#10;    driver: bridge" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="1860" y="1700" width="880" height="220" as="geometry"/>
+        </mxCell>
+
+        <!-- Edges - host → containers -->
+        <mxCell id="e-api-pg" value="DATABASE_URL: postgresql+asyncpg://skillsgit:skillsgit@localhost:5433" style="endArrow=classic;html=1;dashed=1;" edge="1" parent="1" source="n-API" target="n-PG2"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-api-rd" value="REDIS_URL: redis://localhost:6379/0" style="endArrow=classic;html=1;dashed=1;" edge="1" parent="1" source="n-API" target="n-RD2"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-api-mn" value="S3_ENDPOINT: http://localhost:9000" style="endArrow=classic;html=1;dashed=1;" edge="1" parent="1" source="n-API" target="n-MN2"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-api-mh" value="SMTP_HOST: localhost:1025" style="endArrow=classic;html=1;dashed=1;" edge="1" parent="1" source="n-API" target="n-MH2"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <mxCell id="e-arq-pg" value="shares all 4 services via same .env" style="endArrow=classic;html=1;dashed=1;" edge="1" parent="1" source="n-ARQ" target="n-PG2"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-arq-rd" value="capture.jobs worker" style="endArrow=classic;html=1;dashed=1;" edge="1" parent="1" source="n-ARQ" target="n-RD2"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-arq-mn" value="vault.jobs worker" style="endArrow=classic;html=1;dashed=1;" edge="1" parent="1" source="n-ARQ" target="n-MN2"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <mxCell id="e-mkt-api" value="NEXT_PUBLIC_API_URL: http://localhost:8000" style="endArrow=classic;html=1;dashed=1;" edge="1" parent="1" source="n-MKT" target="n-API"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-cre-api" value="NEXT_PUBLIC_API_URL: http://localhost:8000" style="endArrow=classic;html=1;dashed=1;" edge="1" parent="1" source="n-CRE" target="n-API"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

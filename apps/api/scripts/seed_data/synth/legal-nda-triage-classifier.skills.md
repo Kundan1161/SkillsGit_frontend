@@ -1,0 +1,213 @@
+---
+id: skillsgit-curated/legal-nda-triage-classifier
+version: 1.0.0
+name: NDA Triage Classifier
+description: Classify an inbound NDA as GREEN (sign as-is under standard authority), YELLOW (counsel review for named clauses), or RED (full legal review) with clause-by-clause findings.
+authors:
+  - name: skillsgit Curated
+    handle: skillsgit-curated
+    role: author
+category: legal
+tags: [niche:contract-review, nda, triage, classification, confidentiality, intake, in-house]
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6, claude-haiku-4-5, gpt-4o]
+  tools_required: []
+  tools_optional: [file_io]
+  min_context_tokens: 32000
+  estimated_tokens_per_invocation: 6000
+trigger_keywords:
+  - triage this nda
+  - classify this nda
+  - can i sign this nda
+  - nda review
+  - confidentiality agreement check
+  - mutual nda screen
+  - one-way nda screen
+  - nda intake
+  - is this nda standard
+  - nda red flags
+  - nda green light
+  - non-disclosure agreement triage
+example_invocations:
+  - "Triage this inbound mutual NDA from a prospect; is it GREEN, YELLOW, or RED?"
+  - "Run this one-way NDA against our standard intake checklist and flag any deviations."
+  - "Tell me whether I can sign this NDA under standard delegation or whether it needs counsel."
+inputs:
+  - name: nda_text
+    type: text
+    required: true
+    description: The full text of the inbound NDA, including any cover page, exhibits, and signature blocks. PDFs should be extracted to plain text first.
+  - name: party_role
+    type: choice
+    required: true
+    description: Which side the user is on. Drives asymmetry analysis (an obligation that looks fair both ways may not be, given who actually shares more information in the relationship).
+    choices: [disclosing_party, receiving_party, mutual_equal_flow, unknown]
+  - name: business_purpose
+    type: text
+    required: false
+    description: One to three sentences describing why the NDA exists (e.g. "evaluate a potential acquisition," "vendor diligence," "discuss a partnership"). Used to sanity-check scope and term length.
+  - name: in_house_playbook
+    type: text
+    required: false
+    description: Markdown or plain-text summary of the user's organization's standard NDA positions (jurisdiction, term, definitions, carve-outs). If omitted, the skill applies a generic balanced baseline and flags this as a degraded analysis.
+  - name: signing_authority_threshold
+    type: choice
+    required: false
+    description: How much risk the signer can absorb without counsel review. Defaults to "standard."
+    choices: [restricted, standard, broad_delegation]
+outputs:
+  - name: triage_report
+    type: markdown
+    description: Human-readable summary with the overall GREEN/YELLOW/RED verdict, the load-bearing reasons, a clause-by-clause table, and recommended next steps.
+  - name: triage_json
+    type: json
+    description: Machine-readable fields for routing into a CLM or intake queue — verdict, clause_findings, recommended_action, escalation_signals, confidence, requires_counsel.
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Initial release.
+---
+
+# NDA Triage Classifier
+
+## When to use
+
+**Important non-legal-advice notice.** This skill produces a structured first-pass screen for an in-house legal-operations workflow. It is not a substitute for advice from a qualified attorney admitted in the relevant jurisdiction. The output is a triage signal, not a legal opinion. Treat every "GREEN" verdict as "safe to route through standard intake," never as "guaranteed safe to sign." A signature decision on an NDA — like any contract — should rest with a human who has both the legal training and the commercial context to take responsibility for it. If anything in the output reads as advice, read it again as a worklist for the human reviewer.
+
+Invoke this skill when an NDA lands in front of a legal-ops coordinator, paralegal, contracts manager, or a non-lawyer business owner who has standing authority to execute routine confidentiality agreements but needs a defensible filter before signing. Typical entry points: a sales rep forwards a prospect's mutual NDA before discovery; a procurement coordinator receives a one-way NDA from a vendor before a pilot; a partnerships lead receives a CDA before exploratory talks; an M&A analyst receives an NDA tied to a teaser. The skill is meant to bend the curve on a clogged intake queue by reliably surfacing the small fraction of NDAs that actually deserve a lawyer's hour.
+
+Do not use this skill for: NDAs attached to employment relationships (the asymmetry, fiduciary overtones, and statutory regulation of non-compete creep make these qualitatively different — route to employment counsel); NDAs that double as substantive transaction documents (a "letter agreement" that is really a term sheet in disguise); NDAs with embedded non-solicit, non-compete, or IP-assignment clauses that move the document outside the confidentiality-only band; and any NDA tied to a regulated industry intake (HIPAA, defense, financial services) where statutory hooks alter the baseline.
+
+The skill is also not appropriate as the only check before a signature on a high-stakes matter — exploratory talks with a competitor, an acquisition or financing diligence, a board-level relationship. The verdict should be treated as a routing signal that pulls a human reviewer in the loop, not as a green light.
+
+## How to apply
+
+Treat NDA triage as a structured screen with a small number of load-bearing decisions. Most NDAs are short enough that the agent can read them end-to-end before assigning a verdict — and that linear reading is the entire methodology. The steps below tell the agent what to look for and how to weight findings, not how to skim.
+
+1. **Read the document end-to-end before classifying anything.** NDAs are short on average but consequential clauses hide in odd places — a non-solicit can be tucked into the "miscellaneous" section, an indemnity can show up in "remedies," a governing-law surprise can be in the last paragraph. Skim once for shape, then read carefully for substance. If the document is longer than ten pages, that itself is a YELLOW signal — a routine NDA does not need ten pages.
+
+2. **Identify the document type.** Confirm it is in fact an NDA. Cover sheets sometimes attach a "Mutual NDA" label to a Master Services Agreement or a Letter of Intent. If the document contains substantive non-confidentiality commitments (payment, services, IP assignment beyond residuals, exclusivity, non-compete), it is not a triageable NDA — return RED with reason `not_actually_an_nda` and route to full review.
+
+3. **Identify mutuality.** A mutual NDA imposes confidentiality obligations symmetrically; a one-way NDA imposes them only on the receiving party. Cross-reference the operative language against the cover sheet — drafts mislabeled as "mutual" while drafting only the counterparty's protections happen often enough to be worth checking. If `party_role` was given, factor it: a one-way NDA where the user is the disclosing party is a fundamentally different exposure than the same document where the user is the receiving party.
+
+4. **Examine the definition of Confidential Information.** This is the single highest-leverage clause. Look for:
+   - **Markings requirements.** Does information have to be marked "Confidential" or labelled in writing within a fixed window to qualify? If yes, that materially shrinks the universe of protected information — a YELLOW flag for a disclosing party, often a GREEN factor for a receiving party.
+   - **Scope language.** "Any information" / "all information" with no marking requirement is the broadest possible definition — protective for the disclosing party, hazardous for the receiving party because residuals and inadvertent retention become risky.
+   - **Oral disclosures.** Are oral disclosures included? Are they conditioned on a written summary follow-up?
+   - **Explicit category lists.** "Including but not limited to source code, financials, customer lists, pricing" — appropriate for the relationship?
+
+5. **Examine the carve-outs (exclusions from Confidential Information).** A standard NDA excludes information that: was already public; becomes public through no breach by the receiving party; was already in the receiving party's possession; was independently developed; was lawfully obtained from a third party. Missing any of these is a YELLOW flag. Aggressively narrow carve-outs (e.g., omitting independent development, or requiring the receiving party to prove independent development "by clear and convincing evidence") are a RED flag for any technology company.
+
+6. **Examine the permitted disclosures clause.** Must the receiving party notify the disclosing party of a compelled disclosure (subpoena, regulatory demand)? Is there a "to the extent legally permissible" qualifier? Is there a cooperation obligation with cost-shifting language? These should be present and reasonable; absent or punitive versions of these are a YELLOW flag.
+
+7. **Examine the term.** Two questions: (a) how long does the agreement itself last (the "term") and (b) how long does the confidentiality obligation survive (the "survival period"). Standard ranges: agreement term of one to three years; survival period of two to five years for ordinary commercial information; perpetual survival for trade secrets specifically. Perpetual survival for *all* confidential information is a YELLOW flag — it is unusual outside specific contexts and creates an enduring exposure.
+
+8. **Examine the governing law and venue.** A familiar jurisdiction (the user's home state, a neutral Delaware / New York / California depending on industry norm) is GREEN. An unfamiliar foreign jurisdiction is YELLOW. A jurisdiction with no rational nexus to either party (e.g., a Texas-based vendor demanding Singapore law) is RED. Mandatory arbitration in a distant venue is a YELLOW flag for a small-counterparty user because it can chill enforcement entirely.
+
+9. **Hunt for non-NDA clauses that crept in.** This is the most common quality problem with inbound NDAs. Scan specifically for:
+   - **Non-solicit / no-hire language.** A clause prohibiting hiring the counterparty's employees, often with a 12–24 month tail. Even a "no general solicitation" carve-out can be drafted to prohibit hires that happen through general recruiting. Always YELLOW; often RED depending on the user's hiring posture.
+   - **Non-compete / exclusivity creep.** A clause prohibiting the receiving party from pursuing similar business opportunities, even ones developed independently. Always RED in an NDA context.
+   - **IP assignment.** A clause that purports to assign anything the receiving party develops involving the confidential information back to the disclosing party. RED for any vendor or evaluator; a real IP allocation belongs in a substantive agreement, not an NDA.
+   - **Indemnification.** Inbound indemnities in an NDA are unusual and usually overreaching. Always at least YELLOW.
+   - **Liquidated damages.** Pre-set damages amounts ("breach shall result in damages of $X") are rare in NDAs and often unenforceable, but they signal an aggressive counterparty. YELLOW.
+   - **Injunctive relief language.** Acknowledgment that breach causes irreparable harm and the disclosing party may seek injunctive relief is standard and GREEN. A waiver of the bond requirement is mildly aggressive but common — note but do not necessarily flag.
+
+10. **Apply the verdict ladder.** Combine findings into one of three verdicts:
+    - **GREEN** — every clause is within standard ranges; no non-NDA terms crept in; mutuality and asymmetry match the business posture; jurisdiction is sane. Recommendation: sign under standing delegation, log to CLM, return to requester.
+    - **YELLOW** — one or more clauses deviate from standard but the deviation is contained and named (e.g., a non-solicit was added, or the term is perpetual, or governing law is unfamiliar). Recommendation: counsel review *of the named clauses*, not a full re-draft. The agent's job is to scope the lawyer's work, not expand it.
+    - **RED** — the document is structurally off (not actually an NDA, missing core protections, contains assignment or non-compete creep, hostile jurisdiction with no nexus, indemnification or liquidated damages). Recommendation: full legal review; consider sending the user's standard form as the starting point instead of negotiating from this draft.
+
+11. **Calibrate to signing authority and party role.** If `signing_authority_threshold` is `restricted`, escalate YELLOW to RED and GREEN to YELLOW — a restricted-authority signer should over-rotate to caution. If `broad_delegation`, the agent can resolve mild ambiguity toward GREEN, but never bypass RED triggers. If `party_role` is `disclosing_party`, weight narrow carve-outs and short survival periods as YELLOW; if `receiving_party`, weight broad definitions and perpetual survival as YELLOW.
+
+12. **Score confidence.** A float between 0.0 and 1.0 with a one-line reason. Confidence below 0.7 should suggest a human spot-check even on a GREEN verdict. Documents that are unclear (badly OCR'd, machine-translated, written in a hybrid English) deserve low confidence regardless of verdict — flag explicitly.
+
+13. **Draft the recommended next step.** Three to six lines, plain English, addressed to the requester. Examples: "GREEN. Standard mutual NDA from $VENDOR; safe to sign under your delegation. Logged as record-only." Or: "YELLOW. Two issues — a 24-month non-solicit was added in §7, and governing law is Delaware (you usually require California). Recommend redlining both; I can draft the markup on request."
+
+14. **Self-check before returning.** Verify that the verdict aligns with the clause findings (a GREEN verdict should have zero RED-flag findings and at most one mild YELLOW). Verify that the recommended action matches the verdict (do not recommend "sign under standing delegation" on a YELLOW). Verify that the JSON `requires_counsel` boolean matches the verdict band (true for YELLOW or RED, false for GREEN).
+
+15. **When the document is genuinely off-the-shelf and obviously fine, say so plainly.** The output should not manufacture concerns to look thorough. A clean mutual NDA at standard terms is a GREEN with a one-paragraph rationale, full stop.
+
+## Inputs
+
+- `nda_text` (required, text) — full extracted text. Strip headers/footers and pagination noise; preserve clause numbering and structure.
+- `party_role` (required, choice) — see options above. Critical for asymmetry analysis.
+- `business_purpose` (optional, text) — short statement. Used to sanity-check whether the term and the definition scope make sense for the relationship.
+- `in_house_playbook` (optional, text) — the user's organization's standard NDA positions. If omitted, the skill applies a balanced commercial baseline and surfaces a `playbook_missing` flag.
+- `signing_authority_threshold` (optional, choice) — calibration knob for the verdict ladder.
+
+## Outputs
+
+- `triage_report` (markdown) — verdict in the first line; one-paragraph rationale; clause-by-clause findings table with columns (clause, finding, severity, suggested edit if YELLOW/RED); recommended next step.
+- `triage_json` (JSON) — `verdict` (GREEN/YELLOW/RED), `clause_findings` (array of {clause, finding, severity}), `recommended_action`, `requires_counsel` (bool), `escalation_signals` (array of strings, e.g. `non-solicit-creep`, `ip-assignment`, `foreign-jurisdiction`), `confidence` (float), `confidence_reason`, `party_role`, `mutuality`, `term_years`, `survival_years`, `governing_law`, `playbook_missing` (bool).
+
+## Examples
+
+### Example 1 — clean mutual NDA from a prospect
+
+**Input nda_text (excerpt):** A four-page mutual NDA labelled "Mutual Confidentiality Agreement." Definition of Confidential Information is broad but requires written marking within 30 days for oral disclosures. Standard five-element carve-out set is present. Term is two years, survival three years. Governing law: Delaware. No non-solicit, no IP, no indemnity.
+
+**Input party_role:** `mutual_equal_flow`
+
+**Output triage_report (excerpt):**
+
+> **Verdict: GREEN.** Standard mutual NDA, suitable for signature under standard delegation.
+>
+> The definition of Confidential Information is broad but conditioned on a 30-day written-confirmation requirement for oral disclosures, which is reasonable. All five standard carve-outs are present. Term two years, survival three — within range. Delaware governing law is conventional. No non-solicit, no IP assignment, no indemnity, no liquidated damages.
+>
+> Recommended next step: sign and log. No human reviewer required.
+
+### Example 2 — one-way NDA with a non-solicit smuggled in
+
+**Input nda_text (excerpt):** A six-page one-way NDA where the user (a vendor) is the receiving party. Section 8 reads "For a period of 24 months following the term, Receiving Party shall not, directly or indirectly, solicit for employment any employee of Disclosing Party with whom Receiving Party had material contact under this Agreement."
+
+**Input party_role:** `receiving_party`
+
+**Output triage_report (excerpt):**
+
+> **Verdict: YELLOW.** One identified deviation requires counsel review before signature.
+>
+> Section 8 contains a 24-month employee non-solicit. Non-solicits are not confidentiality terms; they belong in a substantive employment or services agreement, not in an NDA. The "material contact" carve-out narrows the prohibition but does not cure the categorical issue.
+>
+> Other clauses: definition of Confidential Information is acceptable, carve-outs are complete, term and survival are standard, governing law is California. No other deviations.
+>
+> Recommended next step: route to counsel for a single-issue review of §8. Suggested redline: strike §8 in its entirety, or — if the counterparty will not budge — narrow to 12 months and limit "solicit" to direct, individualized recruiting (excluding general advertising and inbound applications).
+
+### Example 3 — NDA that is actually a one-way assignment
+
+**Input nda_text (excerpt):** A document titled "Confidentiality and Materials Agreement." Contains a definition of Confidential Information, but also includes "Receiving Party hereby assigns to Disclosing Party all right, title, and interest in any modifications, derivatives, or improvements developed using or relating to the Confidential Information."
+
+**Input party_role:** `receiving_party`
+
+**Output triage_report (excerpt):**
+
+> **Verdict: RED.** This document is not a triageable NDA.
+>
+> §4 includes an IP assignment clause that purports to transfer ownership of any modifications, derivatives, or improvements developed using the Confidential Information back to the Disclosing Party. This is a substantive IP commitment, not a confidentiality term, and an NDA is the wrong instrument for it. Signing as drafted would expose any independently developed work that "relates to" disclosed information.
+>
+> Recommended next step: do not sign as drafted. Send the user's organization's standard mutual NDA as the counter-template. If a substantive IP allocation is needed for the relationship, it belongs in a separate evaluation agreement with appropriate consideration and scope.
+
+## Limitations
+
+- **Not legal advice.** Every output is a structured screen, not an opinion. The verdict is meant to route the document to the right next reviewer (standing delegation, counsel-named-clauses, or full review). Final signature authority rests with a human who can take responsibility.
+- **Jurisdiction-blind by default.** Without a playbook input, the agent does not know whether the user's organization prefers Delaware versus California versus a non-US jurisdiction, or whether the user's industry has special regulatory hooks (HIPAA, financial services, defense, life sciences). Output may be confidently wrong on jurisdiction-specific points if no playbook is provided.
+- **No statutory analysis.** The agent does not perform statutory analysis (e.g., whether a particular non-compete clause is enforceable under a given state's law, or whether trade-secret survival aligns with the relevant state's adoption of the Uniform Trade Secrets Act). It flags the presence of such clauses; a lawyer must judge enforceability.
+- **No counterparty diligence.** The agent does not analyze the counterparty's reputation, sanctions exposure, or known patterns of NDA misuse. A counterparty with a history of using NDAs to gain extraction leverage is still a hazard even on a textually clean draft.
+- **Translation-fragile.** A machine-translated NDA may lose nuance in carve-outs or governing-law phrasing. If the document was translated, the agent should flag `translation_uncertainty` and reduce confidence accordingly.
+- **Edge cases drift toward RED.** When the methodology is uncertain, the verdict ladder is biased toward escalation. This is intentional — a false-positive escalation costs a lawyer fifteen minutes; a false-negative GREEN can cost a relationship or a trade secret. Tune the calibration only with explicit user direction.
+- **Does not handle attachments or exhibits.** If the NDA references exhibits, schedules, or incorporated documents (e.g., "Permitted Sub-Processors per Exhibit A"), those are not analyzed here. Run the relevant exhibit through its own appropriate review skill.
+
+## Sources reviewed
+
+The methodology synthesized here is informed by reviewing public, permissively-licensed legal-tooling and contract-workflow repositories on GitHub, and by reference to industry-standard contract frameworks. No clause text, drafting language, or documentation was reproduced; the references are for transparency. **Note on source thinness:** open-source legal templates are unusually sparse on GitHub under MIT/Apache/Unlicense terms — most well-known industry templates (Common Paper, Bonterms, Y Combinator SAFE) are released under Creative Commons licenses (CC BY 4.0 or CC BY-ND 4.0) and were therefore excluded from primary methodology sourcing. The methodology below leans on MIT-licensed *workflow and tooling* repositories that describe contract-review pipelines and clause taxonomies, plus statutory references via official government URLs.
+
+- https://github.com/open-agreements/open-agreements
+- https://github.com/Open-Source-Legal/OpenContracts
+- https://github.com/Ro5s/Startup-Starter-Pack
+- https://github.com/accordproject/template-archive
+- https://github.com/ankane/awesome-legal
+- https://github.com/tollwerk/data-processing-agreements

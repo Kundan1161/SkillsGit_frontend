@@ -1,0 +1,278 @@
+---
+id: skillsgit-curated/lora-and-finetune-methodology
+version: 1.0.0
+name: LoRA and Fine-Tune Methodology
+description: Plan LoRA, textual-inversion, IP-Adapter, and full-fine-tune projects for diffusion models — dataset prep, captioning, rank and alpha, learning-rate schedule, overfit detection, validation, and stacking pitfalls.
+authors:
+  - name: skillsgit Curated
+    handle: skillsgit-curated
+    role: author
+category: creative
+tags: [niche:ai-image-generation, lora-training, dreambooth, textual-inversion, ip-adapter, dataset-curation, rank-alpha, overfit-detection]
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6, gpt-4o, gpt-4.1, gemini-1.5-pro]
+  tools_required: []
+  tools_optional: [web_search, file_io]
+  min_context_tokens: 32000
+  estimated_tokens_per_invocation: 7500
+trigger_keywords:
+  - lora training
+  - dreambooth
+  - textual inversion
+  - ip-adapter
+  - fine-tune diffusion
+  - dataset captioning
+  - rank alpha lora
+  - learning rate schedule diffusion
+  - lora overfit
+  - lora stacking
+  - style lora
+  - subject lora
+example_invocations:
+  - "Plan a style LoRA on SDXL from 80 illustrations I have rights to — captioning, rank, schedule, validation."
+  - "Train a subject LoRA on a product line; we have 200 photos and want to control identity but not style."
+  - "Decide between a LoRA, textual inversion, IP-Adapter, or full fine-tune for our brand look."
+inputs:
+  - name: target
+    type: text
+    required: true
+    description: What is being learned — a style, a subject (person, object), a concept, or a domain. Include the consumer of the artifact and the inference platform.
+  - name: dataset_state
+    type: text
+    required: false
+    description: How many images, their rights status, their quality, their consistency, any captions, and any obvious imbalances.
+  - name: base_model_and_budget
+    type: text
+    required: false
+    description: Base model family, hardware, time budget, and any constraint on the artifact size or inference cost.
+  - name: prior_attempts
+    type: text
+    required: false
+    description: Earlier training runs and their symptoms — overfit, underfit, style bleed, identity collapse, prompt-token leakage.
+outputs:
+  - name: training_plan
+    type: markdown
+    description: Plan covering method selection, dataset prep, captioning, hyperparameters, schedule, validation harness, overfit detection, and rollout.
+  - name: plan_json
+    type: json
+    description: Structured plan with `method`, `dataset`, `captioning`, `hyperparams`, `schedule`, `validation`, `overfit_guards`, `stacking_policy`, `risk_notes`.
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Initial release.
+---
+
+# LoRA and Fine-Tune Methodology
+
+## When to use
+
+Use this skill when a contributor needs to teach a diffusion model something the base model does not reliably produce — a specific style, a specific subject (a person, a product, a character), a specific concept, or a specific domain — and they need a plan rather than an ad-hoc run. The plan covers the method-selection decision (LoRA, textual inversion, IP-Adapter, hypernetwork, full fine-tune / Dreambooth), the dataset preparation (curation, deduping, balancing, resolution, masking), the captioning discipline (token choice, caption density, anti-association tokens), the hyperparameter envelope (rank, alpha, learning rate, optimiser, schedule, batch, accumulation), the validation harness (held-out prompts, sweep grid, regression cohort), the overfit-detection signals, the stacking pitfalls when multiple LoRAs are combined at inference, and the rollout policy.
+
+The skill is downstream of `ai-image-prompt-designer` (which determines how the trained artifact is invoked) and parallel to `controlnet-conditioning-architect` (which controls structure that fine-tunes do not control). It is appropriate for SD 1.5, SDXL, SD 3.x, and Flux-class base models; the structural advice is shared, with model-specific hyperparameter defaults called out.
+
+**Mandatory safety disclaimer.** This skill produces methodology guidance for diffusion-based image generation. The skill does not address the copyright status of training data or generated outputs in any jurisdiction; consult counsel for commercial use. The skill does not produce or recommend NSFW, defamatory, infringing, or person-impersonating content; usage must respect platform policy and applicable law.
+
+## Inputs
+
+| Input | Required | Purpose |
+| --- | --- | --- |
+| `target` | yes | Decides the method, captioning discipline, and validation harness. |
+| `dataset_state` | no | Decides curation steps, rank ceiling, and whether prep is the bottleneck. |
+| `base_model_and_budget` | no | Picks default hyperparameters and validates feasibility. |
+| `prior_attempts` | no | Targets overfit-detection and remediation. |
+
+## How to apply
+
+The skill walks a fourteen-stage pipeline. Early stages choose the method. Middle stages prepare the dataset, write captions, set hyperparameters, plan the schedule, and design validation. Late stages handle overfit guards, stacking, rollout, and the deliverable.
+
+### Stage 1 — Choose the right method
+
+1. From `target` distinguish the four canonical method tiers:
+   - *Textual inversion.* Learns a new embedding for an existing token. Small artifact (kilobytes). Captures a concept or a tight style well. Does not teach the model new structural knowledge.
+   - *LoRA / LoCon / LoHa / LoKr (low-rank adaptations).* Adds low-rank matrices to attention (and optionally convolution) layers. Mid-sized artifact (tens to hundreds of MB). Captures style, subject, concept; the workhorse choice.
+   - *IP-Adapter.* Uses an external image as a prompt — conditions on the encoded reference image at inference. No training of the base model. The right tool when the contributor has a reference image at inference time and wants a per-image style or identity transfer rather than a learned look.
+   - *Full fine-tune / Dreambooth.* Updates the base model weights (or a subset). Largest artifact, highest training cost, deepest learning. Use only when LoRA-style adaptations leave residual gaps and the contributor can pay for retraining and storage.
+2. Decision logic:
+   - One concept, no need for structural change -> textual inversion.
+   - Style or subject the LoRA-rank can express, finite training budget -> LoRA.
+   - Inference-time reference instead of trained look -> IP-Adapter.
+   - Deep brand identity, dozens of related concepts, very high fidelity needed, training budget available -> full fine-tune.
+3. Cost and storage favour LoRA. Most contributor needs sit in the LoRA tier; the plan defaults there and escalates only with justification.
+4. Combinability matters. LoRAs stack at inference; full fine-tunes do not stack with other full fine-tunes; textual inversions stack freely and cheaply; IP-Adapter stacks with LoRAs but adds its own bias.
+
+### Stage 2 — Confirm rights and provenance
+
+5. Every image must have a documented rights basis — owned by the contributor, licensed for derivative training, public-domain, or covered by a written model release. The plan refuses to proceed on "found on the internet" datasets.
+6. For *subject* training (a person), explicit consent is mandatory. The plan refuses any subject training for non-public figures without a written release, and refuses public-figure subject training without a strong, time-limited platform allowance.
+7. For *style* training, the plan strongly recommends licensed corpora or first-party data; copying a living artist's published style is both a legal and an ethical risk and is out of scope for this skill.
+8. Document the rights chain per image. Store the chain alongside the dataset. Audit before training.
+
+### Stage 3 — Curate the dataset
+
+9. *Size.* Style LoRAs converge with 30-150 images. Subject LoRAs converge with 15-60 images. Concept LoRAs converge with 20-80. Full fine-tunes need thousands to tens of thousands. More is not always better; a small, consistent dataset beats a large, noisy one.
+10. *Consistency.* Decide what consistency means for the target. Style consistency means coherent lighting, palette, line treatment, era. Subject consistency means same identity, varied pose, lighting, expression, distance. Concept consistency means the concept present in every image but not crowded with distractor concepts.
+11. *Variation within consistency.* For subject LoRAs, the dataset must vary lighting, angle, expression, and crop while holding identity. A subject LoRA trained only on three-quarter portraits will only produce three-quarter portraits.
+12. *Deduplication.* Remove near-duplicates. Repeated near-identical images overweight that pose or moment and pull the LoRA toward it.
+13. *Quality floor.* Remove blurry, mis-exposed, low-resolution, or otherwise low-signal images. The artifact will overfit defects as readily as features.
+14. *Resolution.* Match the dataset to the base model's training resolution. SD 1.5 trains at 512 short edge; SDXL at 1024; SD 3.x and Flux-class at higher. Downsizing is fine; upscaling low-resolution sources adds artefacts that the artifact will memorise.
+15. *Aspect bucketing.* Most trainers support multi-aspect buckets. Diverse aspect ratios in the dataset is fine if the trainer buckets correctly; mixing without bucketing degrades training.
+16. *Background and crop.* For subject training, mix tight crops (face) with environmental shots (full body in context). For style training, do not over-crop; style lives partly in composition.
+
+### Stage 4 — Captioning discipline
+
+17. Captioning is the second-largest lever after dataset selection. Captioning teaches the model what to *attribute* to the new token and what to attribute to existing tokens.
+18. Choose a *trigger token* — a short, unusual string that does not collide with the model's vocabulary. Avoid common English words; favour unusual tokens or invented short strings.
+19. *For subject LoRAs.* Caption "a photo of <trigger> <class> doing <action> in <environment>, <attribute>, <attribute>." Always include the class (man, woman, person, cat, kettle) so the model knows what class the identity attaches to. Describe everything that is *not* the subject (clothes, environment, lighting, pose). The model will learn to attribute the described things to those tokens and the un-described things (identity, structure of the face) to the trigger.
+20. *For style LoRAs.* Caption "in the style of <trigger>, <description of the scene>." Describe the scene (subject, action, environment, lighting). The model will learn that the trigger token controls style independent of the described content.
+21. *Anti-association.* Do not include captions that name the artist or franchise the style is associated with. This both pollutes the trigger with prior associations and increases legal risk.
+22. *Caption density.* Style LoRAs respond well to short captions (10-20 tokens); subject LoRAs respond well to medium captions (15-40 tokens). Over-captioning splits the trigger's attention and produces weaker LoRAs.
+23. *Caption variation.* Vary the captions across the dataset; identical captions across many images discourage generalisation.
+24. *Automated vs hand-captioning.* Auto-captioning (BLIP-2, CogVLM, LLaVA, joycaption) is acceptable as a starting point; hand-review fixes hallucinated objects and corrects category errors. For style LoRAs, hand-captioning often beats auto-captioning.
+25. *Regularisation set.* For subject training, prepare a regularisation set of generic class images ("photo of a man," "photo of a kettle") that the base model already produces well. Training on the regularisation set in parallel preserves the class while specialising the trigger. Skipping the regularisation set is a common cause of "the LoRA forgot what a man is."
+
+### Stage 5 — Choose rank, alpha, and network targets
+
+26. *Rank.* The dimensionality of the low-rank update. Style LoRAs often work at rank 8-32; subject LoRAs at rank 16-64; concept LoRAs at rank 8-32. Higher rank captures more but increases artifact size and overfit risk.
+27. *Alpha.* The scaling factor for the LoRA. Common pattern: alpha = rank gives a unit scale; alpha = rank/2 dampens; alpha = rank*2 emphasises. Start at alpha = rank or alpha = rank/2 for stability.
+28. *Network targets.* By default, attention layers (cross-attention especially). LoCon extends to convolutional layers; helpful for style LoRAs where texture matters. LoHa/LoKr factorise differently and are more compact for the same expressive power; useful for SDXL with VRAM constraint.
+29. *Text-encoder LoRA.* Optional. Training the text-encoder portion of the LoRA pulls token meanings; useful for subject LoRAs where the trigger token needs a strong text-side anchor. SDXL has two text encoders; both can be targeted.
+30. *Block selection.* Advanced. For style LoRAs, deeper UNet blocks dominate texture; for subject LoRAs, mid blocks dominate identity. Block-weighted training (per-block learning rate) is an advanced technique for cleaning up LoRAs that pull style into subject or vice versa.
+
+### Stage 6 — Learning rate, optimiser, scheduler
+
+31. *Optimiser.* AdamW with weight decay is the conservative default. AdamW8bit / Prodigy / Adafactor reduce VRAM. Prodigy auto-tunes the learning rate and is a common modern default for LoRA training.
+32. *Learning rate.* For UNet LoRA: 1e-4 with AdamW is a baseline for SD 1.5/SDXL; lower (5e-5) for SD 3.x and Flux-class. For text-encoder LoRA: half the UNet rate. With Prodigy: a learning rate of 1.0 (Prodigy handles scaling).
+33. *Scheduler.* Cosine with restarts or cosine decay is the workhorse. Constant with warmup also works. Linear-warmup over 100-500 steps avoids the first-step instability that produces "burned" LoRAs.
+34. *Batch size and accumulation.* True batch is limited by VRAM. Use gradient accumulation to reach effective batch sizes of 4-16 for subject LoRAs and 1-4 for style LoRAs. Larger effective batch smooths the gradient and slows convergence per step; smaller batch is jumpier but learns faster.
+35. *Steps and epochs.* Style LoRAs converge in 1500-6000 steps; subject LoRAs in 800-3000; full fine-tunes in tens of thousands. Compute steps as `(images * repeats * epochs) / batch_size`. Repeats and epochs interact; reduce repeats and increase epochs to give the trainer cleaner cosine cycles.
+36. *Mixed precision.* bf16 is the safe default on Ampere-class and newer; fp16 with grad scaling on older hardware; fp8 only with explicit support.
+37. *Noise offset / pyramid noise / IP-noise gamma.* Optional techniques that broaden the noise distribution and reduce the "muddy mid-tones" artifact on SDXL LoRAs. Apply with restraint; over-applied they pull the LoRA into stylistic drift.
+
+### Stage 7 — Validation harness
+
+38. *Held-out prompts.* Five to fifteen prompts that exercise the LoRA at varying intensities. Include prompts that do *not* use the trigger to confirm the LoRA's neutrality outside its trigger.
+39. *Sweep grid.* At each checkpoint, render the prompts at multiple LoRA strengths (0.4, 0.6, 0.8, 1.0). The LoRA should peak in the middle of the range; if it only works at strength 1.0 or above, it is under-trained; if it produces "burned" output at 0.6, it is over-trained.
+40. *Regression cohort.* A small set of prompts that the base model produced well. Re-rendering them with the LoRA at low strength confirms the LoRA has not destroyed the base model's general capabilities.
+41. *Identity check (subject).* For subject LoRAs, render the subject at three distinct distances, three lightings, and three actions; the identity must remain stable across all nine.
+42. *Style fidelity check (style).* For style LoRAs, render a fixed set of contents in the trained style; the style must transfer to each content without bleeding the dataset's specific subjects.
+43. *Save checkpoints frequently.* Every 100-300 steps. The best checkpoint is usually not the last; the sweep grid identifies it.
+
+### Stage 8 — Overfit detection
+
+44. *Memorisation.* The LoRA reproduces training images verbatim or near-verbatim. Treatment: reduce steps, reduce repeats, vary captions more.
+45. *Trigger collapse.* The trigger token only works when invoked with the exact training caption form. Treatment: vary caption phrasing during training; add regularisation set.
+46. *Style bleed (subject LoRA bleeding style).* The subject LoRA carries the dataset's lighting and palette into every generation. Treatment: diversify dataset lighting, reduce text-encoder learning rate, lower rank.
+47. *Subject bleed (style LoRA bleeding subject).* The style LoRA pulls in specific subjects from the training set. Treatment: caption subjects explicitly per image so they attach to subject tokens, not the trigger.
+48. *Pose lock-in.* Subject LoRA only produces the poses present in training. Treatment: diversify dataset poses, lower epochs, use the regularisation set's class poses.
+49. *Mode collapse on prompts.* The LoRA produces near-identical outputs across seeds. Treatment: this is generally severe overfit; restart with lower rank and fewer steps.
+
+### Stage 9 — Stacking pitfalls
+
+50. Two LoRAs at inference each add their low-rank update. Their effects compose linearly only at low strengths; at high strengths they interfere.
+51. *Strength budget.* The sum of LoRA strengths at inference is the "strength budget." A workable budget is roughly 1.0 to 1.5 total across all LoRAs. Two LoRAs at 1.0 each (budget 2.0) almost always degrade output.
+52. *Compatible bases.* Stack LoRAs trained on the same base model. SDXL LoRAs on SDXL, SD 1.5 LoRAs on SD 1.5. Cross-base stacking produces garbage.
+53. *Style + subject stack.* A common stack — one style LoRA plus one subject LoRA. The style LoRA usually carries lower strength (0.5-0.7) and the subject LoRA carries higher (0.7-0.9). Reverse the priority if the brief is "subject in a hint of style."
+54. *Block weights at inference.* Some runners allow per-block strength scaling at inference. For unfortunate stacks, this resolves conflict — keep the style LoRA's block contribution to texture blocks, the subject LoRA's to identity blocks. Advanced; not always available.
+55. *LoRA + IP-Adapter.* Stackable. The IP-Adapter biases toward its reference image; LoRA biases toward its trained look. Reduce LoRA strength when stacked with IP-Adapter to avoid double-styling.
+56. *LoRA + fine-tuned base.* Stackable. The fine-tuned base already carries some of the LoRA's intent; reduce LoRA strength accordingly.
+
+### Stage 10 — Method-specific defaults
+
+57. *Textual inversion.* 8-16 vectors; learning rate 5e-3; 1500-3000 steps; small dataset (5-50 images); validation by prompt sweep at varying numbers of vectors invoked.
+58. *LoRA on SD 1.5.* Rank 32, alpha 16, LR 1e-4, 3000 steps, batch 2 with accumulation 4.
+59. *LoRA on SDXL.* Rank 32-64, alpha 16-32, LR 1e-4 (UNet) and 5e-5 (text-encoder), 2500 steps, batch 1 with accumulation 4, mixed bf16, noise offset 0.05.
+60. *LoRA on Flux-class or SD 3.x.* Rank smaller (8-16) and learning rate lower (3e-5 to 5e-5); shorter training; current adapters and trainers are evolving and version-specific. Confirm trainer compatibility before planning steps.
+61. *Dreambooth full fine-tune.* Two or three orders of magnitude more compute than LoRA. Reserve for production-scale brand work; LoRA-of-fine-tune (a LoRA on a fine-tuned base) is a common cheaper alternative.
+62. *IP-Adapter.* No training. The plan recommends choosing IP-Adapter variants (full / plus / face / style) by the conditioning need; reduce its strength at inference (0.4-0.7) to avoid identity dominance.
+
+### Stage 11 — Rollout and versioning
+
+63. *Naming and versioning.* Every artifact has a semantic version, a checkpoint reference (base model hash), a training-data manifest hash, and a rights manifest. Re-training without these fields is a future-debugging trap.
+64. *Card.* Each artifact ships with a card describing trigger token, recommended strength range, training base, training-data summary, license, intended use, prohibited use. The card travels with the artifact.
+65. *Inference-time guardrails.* For subject LoRAs, the plan recommends an internal-only release pending a defamation, right-of-publicity, and platform-policy review. For style LoRAs that could be confused with a living artist's, the plan recommends review even on first-party data.
+
+### Stage 12 — Cost and time envelope
+
+66. Estimate cost from base model, dataset size, hyperparameters, and hardware. SDXL LoRA on a single 24 GB GPU with the defaults above runs 30 to 120 minutes; Flux-class LoRAs run longer; full fine-tunes scale into days or weeks on multi-GPU.
+67. The plan records an explicit "stop if this exceeds N hours / dollars" budget. Training is path-dependent; without an explicit budget the contributor burns compute chasing an asymptote.
+
+### Stage 13 — Risk and ethics notes
+
+68. Style training from copyrighted or unlicensed material is out of scope.
+69. Subject training of a real person without explicit, current, written consent is out of scope.
+70. Person-impersonation use cases are out of scope.
+71. NSFW concept training is out of scope.
+72. Training-data leakage: low-rank LoRAs can memorise rare training images at high strength. The plan recommends a memorisation audit before release.
+73. Provenance: outputs should carry C2PA / platform watermark metadata where supported.
+
+### Stage 14 — Compose the deliverable
+
+74. Open with a one-paragraph *training intent* statement: what the artifact teaches, on what base, against what dataset, at what budget, to whom.
+75. Render the plan as a markdown document covering the method decision, rights chain, dataset curation, captioning template, hyperparameter envelope, schedule, validation harness, overfit guards, stacking policy, rollout and versioning, and the risk register.
+76. Emit `plan_json` with: `method`, `base_model`, `dataset` (rights, count, resolution, bucketing), `captioning` (trigger token, template, regularisation set), `hyperparams` (rank, alpha, lr, optimiser, scheduler, batch, accumulation, mixed precision), `schedule` (steps, repeats, epochs, checkpoint cadence), `validation` (prompts, sweep grid, regression cohort), `overfit_guards`, `stacking_policy`, `rollout` (versioning, card, guardrails), `budget`, `risk_notes`.
+77. Close with the mandatory safety disclaimer and a "what this skill does not cover" note pointing the contributor at `ai-image-prompt-designer` (how the artifact is invoked) and `controlnet-conditioning-architect` (structural lock that fine-tunes do not provide).
+
+## Outputs
+
+The skill returns:
+
+1. `training_plan` (markdown) — the structured training-design document.
+2. `plan_json` (JSON) — structured plan suitable for hand-off to a trainer harness or a training-operations team.
+
+## Examples
+
+**Input (placeholder):**
+
+`target`: "Style LoRA — our in-house illustration look for the marketing site. Output should be invoked on SDXL with a small trigger token. Consumer is the design team."
+
+`dataset_state`: "94 first-party illustrations from the past two years, all owned and cleared, varying compositions, consistent line weight and palette. Some near-duplicates from a single campaign."
+
+`base_model_and_budget`: "SDXL base + a community illustration checkpoint we have rights to. One 24 GB GPU. Budget 4 hours of training."
+
+`prior_attempts`: "Earlier run at rank 128 over 6000 steps memorised three campaign images and only triggered at strength 1.0."
+
+**Plan (abbreviated):**
+
+- Intent: a SDXL style LoRA invoked by a short trigger that carries the in-house illustration look without leaking specific campaign content.
+- Method: LoRA on SDXL UNet + text-encoders; rank 32, alpha 16; LoCon on conv layers for texture.
+- Rights: first-party, cleared, audited per image.
+- Dataset prep: deduplicate near-duplicates (target ~75 final), bucket by aspect, 1024 short edge, hand-review captions.
+- Captioning: trigger `mk_illust` + descriptive scene caption ("in mk_illust style, a quiet park at dawn, two figures by a fountain"); never name the agency or the campaign; vary phrasing per image.
+- Hyperparameters: AdamW, LR 1e-4 (UNet), 5e-5 (TE1+TE2), cosine with warmup 200, batch 1, accumulation 4, bf16, noise offset 0.05.
+- Schedule: 2500 total steps, checkpoint every 200, save best by sweep grid.
+- Validation: ten held-out prompts at strengths 0.4/0.6/0.8/1.0; regression cohort of five base-model strengths at LoRA 0.0; memorisation audit by similarity check against dataset at strength 1.0.
+- Overfit guards: rank reduced from prior 128 to 32, fewer steps, more caption variation; if memorisation still observed, drop to rank 16.
+- Stacking policy: target peak strength 0.7-0.8; reduce to 0.5 when stacked with a subject LoRA.
+- Rollout: versioned `mk_illust_v1.0.0` with card recording trigger, training base hash, dataset manifest hash, rights manifest, and "internal use only" pending design-team review.
+- Budget: stop at 4 wall-clock hours of training time.
+- Risk notes: confirm no near-duplicates of competitor visual identity in the dataset; confirm no client-restricted content; publish only after design-team sign-off.
+
+**Output excerpt:** the markdown plan plus a JSON object whose `method` is `lora`, whose `hyperparams` records the values above, whose `validation` enumerates the held-out prompts and sweep grid, whose `overfit_guards` lists rank reduction and memorisation audit, whose `stacking_policy` declares strength budgets, and whose `rollout` records the card requirements.
+
+## Limitations
+
+- The skill plans training; it does not run trainers, manage GPUs, or produce artifacts.
+- Defaults are heuristic and shift across base-model families, trainer implementations, and dataset domains; the plan recommends a small pilot run before a full schedule.
+- Overfit signals are noisy; the validation harness reduces but does not eliminate the risk of releasing a memorised artifact.
+- LoRA stacking is fundamentally limited; complex multi-LoRA scenes may be better served by a single fine-tune or a different conditioning approach.
+- The plan refuses to recommend training on copyrighted material, on real-person subjects without consent, or for impersonation uses.
+- Training-data provenance and output copyright remain unsettled in many jurisdictions; the plan is operational, not legal advice.
+- Memorisation audits are best-effort; sophisticated leakage analysis is beyond the scope of a planning artifact.
+- Inference-time guardrails (content filters, watermarking) are recommended but not enforced by this plan.
+- The skill does not address the copyright status of training data or generated outputs in any jurisdiction; consult counsel for commercial use.
+
+## Sources reviewed
+
+- https://github.com/huggingface/diffusers (Apache-2.0)
+- https://github.com/kohya-ss/sd-scripts (Apache-2.0; portions under separate terms)
+- https://github.com/bmaltais/kohya_ss (Apache-2.0)
+- https://github.com/tencent-ailab/IP-Adapter (Apache-2.0)
+- https://github.com/lllyasviel/ControlNet (Apache-2.0)
+- https://github.com/invoke-ai/InvokeAI (Apache-2.0)
+- https://github.com/comfyanonymous/ComfyUI (GPL-3.0; methodology study only; no code or trademarked names used)
+- https://github.com/AUTOMATIC1111/stable-diffusion-webui (AGPL-3.0; methodology study only)

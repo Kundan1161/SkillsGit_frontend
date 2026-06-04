@@ -1,0 +1,216 @@
+<mxfile host="app.diagrams.net" agent="skillsgit-arch" version="24.7.17" type="device">
+  <diagram name="env-config-flow" id="skg-env-config">
+    <mxGraphModel dx="2400" dy="1600" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="3200" pageHeight="2400" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <mxCell id="title" value=".env → core/config.py → runtime injection&#10;Source: apps/api/.env.example + apps/api/src/core/config.py (Pydantic Settings, BaseSettings)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=none;fontSize=16;fontStyle=1;align=left;" vertex="1" parent="1">
+          <mxGeometry x="40" y="20" width="3000" height="50" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== Disk source ===== -->
+        <mxCell id="g-disk" value="Disk (apps/api/)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;verticalAlign=top;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="90" width="700" height="280" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-D1" value="D1: .env.example (tracked)&#10;canonical defaults + comments;&#10;safe to commit" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="60" y="130" width="660" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-D2" value="D2: .env (gitignored)&#10;developer-local overrides:&#10;real Stripe keys, real Anthropic key,&#10;custom DATABASE_URL, etc." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="60" y="250" width="660" height="100" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== Loader ===== -->
+        <mxCell id="g-loader" value="core/config.py — Pydantic Settings" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;verticalAlign=top;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="780" y="90" width="1100" height="800" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-L1" value="L1: class Settings(BaseSettings):&#10;model_config = SettingsConfigDict(&#10;env_file='.env',&#10;env_file_encoding='utf-8',&#10;case_sensitive=False,&#10;extra='ignore')" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="800" y="130" width="1060" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-L2" value="L2: Field defaults provide&#10;dev-friendly fallbacks&#10;(localhost services, dev secrets)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="800" y="270" width="1060" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-L3" value="L3: field_validators:&#10;_split_cors (comma-string → list)&#10;_validate_fee (0 ≤ % ≤ 100)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="800" y="390" width="1060" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-L4" value="L4: Derived helpers:&#10;is_production / is_test /&#10;session_cookie_secure" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="800" y="510" width="1060" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-L5" value="L5: @lru_cache(maxsize=1)&#10;def get_settings(): return Settings()" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="800" y="630" width="1060" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-L6" value="L6: settings: Settings = get_settings()&#10;(module-level singleton — imported by every other module)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="800" y="750" width="1060" height="120" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== Key env vars ===== -->
+        <mxCell id="g-keys" value="Key env vars (full list in .env.example)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;verticalAlign=top;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1920" y="90" width="1240" height="800" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-KENV" value="K_ENV: ENV&#10;dev | staging | prod | test" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="1940" y="130" width="380" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-KDB" value="K_DB: DATABASE_URL&#10;postgresql+asyncpg://…&#10;(test override: sqlite+aiosqlite)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="2340" y="130" width="380" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-KREDIS" value="K_REDIS: REDIS_URL&#10;redis://localhost:6379/0" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="2740" y="130" width="400" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-KS3" value="K_S3: S3_ENDPOINT, S3_ACCESS_KEY,&#10;S3_SECRET_KEY, S3_BUCKET&#10;(MinIO in dev, R2 in prod)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="1940" y="240" width="580" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-KSTRIPE" value="K_STRIPE: STRIPE_SECRET_KEY (SecretStr)&#10;STRIPE_WEBHOOK_SECRET (SecretStr)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="2540" y="240" width="600" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-KSEC" value="K_SEC: JWT_SECRET (SecretStr ≥32 chars)&#10;PLATFORM_HMAC_KEY (SecretStr ≥32 chars)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1940" y="360" width="580" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-KFEE" value="K_FEE: PLATFORM_FEE_PERCENT&#10;default 20.0" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="2540" y="360" width="600" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-KSMTP" value="K_SMTP: SMTP_HOST, SMTP_PORT, SMTP_FROM&#10;(Mailhog in dev)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="1940" y="480" width="580" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-KCORS" value="K_CORS: CORS_ORIGINS&#10;comma-separated list" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="2540" y="480" width="600" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-KOAUTH" value="K_OAUTH: GOOGLE_OAUTH_*, GITHUB_OAUTH_*&#10;(empty in dev unless wiring up)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="1940" y="600" width="580" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-KAI" value="K_AI: OPENAI_API_KEY (SecretStr)&#10;ANTHROPIC_API_KEY (SecretStr)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="2540" y="600" width="600" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-KCAPLLM" value="K_CAPLLM: SKG_CAPTURE_LLM_MODEL&#10;(default claude-sonnet-4-6)&#10;SKG_CAPTURE_LLM_STUB (bool)&#10;SKG_CAPTURE_QUOTA_PER_MONTH (10)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="1940" y="720" width="1200" height="140" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== Consumers ===== -->
+        <mxCell id="g-cons" value="Runtime consumers" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;verticalAlign=top;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="930" width="3120" height="660" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-CDB" value="C_DB: src/core/db.py&#10;create_async_engine(settings.DATABASE_URL)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="60" y="970" width="500" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-CRD" value="C_RD: src/core/cache.py&#10;Redis.from_url(settings.REDIS_URL)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="580" y="970" width="500" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-CS3" value="C_S3: src/storage/s3.py&#10;S3Storage(endpoint, access_key, …)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="1100" y="970" width="500" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-CAUTH" value="C_AUTH: src/auth/tokens.py&#10;JWT_SECRET signing key" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="1620" y="970" width="500" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-CWM" value="C_WM: src/delivery/watermark.py&#10;PLATFORM_HMAC_KEY (hmac_id, hash_ip, hash_ua)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="2140" y="970" width="500" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-CSTR" value="C_STR: src/billing/stripe_client.py&#10;stripe.api_key = STRIPE_SECRET_KEY" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="2660" y="970" width="500" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-CWH" value="C_WH: src/webhooks/router.py&#10;STRIPE_WEBHOOK_SECRET for verification" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="60" y="1090" width="500" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-CFEE" value="C_FEE: src/billing/fees.py&#10;PLATFORM_FEE_PERCENT for compute_fee" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="580" y="1090" width="500" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-CLLM" value="C_LLM: src/capture/llm.py&#10;ANTHROPIC_API_KEY + SKG_CAPTURE_LLM_MODEL&#10;SKG_CAPTURE_LLM_STUB swap" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="1100" y="1080" width="500" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-CQU" value="C_QU: src/capture/quota.py&#10;SKG_CAPTURE_QUOTA_PER_MONTH" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="1620" y="1090" width="500" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-CCORS" value="C_CORS: src/main.py&#10;CORSMiddleware(allow_origins=CORS_ORIGINS)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="2140" y="1090" width="500" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-CDEMO" value="C_DEMO: scripts/demo_devops_agent.py&#10;via src/core/anthropic.py&#10;(shared ANTHROPIC_API_KEY)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="2660" y="1080" width="500" height="120" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== FastAPI DI ===== -->
+        <mxCell id="g-fa" value="FastAPI dependency injection" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fce7f3;strokeColor=#be185d;verticalAlign=top;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="1290" width="1540" height="280" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-F1" value="F1: Routes receive db via Depends(get_db)&#10;which calls SessionLocal() against&#10;settings.DATABASE_URL" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#be185d;" vertex="1" parent="1">
+          <mxGeometry x="60" y="1330" width="700" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-F2" value="F2: Routes receive redis via Depends(get_redis)&#10;which calls Redis.from_url(settings.REDIS_URL)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#be185d;" vertex="1" parent="1">
+          <mxGeometry x="780" y="1330" width="780" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-F3" value="F3: No raw env reads in route handlers —&#10;everything flows through Depends()." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#be185d;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="60" y="1450" width="1500" height="100" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== Test override ===== -->
+        <mxCell id="g-test" value="Test override (conftest.py)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;verticalAlign=top;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1620" y="1290" width="1540" height="600" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-T1" value="T1: ENV=test in pytest env&#10;→ settings.is_test = True" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1640" y="1330" width="1500" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-T2" value="T2: DATABASE_URL overridden&#10;to sqlite+aiosqlite:///…" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="1640" y="1430" width="720" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-T3v" value="T3: SKG_CAPTURE_LLM_STUB=1&#10;→ capture.llm.get_client() returns&#10;tests/stubs/llm.StubAnthropicClient" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="2380" y="1430" width="760" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-T4v" value="T4: S3Storage replaced with&#10;InMemoryStorage via&#10;src.storage.s3.set_storage()" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="1640" y="1550" width="720" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-T5v" value="T5: core.cache uses in-mem dict&#10;(settings.is_test → _use_inmem)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="2380" y="1550" width="760" height="100" as="geometry"/>
+        </mxCell>
+
+        <!-- Edges - disk → loader -->
+        <mxCell id="e-d1d2" value="developer copies" style="endArrow=classic;html=1;dashed=1;" edge="1" parent="1" source="n-D1" target="n-D2"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-d2l1" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-D2" target="n-L1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-l12" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-L1" target="n-L2"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-l23" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-L2" target="n-L3"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-l34" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-L3" target="n-L4"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-l45" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-L4" target="n-L5"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-l56" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-L5" target="n-L6"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- Edges - L6 exposes env vars -->
+        <mxCell id="e-l6env" value="exposes" style="endArrow=classic;html=1;dashed=1;" edge="1" parent="1" source="n-L6" target="n-KENV"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-l6db" value="exposes" style="endArrow=classic;html=1;dashed=1;" edge="1" parent="1" source="n-L6" target="n-KDB"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-l6redis" value="exposes" style="endArrow=classic;html=1;dashed=1;" edge="1" parent="1" source="n-L6" target="n-KREDIS"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-l6s3" value="exposes" style="endArrow=classic;html=1;dashed=1;" edge="1" parent="1" source="n-L6" target="n-KS3"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-l6stripe" value="exposes" style="endArrow=classic;html=1;dashed=1;" edge="1" parent="1" source="n-L6" target="n-KSTRIPE"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-l6sec" value="exposes" style="endArrow=classic;html=1;dashed=1;" edge="1" parent="1" source="n-L6" target="n-KSEC"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-l6fee" value="exposes" style="endArrow=classic;html=1;dashed=1;" edge="1" parent="1" source="n-L6" target="n-KFEE"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-l6smtp" value="exposes" style="endArrow=classic;html=1;dashed=1;" edge="1" parent="1" source="n-L6" target="n-KSMTP"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-l6cors" value="exposes" style="endArrow=classic;html=1;dashed=1;" edge="1" parent="1" source="n-L6" target="n-KCORS"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-l6oauth" value="exposes" style="endArrow=classic;html=1;dashed=1;" edge="1" parent="1" source="n-L6" target="n-KOAUTH"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-l6ai" value="exposes" style="endArrow=classic;html=1;dashed=1;" edge="1" parent="1" source="n-L6" target="n-KAI"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-l6cl" value="exposes" style="endArrow=classic;html=1;dashed=1;" edge="1" parent="1" source="n-L6" target="n-KCAPLLM"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- Edges - env → consumers -->
+        <mxCell id="e-kdbcdb" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-KDB" target="n-CDB"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-krdcrd" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-KREDIS" target="n-CRD"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-ks3cs3" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-KS3" target="n-CS3"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-ksec-cauth" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-KSEC" target="n-CAUTH"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-ksec-cwm" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-KSEC" target="n-CWM"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-kstripe-cstr" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-KSTRIPE" target="n-CSTR"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-kstripe-cwh" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-KSTRIPE" target="n-CWH"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-kfee-cfee" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-KFEE" target="n-CFEE"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-kai-cllm" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-KAI" target="n-CLLM"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-kai-cdemo" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-KAI" target="n-CDEMO"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-kcap-cllm" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-KCAPLLM" target="n-CLLM"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-kcap-cqu" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-KCAPLLM" target="n-CQU"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-kcors-ccors" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-KCORS" target="n-CCORS"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- Edges - FastAPI DI -->
+        <mxCell id="e-cdbf1" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-CDB" target="n-F1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-crdf2" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-CRD" target="n-F2"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-f1f3" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-F1" target="n-F3"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-f2f3" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-F2" target="n-F3"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- Edges - test override -->
+        <mxCell id="e-l6t1" value="test mode" style="endArrow=classic;html=1;dashed=1;" edge="1" parent="1" source="n-L6" target="n-T1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-t1t2" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-T1" target="n-T2"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-t1t3" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-T1" target="n-T3v"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-t1t4" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-T1" target="n-T4v"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-t1t5" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-T1" target="n-T5v"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

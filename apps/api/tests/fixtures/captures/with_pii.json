@@ -1,0 +1,14 @@
+{
+  "name": "with_pii",
+  "description": "Situation containing an email and a CCN. PII detector flags both with expected severities; the CCN hard-blocks at finalize.",
+  "title": "Customer escalation post-incident",
+  "situation_md": "After the 3am rollback, our account exec emailed alice@example.com to apologize. The customer (Globex) also asked us to refund the charge on credit card 4111111111111111 — we passed that to billing.",
+  "decision_md": "We added a per-customer rollback notification webhook so account execs are auto-paged. The runbook now lists who pages whom by tier-1/tier-2 status.",
+  "outcome_md": "Time-to-first-customer-contact dropped from 90 minutes to under 10. No further escalations on this incident.",
+  "context_md": "Globex account. Slack: #incidents-fy24 channel is the primary coordination space.",
+  "candidate_link_targets": [
+    "base/incident-response/ops-incident-commander",
+    "base/incident-response/ops-runbook-generator"
+  ],
+  "expected_pii_severities": ["high", "medium", "low"]
+}

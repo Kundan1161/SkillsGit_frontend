@@ -1,0 +1,24 @@
+{
+  "name": "@skillsgit/api-client",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Typed fetch client generated from the FastAPI OpenAPI document. Do not edit by hand.",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "files": ["src"],
+  "scripts": {
+    "lint": "echo \"(api-client) lint placeholder\"",
+    "typecheck": "tsc --noEmit",
+    "test": "echo \"(api-client) no tests yet\"",
+    "build": "echo \"(api-client) consumed as source — no build step\"",
+    "generate": "echo \"# TODO: openapi-typescript-codegen from http://localhost:8000/v1/openapi.json\""
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0"
+  }
+}

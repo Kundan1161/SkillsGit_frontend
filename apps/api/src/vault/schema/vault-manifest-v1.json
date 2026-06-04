@@ -1,0 +1,178 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://skillsgit.com/schema/vault-manifest-v1.json",
+  "title": "Vault Manifest v1",
+  "description": "Machine-readable index for an Obsidian-compatible vault produced by Skills Git. Spec: team/03-vault-generation.md §5.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "vault_id",
+    "occupation",
+    "personas",
+    "files",
+    "attribution_index",
+    "build",
+    "warnings"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "format": "uri"
+    },
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "vault_id": {
+      "type": "string",
+      "description": "UUID v7 — stable per composed bundle."
+    },
+    "occupation": {
+      "oneOf": [
+        {"type": "null"},
+        {"$ref": "#/$defs/OccupationSummary"}
+      ]
+    },
+    "personas": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/PersonaSummary"}
+    },
+    "files": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/FileEntry"}
+    },
+    "attribution_index": {
+      "type": "object",
+      "additionalProperties": {"type": "string"},
+      "description": "Maps skill_id -> vault_path for fast citation lookup."
+    },
+    "build": {"$ref": "#/$defs/BuildBlock"},
+    "warnings": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/Warning"}
+    }
+  },
+  "$defs": {
+    "OccupationSummary": {
+      "type": "object",
+      "required": ["skill_id", "name", "slug", "creator_handle", "version", "content_hash", "domains"],
+      "additionalProperties": false,
+      "properties": {
+        "skill_id": {"type": "string"},
+        "name": {"type": "string"},
+        "slug": {"type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"},
+        "creator_handle": {"type": "string"},
+        "version": {"type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+(?:-[\\w.]+)?$"},
+        "content_hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "domains": {
+          "type": "array",
+          "items": {"type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"}
+        }
+      }
+    },
+    "PersonaSummary": {
+      "type": "object",
+      "required": ["skill_id", "name", "slug", "creator_handle", "version", "content_hash", "neuron_count"],
+      "additionalProperties": false,
+      "properties": {
+        "skill_id": {"type": "string"},
+        "name": {"type": "string"},
+        "slug": {"type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"},
+        "creator_handle": {"type": "string"},
+        "version": {"type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+(?:-[\\w.]+)?$"},
+        "content_hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "neuron_count": {"type": "integer", "minimum": 0},
+        "parent_occupation_id": {"type": ["string", "null"]}
+      }
+    },
+    "FileEntry": {
+      "type": "object",
+      "required": ["vault_path", "skill_id", "version", "kind", "creator_handle", "content_hash", "tags", "links"],
+      "additionalProperties": false,
+      "properties": {
+        "vault_path": {"type": "string"},
+        "skill_id": {"type": "string"},
+        "version": {"type": "string"},
+        "kind": {
+          "type": "string",
+          "enum": ["skill", "occupation", "persona", "memory_neuron"]
+        },
+        "creator_handle": {"type": "string"},
+        "content_hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "tags": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "links": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/LinkEntry"}
+        },
+        "links_resolved": {"type": "boolean"},
+        "neuron": {
+          "oneOf": [
+            {"type": "null"},
+            {"$ref": "#/$defs/NeuronBlock"}
+          ]
+        }
+      }
+    },
+    "LinkEntry": {
+      "type": "object",
+      "required": ["target", "relation", "resolved"],
+      "additionalProperties": false,
+      "properties": {
+        "target": {"type": "string"},
+        "relation": {
+          "type": "string",
+          "enum": ["applies", "extends", "contradicts", "see-also", "recorded-instance-of"]
+        },
+        "resolved": {"type": "boolean"},
+        "weight": {"type": ["number", "null"], "minimum": 0, "maximum": 1}
+      }
+    },
+    "NeuronBlock": {
+      "type": "object",
+      "required": ["situation", "decision", "outcome"],
+      "additionalProperties": false,
+      "properties": {
+        "situation": {"type": "string"},
+        "decision": {"type": "string"},
+        "outcome": {"type": "string"},
+        "recorded_at": {"type": ["string", "null"]},
+        "confidence": {"type": ["number", "null"], "minimum": 0, "maximum": 1}
+      }
+    },
+    "BuildBlock": {
+      "type": "object",
+      "required": ["built_at"],
+      "additionalProperties": false,
+      "properties": {
+        "occupation_build_id": {"type": ["string", "null"]},
+        "occupation_build_hash": {"type": ["string", "null"]},
+        "persona_build_ids": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "persona_build_hashes": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "composed_hash": {"type": ["string", "null"]},
+        "built_at": {"type": "string", "format": "date-time"},
+        "composed_at": {"type": ["string", "null"], "format": "date-time"}
+      }
+    },
+    "Warning": {
+      "type": "object",
+      "required": ["file"],
+      "additionalProperties": true,
+      "properties": {
+        "file": {"type": "string"},
+        "code": {"type": "string"},
+        "unresolved_link": {"type": "string"},
+        "message": {"type": "string"}
+      }
+    }
+  }
+}

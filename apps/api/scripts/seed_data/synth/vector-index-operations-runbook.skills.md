@@ -1,0 +1,231 @@
+---
+id: skillsgit-curated/vector-index-operations-runbook
+version: 1.0.0
+name: Vector Index Operations Runbook
+description: Operate a vector index in production — rebuilds, partial updates versus full reindex, snapshots, filter cardinality control, hot-path tuning, and cost-per-query budgeting.
+authors:
+  - name: skillsgit Curated
+    handle: skillsgit-curated
+    role: author
+category: data
+tags: [niche:vector-database-ops, runbook, ann-tuning, reindex, snapshot, latency-tuning, capacity-management, observability]
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6, gpt-4o, gpt-4.1, gemini-1.5-pro]
+  tools_required: []
+  tools_optional: [web_search, code_execution, file_io]
+  min_context_tokens: 32000
+  estimated_tokens_per_invocation: 7000
+trigger_keywords:
+  - vector index rebuild
+  - vector database snapshot
+  - tune ann recall
+  - ef_search tuning
+  - nprobe tuning
+  - vector query latency tuning
+  - reindex strategy
+  - vector ops runbook
+  - cost per vector query
+  - filter cardinality vector
+  - hot partition vector
+  - vector deletion compaction
+example_invocations:
+  - "Write a runbook for re-embedding a 100M document corpus from model v1 to model v2 without taking the index offline."
+  - "Our p95 vector latency tripled this week — give me a tuning playbook to diagnose and fix it."
+  - "Plan the snapshot and restore procedure for our HNSW collection."
+inputs:
+  - name: incident_or_change
+    type: text
+    required: true
+    description: One paragraph describing what the operator is trying to do — a recurring procedure, a one-off migration, a latency incident, or a planned upgrade.
+  - name: index_topology
+    type: text
+    required: false
+    description: Engine family, index algorithm and hyperparameters, shard and replica count, hardware shape. Inherited from the architecture design.
+  - name: current_symptoms
+    type: text
+    required: false
+    description: "For an incident: what is observed (latency, error rate, recall regression, ingestion lag, memory pressure) and when it started."
+  - name: maintenance_window
+    type: text
+    required: false
+    description: Whether the procedure can take a window, must be online, or must complete in a specific wall-clock budget.
+  - name: rollback_constraints
+    type: text
+    required: false
+    description: Tolerance for partial results during the procedure and rollback expectations (zero-loss versus best-effort).
+outputs:
+  - name: runbook
+    type: markdown
+    description: Structured runbook covering preconditions, steps, verification, rollback, and post-procedure cleanup.
+  - name: runbook_json
+    type: json
+    description: Machine-readable runbook with `procedure`, `preconditions`, `steps`, `verification`, `rollback`, `metrics_to_watch`.
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Initial release.
+---
+
+# Vector Index Operations Runbook
+
+## When to use
+
+Use this skill when someone has an operating vector index and needs to do something to it that is not the steady-state read-and-write path: rebuild it, re-embed it, snapshot it, restore it, tune it, scale it, or diagnose why it is slow. The skill produces a written runbook covering preconditions, ordered steps, verification at each step, a rollback path, and a post-procedure cleanup.
+
+The skill is appropriate for both planned changes (model upgrade, dimension change, schema change, sharding change) and incident response (latency regression, recall regression, ingestion backlog, replica fall-behind, hot-shard burnout). It is not the right skill for choosing the initial architecture (use the architecture designer) or for picking an embedding model (use the embedding-model selector). It assumes the engine and topology already exist.
+
+A good runbook is conservative: every step has a check, every transition has a rollback, and the operator never has to guess. The skill writes runbooks in that style by default.
+
+## Inputs
+
+| Input | Required | Purpose |
+| --- | --- | --- |
+| `incident_or_change` | yes | Defines the procedure family. |
+| `index_topology` | no | Determines engine-specific operations. |
+| `current_symptoms` | no | Used for incident-style runbooks; ignored for planned changes. |
+| `maintenance_window` | no | Decides online versus windowed approach. |
+| `rollback_constraints` | no | Sets the depth of the rollback section. |
+
+## How to apply
+
+The skill walks an eleven-stage pipeline. Stages 1-3 classify the procedure; stages 4-9 produce the procedure-specific runbook; stages 10-11 wrap up.
+
+### Stage 1 — Classify the procedure
+
+1. Match `incident_or_change` to one of the standard families: (a) **rebuild** — re-create the index from existing vectors; (b) **re-embed** — re-encode the source documents with a new model and replace the index; (c) **schema change** — add or remove a payload field, change index hyperparameters; (d) **snapshot or restore**; (e) **scale** — add or remove shards or replicas; (f) **tune** — change hyperparameters in place; (g) **diagnose** — identify root cause of latency, recall, or capacity regression. If the request spans multiple families, pick the dominant one and note the others as follow-ups.
+2. Match the family to the appropriate stage path: rebuild and re-embed share stages 4-6, scale uses stage 7, snapshot uses stage 8, tune uses stage 9 alone, diagnose uses the dedicated diagnostic decision tree in Stage 9.
+3. Classify the procedure as **online** (zero downtime), **windowed** (short window of degraded service), or **offline** (full unavailability). The classification depends on `maintenance_window` and on the engine's capabilities. Most engines support online operations; some require windowed.
+
+### Stage 2 — Establish preconditions
+
+4. List the global preconditions that all procedures share: a recent and verified snapshot exists, monitoring is healthy and surfaces the index's metrics, on-call rotation is staffed for the procedure window, the source-of-truth for vectors and payloads is reachable, the change is approved through whatever change-management process applies.
+5. Add family-specific preconditions: for re-embed, the new model is pinned and benchmarked; for scale-out, the new hardware is provisioned and reachable; for restore, the snapshot integrity hash is verified.
+6. State the explicit go/no-go check. If any precondition fails, the runbook halts before the first irreversible step.
+
+### Stage 3 — Set the success criteria
+
+7. Define success in measurable terms, not "the procedure completed." For a rebuild: the new index returns recall within X points of the previous index on a fixed evaluation slice, and p95 latency stays within Y% of baseline. For a re-embed: every document in the source-of-truth has a vector in the new index, and the new index serves traffic at parity recall on a held-out evaluation set. For a tune: the targeted metric moved in the intended direction without a guardrail regression.
+8. Define failure in measurable terms. The runbook must halt and roll back at first failure indication, not wait for catastrophe. Examples: "if recall drops by more than 2 points on the canary set, halt"; "if p95 latency exceeds 1.5x baseline for more than 5 minutes after a tuning change, revert".
+
+### Stage 4 — Re-embed procedure
+
+9. **Parallel-collection pattern** is the default for re-embed. Never re-embed in place — embedding spaces are not interchangeable, and a partially re-embedded collection serves nonsense to half its queries.
+10. Step 4.1: provision a new collection (or new shard set) sized for the same corpus. Apply the index parameters chosen for the new model.
+11. Step 4.2: start a backfill job that reads documents from the source of truth, embeds with the new model, and writes to the new collection. Throttle to keep CPU or GPU encoders inside their budget; backfills compete with steady-state traffic for shared resources.
+12. Step 4.3: log progress per document key. The runbook requires the operator to know which keys are done, in flight, or pending. Resuming a partial backfill is mandatory.
+13. Step 4.4: dual-write new documents. Once backfill starts, every new write to the source of truth must produce a vector for both the old and the new collection until cutover. The runbook describes how dual-write is enabled and how it is verified.
+14. Step 4.5: shadow-evaluate. Once the new collection is full, route a small percentage of read traffic in shadow mode (query both, compare, return only the old) and measure recall, latency, and result-set overlap. Hold for at least one full traffic cycle (typically a day, sometimes a week).
+15. Step 4.6: ramp read traffic to the new collection in steps (1%, 10%, 50%, 100%) with a hold at each step long enough to detect regressions. The runbook states the hold duration and the metric thresholds at each step.
+16. Step 4.7: keep the old collection writable but read-idle for a defined cooldown period (typically two weeks) before deleting. The cooldown is a fast rollback path.
+17. Step 4.8: tear down. Stop dual-write, delete the old collection, release the hardware. Update documentation pointing to the new collection. This step is irreversible; the runbook calls it out.
+
+### Stage 5 — Rebuild procedure
+
+18. Rebuild is similar to re-embed but skips the encoder: the source of truth is the existing vectors, and only the index structure is rebuilt. Triggers include changing index family (HNSW to IVF), changing dimensionality after a Matryoshka truncation, or recovering from a corrupted index.
+19. Same parallel-collection pattern. Same dual-write, shadow, ramp, cooldown, tear-down sequence. Time to rebuild is dominated by the index-build throughput of the engine, not by encoder cost.
+20. Online rebuild without a parallel collection is supported by some engines as a "rebuild segment" or "rewrite" operation. The runbook prefers parallel-collection by default for safety; in-place rebuilds are reserved for engines and scales where parallel collection is uneconomic, and the runbook flags the risk explicitly.
+
+### Stage 6 — Schema change procedure
+
+21. **Online schema changes.** Adding a new optional payload field, increasing `ef_search` (HNSW) or `nprobe` (IVF) at query time, adding a new tenant: online with no rebuild required. The runbook is a checklist plus monitoring.
+22. **Rebuild-required schema changes.** Changing dimensionality, changing distance metric, changing the HNSW `M` parameter, or rebalancing centroids in IVF: requires rebuild. Treat as a rebuild procedure (Stage 5).
+23. **Payload index changes.** Adding or removing a filterable field index is online in most engines but takes time proportional to corpus size. The runbook states expected duration and provides a "do not delete the old index until the new one is verified" rule.
+
+### Stage 7 — Scale procedure
+
+24. **Scale-out replicas.** Add new replicas first, wait for them to catch up to the leader, register them in the load balancer, then accept traffic. Removing replicas runs in reverse: drain traffic, deregister, terminate.
+25. **Scale-out shards.** Adding shards usually requires a rebalance: a portion of the corpus moves to the new shards. Some engines support online rebalance; others require a windowed copy. The runbook reads the engine's rebalance semantics and writes the appropriate procedure.
+26. **Scale-down shards** is harder than scale-up: the corpus must be merged back onto the remaining shards without exceeding their memory budget. The runbook calls out the trap of scaling down past a capacity safety margin.
+27. **Heterogeneous hardware.** If new replicas are on different hardware than the old, calibrate query parameters (`ef_search`, `nprobe`) per replica class so query latency is consistent.
+28. **Capacity verification.** After scale-out, re-run a load test at 1.5x peak QPS for at least fifteen minutes. Without verification, scale-out feels safe but may still tip over.
+
+### Stage 8 — Snapshot and restore procedure
+
+29. **Snapshot scheduling.** Schedule snapshots at a cadence sized against acceptable data loss: hourly for high-write workloads, daily for slow-moving corpora. Snapshots run as a background task on a follower replica when possible to avoid impacting the leader.
+30. **Snapshot integrity.** Every snapshot is hashed and the hash recorded in an external system. Restoring without verifying the hash is forbidden by the runbook.
+31. **Snapshot retention.** Keep at least seven daily snapshots, four weekly snapshots, three monthly snapshots, and one quarterly snapshot. Storage cost is small compared to recovery value.
+32. **Restore procedure.** Provision a fresh cluster, restore the snapshot, verify the integrity hash, run a sanity-query set, then promote. Never restore in place over a corrupted cluster — the corruption can re-infect the restored data.
+33. **Disaster-recovery drill cadence.** Run a full restore drill at least quarterly into a non-production environment. A snapshot never tested is a snapshot that does not exist.
+34. **Cross-region copy.** For multi-region deployments, snapshots replicate to at least one other region. The runbook documents the replication path and the lag tolerance.
+
+### Stage 9 — Tune and diagnose procedure
+
+35. **Tune hot-path query latency.** The dominant levers are (a) `ef_search` for HNSW or `nprobe` for IVF — lower means faster and less recall; (b) result-set size `k` — smaller is faster; (c) filter strategy — pre-filter is faster when selective, post-filter wins when broad; (d) quantisation — int8 is typically 2-3x faster than float32 with a small recall cost; (e) batch size and concurrency — over-concurrent queries cause CPU contention.
+36. **Tune ingest throughput.** The dominant levers are (a) batch size — bigger batches amortise overhead but spike memory; (b) parallelism — the engine's writer threads, sized against CPU cores; (c) WAL durability mode — full-sync is safer, async is faster; (d) the build hyperparameter (`ef_construction` for HNSW, `nlist` training for IVF) — higher means slower build and better query recall.
+37. **Tune memory pressure.** Quantise (int8 first, then product quantisation if needed), evict cold partitions to disk, increase shard count to reduce per-shard footprint, or upgrade hardware. Always quantise before sharding — quantisation is cheaper to undo.
+38. **Diagnose latency regression.** Walk the decision tree: (a) did `qps` rise? then scale; (b) did the corpus grow? then re-tune `ef_search`/`nprobe` and consider sharding; (c) did the filter cardinality change so a previously selective filter is now broad? then reconsider pre- vs post-filter; (d) did a new payload field bloat the working set? then audit field indexes; (e) did a kernel or library upgrade change SIMD behaviour? then check release notes; (f) did a noisy neighbour land on the same node? then check cgroups, NUMA, and hypervisor placement.
+39. **Diagnose recall regression.** (a) did the index parameters change? then revert; (b) did the embedding model change (hosted API silent upgrade)? then re-evaluate on the canary set; (c) did the corpus shift so the model is out of distribution? then re-run the embedding-model selection; (d) did the filter logic change so the search space is different? then audit query construction.
+40. **Diagnose ingest backlog.** (a) is the encoder upstream the bottleneck? then scale encoder fleet; (b) is the engine's write throughput saturated? then tune batching and parallelism; (c) is compaction running too often? then tune compaction policy; (d) is a single shard hot for writes? then re-evaluate the shard key.
+41. **Filter cardinality control.** When a field is added to a filter expression and its cardinality is large or unstable, the query plan can collapse from fast to catastrophic. The runbook recommends: (a) cap the per-tenant cardinality of free-text filter fields; (b) require enumerated types for fields that filter the ANN; (c) monitor filter selectivity per query and alert when a top filter falls below a planned floor.
+42. **Cost-per-query budget.** Translate every tuning change into its cost effect: how does CPU per query move, how does memory per replica move, how do storage and snapshot costs move. A latency win that doubles cost is not a win without explicit budget approval. The runbook attaches a cost-delta to each tuning recommendation.
+
+### Stage 10 — Verification and rollback
+
+43. **Verification at every step.** Each step in the runbook has at least one verification: a metric threshold, a sanity-query result, a row count, a hash match, a smoke test. No step is "complete" without a verification line.
+44. **Rollback procedure.** Every state-changing step has a documented rollback. Rollbacks must be tested at runbook-write time, not at runbook-execute time. Where rollback is impossible (e.g. after tearing down the old collection in re-embed), the step is flagged as irreversible and a hold period is required before reaching it.
+45. **Halt conditions.** The runbook lists the conditions that halt the procedure: latency above a threshold, error rate above a threshold, queue depth above a threshold, alarms firing, snapshot integrity check failure. Halting is not optional under any of these conditions.
+46. **Communications plan.** State who is notified at start, at each milestone, on halt, and at completion. Vector-DB procedures rarely break the wider system, but the dependent application owners should always know when one is in progress.
+
+### Stage 11 — Compose the deliverable
+
+47. Open with a one-paragraph procedure summary: family, online or windowed, expected duration, blast radius if it fails.
+48. Render the runbook as a numbered step list with a verification and a rollback line for each step. Where the procedure is family-specific, include only the relevant stage's content.
+49. Emit `runbook_json` with the fields enumerated under `outputs`.
+50. End with a "metrics to watch during and after" section listing the dashboards and alerts the operator must keep open.
+
+## Outputs
+
+The skill returns two artifacts:
+
+1. `runbook` (markdown) — the readable runbook organised by stage.
+2. `runbook_json` (JSON) — structured runbook with the keys listed under `outputs`.
+
+## Examples
+
+**Input (placeholder):**
+
+`incident_or_change`: "We are upgrading our embedding model from v1 (768 dim) to v2 (1024 dim) across a 100 million chunk corpus. We cannot take the index offline."
+
+`index_topology`: "Single-collection HNSW, 16 shards, 2 replicas per shard. Source of truth lives in object storage with a Kafka-style stream of changes."
+
+`maintenance_window`: "Online; no acceptable downtime."
+
+`rollback_constraints`: "Must be able to roll back to v1 inside 30 minutes for two weeks after cutover."
+
+**Runbook (abbreviated):**
+
+- Family: re-embed. Online. Parallel-collection.
+- Preconditions: v2 pinned and benchmarked; new collection provisioned at 1.3x v1 size; encoder fleet scaled for backfill throughput.
+- Step 1: enable dual-write to v1 and v2. Verify by writing a probe document and confirming both collections receive it.
+- Step 2: launch backfill from the oldest documents. Throttle to 80% encoder fleet utilisation. Track progress per document key in an external job ledger.
+- Step 3: when backfill reaches 100% and dual-write lag is under 60 seconds, run the canary evaluation set against v2 and require recall within 0.5 points of v1.
+- Step 4: shadow 1% read traffic to v2, hold 24 hours, then 10%, hold 24 hours, then 50%, hold 48 hours, then 100%.
+- Step 5: hold dual-write for two weeks after 100% cutover. Old collection remains queryable for fast rollback.
+- Step 6: tear down v1. Irreversible. Requires sign-off.
+- Rollback at any pre-step-6 stage: stop ramp, route reads back to v1.
+- Metrics to watch: dual-write lag, backfill throughput, encoder fleet utilisation, recall on canary set, p95 latency on v2, error rate on dual-write.
+
+## Limitations
+
+- The skill writes runbooks for common engines and topologies; it cannot account for every vendor-specific operational quirk. Always cross-check against the engine's documentation.
+- The skill cannot test rollbacks; the operator must dry-run rollback steps in a staging environment before production execution.
+- For very small deployments (single-replica, single-shard, sub-million vectors) some procedures are over-engineered; the skill should detect this and simplify.
+- The skill assumes a source-of-truth for vectors exists outside the index. Deployments where the index is the only copy are inherently fragile and the skill recommends reshaping the architecture first.
+- Cost-per-query estimates are relative deltas, not absolute pricing.
+- LLM-judge-based recall evaluations are subject to judge drift; the runbook recommends pinning the judge model and refreshing the evaluation set when it changes.
+- Diagnostic decision trees cover common causes; rare bugs in the engine itself require vendor or community help and are out of scope.
+
+## Sources reviewed
+
+- https://github.com/qdrant/qdrant
+- https://github.com/milvus-io/milvus
+- https://github.com/weaviate/weaviate
+- https://github.com/chroma-core/chroma
+- https://github.com/facebookresearch/faiss
+- https://github.com/lancedb/lancedb
+- https://github.com/vespa-engine/vespa

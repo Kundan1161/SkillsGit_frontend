@@ -1,0 +1,223 @@
+---
+id: skillsgit-curated/live-streaming-stack-architect
+version: 1.0.0
+name: Live Streaming Stack Architect
+description: Design an end-to-end live streaming stack — capture, contribution ingest, transcode, ABR package, CDN, player — with a latency budget, redundancy plan, and monitoring strategy.
+authors:
+  - name: skillsgit Curated
+    handle: skillsgit-curated
+    role: author
+category: creative
+tags: [niche:video-encoding-delivery, live, srt, rtmp, rist, transcoding, cdn, low-latency]
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6, gpt-4o]
+  min_context_tokens: 32000
+  estimated_tokens_per_invocation: 9500
+trigger_keywords:
+  - live streaming stack
+  - live origin
+  - contribution feed
+  - srt ingest
+  - rtmp ingest
+  - rist ingest
+  - latency budget
+  - active-active origin
+  - cdn live
+  - live monitoring
+  - low-latency live
+  - failover live
+example_invocations:
+  - "Design a live streaming stack for a 24×7 sports channel with 3-second glass-to-glass."
+  - "Plan SRT contribution from a remote venue to a cloud transcode pool."
+  - "Build an active-active live origin with shared program time."
+  - "Set a monitoring stack for live with continuity, manifest freshness, and CDN cache-health signals."
+inputs:
+  - name: event_profile
+    type: text
+    required: true
+    description: What is being streamed — sports, concert, news, conference, gaming, religious service; one-off or 24×7; expected concurrent audience; geographic distribution.
+  - name: latency_target
+    type: choice
+    required: true
+    description: End-to-end latency target from glass to glass.
+    choices: [broadcast-comparable-15s, standard-live-6s, low-latency-3s, ultra-low-latency-2s]
+  - name: source_capture
+    type: text
+    required: true
+    description: Where the source comes from — venue camera, on-premises gallery, OBS or vMix at a remote, cloud production, multi-camera switcher.
+  - name: constraints
+    type: text
+    required: false
+    description: Hard limits — network conditions at the venue, regulatory caption obligations, budget, in-house ownership preferences.
+outputs:
+  - name: stack_design
+    type: markdown
+    description: A topology diagram description from capture through CDN, with protocol choice and component role for each hop.
+  - name: latency_budget
+    type: markdown
+    description: A line-item budget summing per-hop latency contributions to the end-to-end target with operating tolerances.
+  - name: resilience_plan
+    type: markdown
+    description: Redundancy, failover, and monitoring specifications including continuity, freshness, and recovery procedures.
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Initial release.
+---
+
+## When to use
+
+Invoke this skill when an agent is asked to design or audit the architecture of a live streaming workflow end to end. Common framings:
+
+- "Design our live stack for a new 24×7 channel."
+- "Plan contribution from a venue with a flaky uplink."
+- "Get our live event to sub-3-second glass-to-glass."
+- "Make the live origin active-active so a single failure does not take us off air."
+- "Build the live monitoring stack — what signals matter and what alerts trigger?"
+
+Out of scope: choosing the rendition ladder (use the encoding-ladder-designer skill), authoring captions (use the captions-and-accessibility-deliverable-pipeline skill), packaging the encoded ladder into manifests (use the streaming-package-architect skill). The skill assumes those decisions exist or will exist alongside.
+
+This skill is vendor-neutral. It recommends protocols and architectural patterns implementable on open-source components (FFmpeg, GStreamer, GPAC, Shaka Packager, OvenMediaEngine — license tags collected in `## Sources reviewed`) or equivalent commercial products.
+
+## How to apply
+
+Follow the procedure end to end. Skip a step only when the input plainly excludes it, and call out the skip in the design.
+
+1. Restate the event profile, latency target, and source description. Confirm expected audience size and geographic distribution. The audience size determines CDN scale; the geography determines CDN partner and origin region; the event profile determines acceptable failure modes (a religious service can pause for thirty seconds while a sports event cannot).
+
+2. Decide on the latency tier. Four useful tiers:
+   - **Broadcast-comparable** (10–20 seconds glass-to-glass). Standard HLS with 6-second segments and a deep player buffer. Best resilience, largest spread; appropriate when DVR replay and global stability dominate.
+   - **Standard live** (4–8 seconds). HLS or DASH with 2- to 4-second segments and a shallower buffer. The most common production point for general-purpose live.
+   - **Low latency** (2–4 seconds). LL-HLS with partial segments, or LL-DASH with chunked transfer. Requires CDN edge support, modern players, and aggressive monitoring.
+   - **Ultra-low latency** (sub-2 seconds). WebRTC or a similar realtime protocol. Different player stack, different scale profile, narrower codec choice; trade scale and reach for latency.
+   
+   Recommend a tier and warn that a lower tier is not free — it compresses every error budget downstream.
+
+3. Pick the contribution protocol from the source to the cloud or origin. Common choices:
+   - **SRT** — UDP-based, ARQ-driven, low-latency, encrypted; the modern default for IP contribution over the open internet. Good for venues with imperfect connectivity.
+   - **RIST** — similar profile to SRT, broader vendor interop in broadcast appliances.
+   - **RTMP / RTMPS** — legacy TCP-based, widely supported by encoders and platforms; acceptable for prosumer ingest but blocked by Adobe's deprecation of Flash and not built for low-latency.
+   - **Zixi, NDI, MPEG-TS over UDP** — appliance-grade contribution where the venue and the origin sit on a managed network.
+   - **HEVC over WebRTC** — emerging contribution profile for ultra-low-latency contribution; constrained vendor support.
+   
+   Recommend SRT for open-internet contribution unless a constraint forces another choice. Specify the contribution latency window (typical SRT 2× RTT + jitter buffer; choose 500 ms to 2 seconds based on path quality).
+
+4. Plan contribution redundancy. Live cannot recover from a single fiber cut. Patterns:
+   - **Diverse paths**: two contribution feeds from the venue over physically diverse networks (fiber + bonded cellular, SRTLA for cellular bonding).
+   - **Hot standby encoder**: two on-premises encoders pushing in parallel; one primary, one standby; the origin selects the active feed.
+   - **Lossless switch upstream**: a contribution switcher at the venue that detects upstream failure and switches sources, presenting a single feed to the cloud.
+   
+   Pick a pattern, name the recovery time objective (RTO; "switch within 2 seconds of detection") and the recovery point objective (RPO; "no frame loss beyond the SRT buffer").
+
+5. Place the transcode pool. The pool consumes contribution and produces the rendition ladder. Hosting options:
+   - **Cloud transcode**: elastic, easy to scale across regions, software encoders (x264/x265/SVT-AV1/aomenc), pay-per-second.
+   - **On-premises transcode**: capital-intensive, fixed capacity, hardware encoders for predictable latency.
+   - **Hybrid**: live transcoding on-prem, additional capacity in the cloud for spikes.
+   
+   Recommend a placement and document the transcode latency budget: a software pipeline at standard live tier is commonly 300 to 1500 ms; a hardware pipeline can be lower; AV1 software is the slowest. Specify the rate control mode that matches live (CBR or capped VBR with VBV constraints) and forbid VBR without a cap for live.
+
+6. Plan transcoder redundancy. Two patterns:
+   - **Active-active**: two transcoders consuming the same contribution feed, both producing identical segments, both feeding the packager. Failover is invisible to the player.
+   - **Active-standby**: one transcoder produces output; a hot standby is ready to take over. Failover causes a brief discontinuity that the player buffer should absorb.
+   
+   Active-active is more expensive but the standard for high-tier live. State which the design uses.
+
+7. Place the packager. The packager segments encoded streams into HLS playlists and DASH manifests. Options match the transcode topology. For active-active, both packagers must produce byte-identical segments with shared program time so the CDN can pull from either. This typically requires:
+   - Identical encoder configuration on both transcoders.
+   - A shared time source (PTP, NTP at minimum, with the same offset on both encoders).
+   - A shared segmentation cadence keyed to absolute time, not to receive time, so segments boundaries align.
+
+8. Decide on origin architecture. The origin sits between packager and CDN. Patterns:
+   - **Single origin per region**, redundant nodes behind a load balancer.
+   - **Active-active origin** across two regions for catastrophic failover.
+   - **Just-in-time packaging origin** that segments on demand from a mezzanine; lower storage at the cost of higher origin compute and higher first-segment latency.
+   
+   Specify the chosen pattern, name the origin failure modes, and define which clients ride which origin under steady-state versus failover.
+
+9. Decide the CDN strategy. Single CDN simplifies operations; multi-CDN improves resilience and gives leverage in negotiations. For low-latency tiers, verify the CDN supports chunked transfer encoding on the relevant edge POPs — not every edge supports LL-HLS or LL-DASH and the absence is invisible until tested in production. State the cache policy: long TTL on segments, short TTL on manifests, careful cache-key design so per-rendition invalidation works.
+
+10. Plan the player and player buffer. Buffer size is the largest single contributor to glass-to-glass latency. A 30-second buffer is comfortable; a 3-second buffer is fragile to any upstream hiccup. Specify the buffer target and the buffer behavior under stalls: drop to a lower rendition, hold and recover, or jump forward to live edge.
+
+11. Compose the latency budget. Sum per-hop contributions to the end-to-end target. Typical numbers for standard live (6-second target):
+    - Capture to encoder: 100–300 ms.
+    - Contribution encode and SRT buffer: 500–1500 ms.
+    - Transcode: 300–1500 ms.
+    - Packager: 100–500 ms.
+    - CDN propagation to first edge fetch: 500–2000 ms.
+    - Player buffer: 2000–4000 ms.
+    
+    Confirm the sum is at or below the target. If not, identify the dominant contributor and propose changes (smaller player buffer at the cost of resilience, hardware encoder at the cost of capital, low-latency CDN configuration at the cost of edge coverage).
+
+12. Plan accessibility. Live captioning, audio description, and sign-language interpretation have their own latency and resourcing implications. Real-time stenographic or speech-to-text captioning typically adds 1–3 seconds of caption latency relative to audio; budget this so caption sync is acceptable. Specify the caption-author handoff: how text reaches the packager (WebVTT segments produced live), how the manifest references the live caption track, and how dropouts are handled.
+
+13. Plan monitoring. The four signals that matter:
+    - **Continuity** — segment numbers increment without gaps; rendition segment counts converge across origins; manifest sequence numbers monotonically increase.
+    - **Freshness** — manifest age at the origin is bounded; CDN edge sees a manifest with a known stale tolerance.
+    - **Quality** — VMAF or similar quality metrics computed on a sampled rendition; black-frame detection; silent-audio detection; loudness compliance.
+    - **Delivery health** — CDN cache hit ratio per rendition; edge error rates; player error telemetry aggregated by region, device, and rendition.
+    
+    Specify the polling cadence and the alert thresholds for each signal.
+
+14. Plan the incident runbook. Live incidents are short, time-pressured, and brand-visible. The runbook should answer:
+    - Who declares an incident and how?
+    - What is the first action — failover to standby, drop a rendition, force-degrade to lower latency tier, push a holding card?
+    - When does the operator escalate to the broadcaster, the platform, or executive sponsors?
+    - How is the incident reviewed after the event ends?
+    
+    Include the holding card (a graceful "stand by, we are working on it" slate) as a delivery deliverable; if the holding card does not exist, the failover plan has a hole.
+
+15. Plan capacity. Concurrent viewer projections drive CDN bandwidth, origin egress, and packager horsepower. Model peak concurrent viewers, peak bitrate per viewer (weighted across the ladder), and the burst factor for major moments (a winning goal, the start of a top-of-hour show). Pre-warm CDN capacity for known peaks. Specify the over-provisioning factor (1.5× to 3× expected peak).
+
+16. Plan cost. Live is expensive in three ways: transcode compute (continuous, not per-asset), CDN egress (proportional to concurrent viewing time × rendition bitrate), and contribution bandwidth (continuous and often premium). State a unit-economics estimate: dollars per concurrent viewer-hour at the chosen ladder and CDN, and how the architecture chooses to move along the latency-versus-cost curve.
+
+17. Plan termination and post-event. Define what happens when the live event ends:
+    - Manifest signals end of event (HLS `EXT-X-ENDLIST`; DASH MPD with mediaPresentationDuration finalized).
+    - VOD asset preservation: the segments that constitute the live event are retained, sometimes re-encoded into a richer VOD ladder, and re-published as VOD.
+    - Caption deliverables are re-authored for the VOD asset (live captioning is rarely good enough to ship as VOD captions without an editorial pass).
+
+18. Output the three artifacts: the stack design, the latency budget, and the resilience plan. Each should name explicit choices and call out the trade-offs so a senior engineer can challenge them.
+
+## Inputs
+
+- Event profile: content type, schedule, concurrent audience, geography.
+- Latency target: tier from broadcast-comparable to ultra-low-latency.
+- Source capture: where the source originates and how it leaves the venue.
+- Constraints: network conditions, regulatory caption obligations, budget, ownership preferences.
+
+## Outputs
+
+- Topology description from capture through CDN with protocol per hop.
+- Latency budget summing per-hop contributions to the end-to-end target.
+- Resilience plan covering redundancy, failover, monitoring, capacity, cost.
+
+## Examples
+
+**24×7 sports channel, 3-second glass-to-glass, global audience.** Recommend SRT contribution from venue with diverse paths, cloud transcode pool active-active in two regions, identical packager configuration with shared program time, LL-HLS and LL-DASH from CMAF segments at 2 seconds with 500 ms partial chunks, multi-CDN with verified edge support for chunked transfer, player buffer at 1.5 seconds, holding card available. VMAF monitoring on the 1080p rendition. Captions via real-time stenographic feed. Failover to a single-region active origin if cross-region replication stalls.
+
+**Conference webinar one-off, 6-second target, modest audience.** Recommend RTMP or SRT contribution from OBS at the venue, single-region cloud transcode, single packager, single-CDN delivery, player buffer at 4 seconds, single-shot incident runbook (operator on-call, hold card pre-loaded). VOD re-encode after event with edited captions and a published-quality ladder.
+
+**Esports tournament, 2-second target, gaming-tournament audience.** Recommend WebRTC contribution path from production gallery, parallel CMAF path for scale, low-latency packager, multi-CDN with chunked transfer on every edge POP in scope, player buffer at 1 second, aggressive monitoring with per-second alerting, capacity at 3× projected peak, esports-specific captioning (commentary plus chat moderation overlays) handled out of band.
+
+## Limitations
+
+- The skill cannot validate that a specific CDN partner supports the chosen low-latency profile on the edges relevant to the audience; that is a procurement step.
+- Latency budgets are upper bounds at steady state; bursts and reroute events temporarily inflate hops, especially CDN propagation.
+- Active-active topologies depend on shared time discipline that some commercial encoders implement only partially; verify before relying on byte-identical segment outputs.
+- Caption accuracy in real-time live is bounded by the captioner's capacity and is not a substitute for VOD-grade caption authoring.
+- This skill produces a design, not running infrastructure; the operator must build, test, and observe the resulting stack.
+
+## Sources reviewed
+
+- https://github.com/Haivision/srt — Secure Reliable Transport protocol implementation (MPL-2.0).
+- https://github.com/Edward-Wu/srt-live-server — example SRT live origin (BSD-3-Clause).
+- https://github.com/OpenIRL/srt-live-server — SRT live server with REST API (MIT).
+- https://github.com/FFmpeg/FFmpeg — FFmpeg toolchain for live transcode (LGPL-2.1+ / GPL-2+ depending on build).
+- https://github.com/AirenSoft/OvenMediaEngine — sub-second LL-HLS and LL-DASH origin (AGPL-3.0; reviewed for methodology, no code reused).
+- https://github.com/AirenSoft/OvenPlayer — LL-HLS / WebRTC player reference for buffer behavior (AGPL-3.0; reviewed for methodology, no code reused).
+- https://github.com/gpac/gpac — GPAC framework including LL-HLS packaging (LGPL-2.1 / commercial alternative).
+- https://github.com/shaka-project/shaka-packager — live packager with shared program time (BSD-3-Clause).

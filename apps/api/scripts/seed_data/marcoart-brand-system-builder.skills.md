@@ -1,0 +1,62 @@
+---
+id: marcoart/brand-system-builder
+version: 1.0.0
+name: Brand System Builder
+description: Generate a starter brand system (palette, type scale, voice) from a single positioning sentence.
+authors:
+  - name: Marco Art
+    handle: marcoart
+    role: author
+category: design
+tags:
+  - branding
+  - identity
+  - design-system
+license_type: free
+ai:
+  required_models:
+    - claude-sonnet-4-6
+  estimated_tokens_per_invocation: 3000
+trigger_keywords:
+  - brand system
+  - identity
+example_invocations:
+  - "Build a brand system for a friendly fintech for freelancers."
+inputs:
+  - name: positioning
+    type: text
+    required: true
+    description: One sentence describing who the brand is for and what it does.
+outputs:
+  - name: system
+    type: markdown
+    description: Palette, type, tone-of-voice, do/don't list.
+changelog:
+  - version: 1.0.0
+    date: 2026-03-21
+    notes: Initial release.
+---
+
+# Brand System Builder
+
+## When to use
+Use when a founder or designer needs a coherent starter brand system before
+going into Figma. Free to encourage adoption; upsell happens via design-critique.
+
+## How to apply
+1. Parse the positioning sentence for audience, category, and tone signal.
+2. Generate a 5-colour palette with rationale (primary, secondary, two accents, neutral).
+3. Pick a type pairing (display + body) with a 1.25 modular scale.
+4. Write a one-page tone-of-voice with three do/don't pairs.
+
+## Inputs
+- A single positioning sentence.
+
+## Outputs
+- A markdown system doc ready to translate into Figma tokens.
+
+## Examples
+> "Build a brand system for a calm meditation app for engineers."
+
+## Limitations
+Starter only — not a replacement for a brand sprint. Don't ship without a human pass.

@@ -1,0 +1,91 @@
+%% Vault build pipeline — build_occupation(session, occupation_skill_id, version).
+%% Source: apps/api/src/vault/builder.py:build_occupation and helpers.
+%% Curation post-step: apps/api/scripts/build_devops_vault.py:_polish_vault_with_graph_json
+%% Determinism: built_at pinned to EPOCH_DATETIME, sorted filenames, EPOCH zip timestamps.
+
+sequenceDiagram
+    autonumber
+    participant Caller as Caller
+    participant Builder as vault/builder.py
+    participant DB as Postgres
+    participant S3 as Storage (MinIO / S3)
+    participant Manifest as vault/manifest.py
+    participant Polish as build_devops_vault.py polish step
+
+    Note over Caller: scripts/build_devops_vault.py OR vault.jobs.build_occupation (Arq job)
+    Note over Polish: _polish_vault_with_graph_json
+
+    Caller->>Builder: build_occupation(session, occupation_skill_id, version)
+
+    %% 1. Load DB rows
+    Builder->>DB: SELECT Skill where id=... AND kind=occupation
+    Builder->>DB: SELECT Occupation where skill_id=...
+    Builder->>DB: SELECT OccupationSkill where occupation_id=...
+    Note over Builder,DB: VaultBuildError vault_build.empty_membership if no membership rows
+    loop for each member row
+        Builder->>DB: SELECT Skill (member_skill_id)
+        Note over Builder,DB: VaultBuildError invalid_member_kind if member.kind != skill
+        Builder->>DB: refresh member.versions (eager)
+        Builder->>Builder: _pick_version(member, version=None) = latest released non-yanked
+    end
+
+    %% 2. Fetch member body bytes from S3
+    loop for each member's SkillVersion
+        Builder->>S3: get_object(version.storage_url)
+        Note over Builder,S3: VaultBuildError member_missing if S3 key is gone
+    end
+    Builder->>DB: SELECT CreatorProfile for each skill.creator_id
+    Note over Builder,DB: Falls back to User.display_name
+
+    %% 3. Resolve links + build per-file manifest entries
+    Builder->>Builder: _build_target_resolver_for_occupation(members)
+    loop for each member
+        Builder->>Builder: split_frontmatter(body)
+        Builder->>Builder: _file_entry_for_member
+        Note over Builder: extracts tags + links — warnings for unresolved links land in manifest.warnings
+        Builder->>Builder: vault_path = domains/{membership.domain}/{member.slug}.md
+    end
+
+    %% 4. Compute content & assemble payloads
+    Builder->>Manifest: assemble VaultManifest
+    Note over Builder,Manifest: occupation summary, files[], attribution_index, BuildBlock, warnings[]
+    Builder->>Builder: _derive_vault_id (deterministic UUID v4 over inputs)
+    loop for each member
+        Builder->>Builder: _emit_file_body
+        Note over Builder: raw body + Linked-notes section + HTML comment skg-attribution
+    end
+    Builder->>Builder: _emit_readme_occupation, _emit_index_occupation
+    Builder->>Builder: write_manifest to vault.json
+
+    %% 5. Deterministic zip
+    Builder->>Builder: _write_zip (sorted filenames, EPOCH_TIMESTAMP per entry, DEFLATE, 50 MB cap)
+    Builder->>Builder: content_hash = sha256(zip_bytes)
+
+    %% 6. Idempotency check
+    Builder->>DB: SELECT VaultBuild where skill_id=... AND content_hash=...
+    alt existing row AND not force_rebuild
+        Builder-->>Caller: return existing VaultBuild row (no S3 write, no DB write)
+    else cache miss
+        Builder->>S3: put_object vaults/{skill_id}/{version}/{hash}.zip
+        Builder->>Manifest: patch manifest.build.occupation_build_hash and occupation.content_hash
+        Builder->>DB: INSERT VaultBuild row
+        Note over Builder,DB: content_hash, manifest_json, file_count, total_bytes, status=succeeded, build_log_json, built_at, built_by
+        Builder->>DB: UPDATE occupations SET latest_build_id = build.id
+        Builder-->>Caller: return new VaultBuild row
+    end
+
+    %% 7. Curation post-step
+    Caller->>Polish: _polish_vault_with_graph_json(session, build, domain_slugs)
+    Polish->>S3: get_object(build.storage_url)
+    Polish->>Polish: _build_graph_json(domain_slugs) — 7 colorGroups, one per domain
+    Polish->>Polish: _inject_graph_json_into_zip (no-op if .obsidian/graph.json already present)
+    alt patched bytes differ
+        Polish->>Polish: new_hash = sha256(patched)
+        Polish->>S3: put_object sibling key vaults/{skill_id}/{version}/{new_hash}.zip
+        Polish->>DB: UPDATE vault_builds SET storage_url, content_hash=new_hash, file_count, total_bytes
+    end
+    Polish-->>Caller: (was_modified, final_zip_bytes)
+
+    Caller->>Caller: validate_vault(final_bytes) — must pass
+
+    Note over Caller,DB: DRIFT 1: occupation tree lives at domains/, not base/. DRIFT 2: .obsidian/graph.json IS shipped (spec section 3 said no, landed via curation polish). DRIFT 3: persona vault root is personas/{handle}/{slug}/, not personas/{handle}/ (slug layer added by builder._load_persona_files).

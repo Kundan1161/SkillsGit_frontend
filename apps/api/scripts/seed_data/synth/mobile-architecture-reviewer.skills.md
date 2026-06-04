@@ -1,0 +1,312 @@
+---
+id: skillsgit-curated/mobile-architecture-reviewer
+version: 1.0.0
+name: Mobile Architecture Reviewer
+description: Audit a mobile app's architecture (MVVM, MVI, Clean) for testability, dependency injection, state management, and navigation across iOS, Android, React Native, and Flutter.
+authors:
+  - name: skillsgit Curated
+    handle: skillsgit-curated
+    role: author
+category: engineering
+tags: [niche:mobile-dev, ios, android, react-native, flutter, mvvm, mvi, clean-architecture, testability]
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6, gpt-4o, gpt-4.1, gemini-1.5-pro]
+  tools_required: [file_io]
+  tools_optional: [web_search]
+  min_context_tokens: 64000
+  estimated_tokens_per_invocation: 12000
+trigger_keywords:
+  - review mobile architecture
+  - audit ios architecture
+  - audit android architecture
+  - review flutter app
+  - review react native app
+  - mvvm review
+  - mvi review
+  - clean architecture audit
+  - dependency injection review
+  - state management review
+  - mobile testability
+  - mobile app structure
+  - module boundaries mobile
+  - navigation review
+example_invocations:
+  - "Review this Jetpack Compose feature module for adherence to the unidirectional data flow pattern."
+  - "Audit our SwiftUI app's MVVM layering and tell me where the view models are leaking UIKit types."
+  - "Look at this Flutter feature folder and tell me whether it's testable end to end."
+inputs:
+  - name: codebase_snapshot
+    type: file
+    required: true
+    description: A folder tree, zip, or set of representative source files covering at least one full feature (UI + state + data) plus the app entry point and DI wiring.
+  - name: platform
+    type: choice
+    required: true
+    description: Primary platform of the codebase under review.
+    choices: [ios-swift, android-kotlin, react-native, flutter, kotlin-multiplatform, mixed]
+  - name: stated_pattern
+    type: choice
+    required: false
+    description: What the team thinks they are doing. The skill checks whether the code actually matches.
+    choices: [mvvm, mvi, mvp, clean, viper, redux-like, none-declared]
+  - name: pain_points
+    type: text
+    required: false
+    description: Free-text notes on what the team feels is wrong (slow tests, flaky UI, hard to onboard, merge conflicts in the same file).
+  - name: depth
+    type: choice
+    required: false
+    description: How deep to go. Defaults to "feature-walkthrough".
+    choices: [smoke, feature-walkthrough, full-audit]
+outputs:
+  - name: architecture_report
+    type: markdown
+    description: Structured report with layering verdict, DI verdict, state verdict, navigation verdict, testability verdict, prioritized findings, and a one-paragraph executive summary.
+  - name: findings_table
+    type: markdown
+    description: Table of findings with severity (blocker, major, minor, nit), location, evidence snippet (short), and suggested fix.
+  - name: refactor_plan
+    type: markdown
+    description: Sequenced backlog of refactor steps, each scoped to fit in roughly one engineer-week and ordered so the codebase stays shippable between steps.
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Initial release.
+---
+
+# Mobile Architecture Reviewer
+
+## When to use
+
+Reach for this skill when a mobile codebase has grown past the point where a single engineer holds the full picture in their head and the team is starting to feel friction: tests slow, merges conflict, a "simple" feature takes two sprints, or onboarding a new hire takes a month. The job is to look at the structure, not the product surface, and report on whether the bones are right.
+
+Specifically, use it to:
+
+- Audit an existing iOS, Android, React Native, Flutter, or Kotlin Multiplatform app against a declared pattern (MVVM, MVI, Clean, VIPER, Redux-like) and call out drift.
+- Decide whether a planned refactor is justified or whether the current architecture is fine and the pain lives elsewhere (build system, CI, product process).
+- Produce a written deliverable a tech lead can take to a staff engineer review or to a manager who needs to fund cleanup work.
+- Prepare for a migration (UIKit to SwiftUI, View System to Jetpack Compose, legacy bridge to React Native New Architecture, GetX to Riverpod) by knowing what the current shape actually is.
+
+Do not use it for:
+
+- Performance tuning. The performance tuner skill handles that.
+- Release readiness. The release prep skill handles that.
+- Reviewing a single pull request. A code review tool is the right scope; this skill expects at least a full feature in context.
+
+## Inputs
+
+- `codebase_snapshot` (required) — Enough source to see one feature end to end. The reviewer cannot judge testability from one screen file; it needs the view, the state holder, the data repository, the DI graph, and the app entry point. A whole module is ideal.
+- `platform` (required) — Determines which idioms count as "correct." A pattern that is healthy in SwiftUI looks broken in Jetpack Compose and vice versa.
+- `stated_pattern` — The shape the team believes the code follows. The skill compares belief to reality.
+- `pain_points` — Symptoms the team is feeling. The findings get re-sorted so the symptoms get explained first.
+- `depth` — `smoke` is a thirty-minute read with a verdict and three findings. `feature-walkthrough` is the default and gives a per-layer report for one feature. `full-audit` walks every feature module, the app shell, and the cross-cutting infrastructure.
+
+## How to apply
+
+The review is a structured pass with checkpoints. Do not skip a checkpoint just because the input "looks fine"; reviewers who skim miss the things that matter.
+
+### 1. Establish the architectural lens
+
+Before reading any code, fix the rubric. The rubric varies by platform; pick the right column.
+
+- **iOS / Swift / SwiftUI or UIKit.** Healthy modern code separates view (SwiftUI `View` or UIKit `UIViewController`), state holder (`ObservableObject`, `@Observable`, or view model), use case or interactor where business logic lives outside a single screen, repository where I/O lives, and a coordinator or navigation state where flow lives. Dependency injection is typically constructor-based with a composition root in the `App` or `SceneDelegate`, or a small DI library (Factory, Resolver, Needle). Async work uses `async/await` or Combine, not closure pyramids.
+- **Android / Kotlin / Jetpack Compose or View System.** Healthy modern code splits into UI (composables or fragments), `ViewModel` (which owns `StateFlow` or `Compose State`), domain (use cases as functions or small classes), and data (repositories that wrap data sources). DI is Hilt, Koin, or a hand-rolled component graph. Coroutines and `Flow` carry async; `LiveData` is acceptable but dated. Modularization splits feature modules from shared core modules.
+- **React Native.** Healthy code separates screens from feature components, isolates business logic in hooks or services, and uses a state library (Redux Toolkit, Zustand, Jotai, Recoil) or react-query for server state. Navigation lives in a dedicated navigator file (React Navigation or expo-router). Native modules are wrapped behind TypeScript interfaces; the New Architecture (Fabric, TurboModules) is preferred for new code.
+- **Flutter / Dart.** Healthy code separates widgets from state management (Bloc/Cubit, Riverpod, Provider), keeps repositories pure of Flutter imports, and centralises navigation (go_router, auto_route). DI is constructor injection or a service locator (get_it). Feature-folder structure beats layer-folder structure once the app has more than a handful of screens.
+- **Kotlin Multiplatform.** Healthy code keeps the shared module free of platform imports, exposes Kotlin-idiomatic APIs to Android and bridge-friendly APIs to iOS, and uses Compose Multiplatform or platform-native UI per the team's call. Shared state lives in a store or view model in the `commonMain` source set.
+
+Write the rubric down at the top of the report so the reader knows what "correct" means in this audit.
+
+### 2. Map the layers
+
+Open the project and produce a layer map. The map is small — five to ten boxes — and answers: what does the app think its layers are, and which files live in which?
+
+A reviewer does this by:
+
+2.1. Listing the top-level source directories and noting their names. Names like `presentation`, `domain`, `data`, `core`, `feature_*` are good signal. Names like `utils`, `helpers`, `misc`, `common` are warning signs that the team has a parking lot for things they did not know where to put.
+
+2.2. Picking one feature and tracing a user action from the UI to the network or database call and back. Note every file the call passes through. If the trace is shorter than three files, the layering is thin; if it is more than eight files, the layering is ceremonial.
+
+2.3. Recording where threading boundaries live. In a healthy app there is a clear answer to "what runs on the main thread." If the answer is "we hope nothing blocks," that is a finding.
+
+### 3. Judge the layer boundaries
+
+For each layer pair, ask three questions and write the answer:
+
+- Does the higher layer depend on an abstraction of the lower one, or on the lower one's concrete class? On iOS, does the view model import `URLSession` or a `NewsRepository` protocol? On Android, does the view model import `Retrofit` or a `NewsRepository` interface? On Flutter, does the Cubit import `http` or a `NewsRepository` class?
+- Do platform types leak upward? A view model that exposes `UIImage`, `Bitmap`, `Image` from Flutter's painting package, or a React Native `ImageSourcePropType` is doing the view's job and will break in unit tests.
+- Do data types leak upward? A view that consumes the raw JSON DTO instead of a domain model couples the UI to the wire format. The next API change will rewrite the view.
+
+Each violation becomes a finding with severity:
+
+- **Blocker** if the team's stated pattern is impossible given the violation (e.g. claims Clean but the view directly calls a database).
+- **Major** if the violation forces wide refactors when something changes.
+- **Minor** if it is local and fixable in a single PR.
+- **Nit** if it is a style preference rather than a structural risk.
+
+### 4. Audit dependency injection
+
+DI is the part teams most often get wrong on mobile and the part that most controls testability.
+
+4.1. Find the composition root. There should be exactly one place per app where the long-lived graph is wired. On iOS this is typically the `@main App` body or a custom container. On Android with Hilt it is `@HiltAndroidApp` and the modules under it. In React Native it is the providers stack around the root component. In Flutter it is the `runApp` call or a wrapping provider.
+
+4.2. Check what the composition root knows. The root should know about concrete implementations; nothing below it should. If a view model imports `FirebaseAuth` directly, the test that exercises that view model now requires Firebase configuration, which is the symptom of a DI failure even when a DI library is installed.
+
+4.3. Look for service locators masquerading as DI. A global `ServiceLocator.shared.get(...)` call inside a view model is not dependency injection; it is a global with extra typing. Findings get severity `major` because tests become hard to isolate.
+
+4.4. Check the test target. Test classes should be able to construct any view model with fake dependencies in one line. If they cannot, the DI graph is too rigid.
+
+### 5. Audit state management
+
+This is the layer that creates the most user-visible bugs, so spend disproportionate time here.
+
+5.1. Identify the source of truth for each piece of UI state. There should be one. If both the view and the view model can mutate the same flag, that flag will get inconsistent and the bug report will say "sometimes it doesn't work."
+
+5.2. Check the directional flow. Unidirectional flow (view emits intents, state holder produces state, view renders state) is the modern default across platforms. Bidirectional bindings are acceptable for small forms; they become a finding when they govern non-trivial business logic.
+
+5.3. Look at state shape. A state class with thirty fields that all change independently is a smell; split it. A state class that is a discriminated union (sealed class on Kotlin, enum with associated values on Swift, sum type on Dart) of `Loading | Empty | Loaded(data) | Error(reason)` is healthy because the renderer cannot show data and loading at the same time.
+
+5.4. Check for `null` or `undefined` as a state representation. A `User?` field on a view model where `null` means "loading" and `null` also means "failed" and `null` also means "logged out" is the classic mobile state bug. Findings here are usually major.
+
+### 6. Audit navigation
+
+Mobile navigation is platform-specific but the questions are the same.
+
+- Is the navigation graph defined in one place (or composed from feature graphs) or scattered across screens?
+- Does the navigation graph reference screens by string keys (typo-prone) or typed routes?
+- Can a deep link reach an arbitrary screen with the right back stack, or do deep links require special handling per route?
+- Is navigation testable without spinning up the OS — i.e., can the test push a route and assert the next screen without launching an `Activity`, `UIViewController`, or device emulator?
+
+A team that cannot answer "where do I add a new screen?" without thinking gets a major finding for navigation.
+
+### 7. Audit testability
+
+Testability is the integral of all the previous sections, but check it explicitly:
+
+7.1. **Unit tests**. Can a view model be exercised without the framework? On iOS that means no `UIViewController` instantiation in the test. On Android it means a JVM test, not an instrumented one. On Flutter it means a `flutter test` that does not pump a widget tree. On React Native it means Jest tests of hooks and reducers without the renderer.
+
+7.2. **Screen tests**. Compose has Compose UI Test, SwiftUI has Xcode previews and snapshot testing, Flutter has widget tests, React Native has React Native Testing Library. Look for at least the snapshot or screenshot test infrastructure even if coverage is thin.
+
+7.3. **End-to-end tests**. Maestro, Detox, Appium, or platform-native UI tests (Espresso, XCUITest). The skill does not require these to exist, but their absence on an app with more than a few thousand users is a finding.
+
+7.4. **Build-time decoupling**. Can a feature module compile and run its tests without the rest of the app? If yes, that is a strong signal. If no, even pure unit tests will be slow because the whole world rebuilds.
+
+### 8. Look for the local-knowledge smells
+
+These are the small signs that an architecture has decayed even when the layers look fine:
+
+- A file with more than 800 lines that is not generated code.
+- A view model with more than fifteen public methods.
+- A `Manager`, `Helper`, `Util`, or `Service` class that is referenced from more than five other files.
+- A module whose dependency graph looks like a hairball — every module imports every other module.
+- A single `Coordinator` or navigation handler that knows about every screen in the app.
+- Commented-out code older than the last release tag.
+
+Each is a minor finding on its own; three or more together gets promoted to major.
+
+### 9. Cross-check the pain points
+
+Take the user's `pain_points` input. For each pain point, point at the structural cause from the findings list. If a pain point has no structural cause, say so — the issue may be tooling, process, or product, not architecture. A reviewer who blames everything on the architecture loses credibility.
+
+### 10. Compose the report
+
+The deliverable has four sections in order:
+
+1. **Executive summary**, one paragraph. State the verdict (sound, drifted, broken), the headline cause, and the recommended action level (none, tidy, refactor, rewrite).
+2. **Verdicts by section** — layering, DI, state, navigation, testability — each one sentence with a colour-coded verdict.
+3. **Findings table**, sorted by severity then by file path.
+4. **Refactor plan** if any verdicts are red. The plan is sequenced so each step leaves the app shippable; never recommend a step that ends with "and now nothing compiles for two weeks."
+
+The executive summary goes at the top because tech leads read top-down and managers stop after the first paragraph.
+
+## Outputs
+
+`architecture_report` is the full markdown document.
+
+`findings_table` is repeated as a standalone deliverable so it can be pasted into a tracking tool.
+
+`refactor_plan` is optional; it is only produced if at least one verdict is red.
+
+## Examples
+
+### Example: SwiftUI app with claimed MVVM, depth=feature-walkthrough
+
+Trimmed report excerpt:
+
+```
+## Executive summary
+The app declares MVVM but in practice the view models are thin wrappers around
+URLSession callbacks, and the `NewsFeedView` directly decodes JSON DTOs.
+Verdict: drifted. Recommended action level: refactor (estimate one engineer-month).
+The pain point "tests are slow" is explained by the absence of a repository
+abstraction — every test currently hits the network.
+
+## Verdicts by section
+- Layering: amber. Repository layer is missing for two features.
+- DI: red. `URLSession.shared` is referenced from four view models.
+- State: green. `@Observable` state holders are tidy and unidirectional.
+- Navigation: amber. Routes are typed but back-stack handling is per-screen.
+- Testability: red. Zero view-model tests because the network is hard-coded.
+
+## Findings
+| Severity | File | Evidence | Suggested fix |
+|---|---|---|---|
+| Major | NewsFeedViewModel.swift L24 | Direct URLSession use | Inject a NewsRepository protocol |
+| Major | ArticleDetailViewModel.swift L18 | Decodes ArticleDTO | Map to Article domain model in repository |
+| Minor | CoordinatorRoot.swift | 600-line switch on Route | Split per feature |
+
+## Refactor plan
+1. Introduce `NewsRepository` protocol; move URLSession into one
+   `URLSessionNewsRepository` implementation. (4 days)
+2. Add `Article` domain model and DTO→domain mapper. Migrate views to
+   consume `Article`. (3 days)
+3. Add view-model unit tests with an in-memory fake repository. Aim for
+   60% coverage on view models. (5 days)
+4. Split coordinator per feature. (3 days)
+```
+
+### Example: Jetpack Compose app, depth=smoke
+
+```
+## Executive summary
+Architecture is sound for the size of the codebase. Two minor findings; no
+major issues. Recommended action level: tidy.
+
+## Verdicts by section
+- Layering: green.
+- DI: green (Hilt, single module per feature).
+- State: green (StateFlow + immutable UiState sealed class).
+- Navigation: green (Navigation Compose with typed routes).
+- Testability: amber (no Compose UI tests yet, but view-model tests cover
+  the critical paths).
+
+## Findings
+| Severity | File | Evidence | Suggested fix |
+|---|---|---|---|
+| Minor | core/util/Extensions.kt | 47 unrelated extension functions | Split by domain |
+| Nit | feature/profile/ProfileViewModel.kt | `init { fetch() }` | Move to LaunchedEffect in screen |
+```
+
+## Limitations
+
+- A static read cannot tell you whether the app is fast enough or whether users like it. Performance and product fit are separate audits.
+- Without a build of the app the reviewer cannot tell whether the compile graph matches the intended module graph; trust the `build.gradle.kts`, `Package.swift`, `pubspec.yaml`, or `package.json` plus the imports, but flag uncertainty.
+- Findings about DI and testability are only as accurate as the test target the reviewer was given. A team can have an excellent secondary test target the reviewer never saw.
+- Refactor estimates are rough; teams should re-estimate against their own velocity before committing dates.
+- The skill does not write code. It writes the report and the plan; engineers apply the changes.
+
+## Sources reviewed
+
+- https://github.com/android/nowinandroid
+- https://github.com/android/architecture-samples
+- https://github.com/android/compose-samples
+- https://github.com/kudoleh/iOS-Clean-Architecture-MVVM
+- https://github.com/VeryGoodOpenSource/very_good_templates
+- https://github.com/thecodingmachine/react-native-boilerplate
+- https://github.com/Kotlin/kmp-production-sample
+- https://github.com/obytes/react-native-template-obytes

@@ -1,0 +1,250 @@
+---
+id: skillsgit-curated/robot-camera-lidar-calibration-planner
+version: 1.0.0
+name: Camera-LiDAR Calibration Planner
+description: Plan and execute multi-modal sensor calibration — targets, capture protocol, intrinsics, extrinsics, time-offset, residual analysis, and drift detection for camera, LiDAR, and IMU.
+authors:
+  - name: skillsgit Curated
+    handle: skillsgit-curated
+    role: author
+category: robotics
+tags: [niche:robot-perception, calibration, camera-lidar, intrinsics, extrinsics, time-sync, reprojection-error, drift-detection]
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6, gpt-4o, gpt-4.1, gemini-1.5-pro]
+  tools_required: []
+  tools_optional: [web_search, code_execution, file_io]
+  min_context_tokens: 32000
+  estimated_tokens_per_invocation: 7500
+trigger_keywords:
+  - calibrate camera and lidar
+  - camera lidar extrinsics
+  - intrinsic calibration camera
+  - kalibr workflow
+  - reprojection error
+  - calibration target design
+  - time offset camera imu
+  - calibration drift
+  - extrinsic optimization
+  - charuco target
+  - sensor calibration plan
+  - check calibration quality
+example_invocations:
+  - "Plan camera-LiDAR extrinsic calibration for our delivery robot — what target, what capture pattern, what residual is acceptable?"
+  - "Our reprojection error is creeping up over weeks of operation. How should we detect calibration drift?"
+  - "Design a one-shot calibration workflow for a stereo camera plus IMU on a quadruped."
+inputs:
+  - name: sensor_set
+    type: text
+    required: true
+    description: Which sensors must be calibrated — list each by modality, model, mounting, and the frame it lives in.
+  - name: calibration_goal
+    type: choice
+    required: false
+    description: What this calibration round is for.
+    choices: [factory-initial, post-integration, field-recalibration, drift-investigation, post-impact]
+  - name: accuracy_target
+    type: text
+    required: false
+    description: Required calibration accuracy in physical units — e.g. "extrinsic translation < 5 mm, rotation < 0.2°, time-offset < 1 ms".
+  - name: environment
+    type: text
+    required: false
+    description: Where the calibration will be performed — indoor lab, outdoor, on-vehicle in motion. Affects target choice and lighting plan.
+  - name: tooling
+    type: text
+    required: false
+    description: Available tools, targets, and software stack (e.g. "Kalibr, Open3D, custom ROS bag recorder; A2 ChArUco target available; no motion-capture rig").
+outputs:
+  - name: calibration_plan
+    type: markdown
+    description: Step-by-step calibration plan with target spec, capture protocol, optimization config, residual analysis, and acceptance criteria.
+  - name: plan_json
+    type: json
+    description: Structured plan with `targets`, `capture_protocol`, `intrinsics`, `extrinsics`, `time_offset`, `acceptance`, `drift_monitor`.
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Initial release.
+---
+
+# Camera-LiDAR Calibration Planner
+
+## When to use
+
+Use this skill when someone needs to calibrate the sensors on a robot — bring up new hardware, recover from a knock that may have shifted mounts, investigate creeping drift in production, or formalize a recurring calibration procedure for a fleet. The skill produces a written plan: what targets to use, where to stand them, how many poses to capture, how to drive the optimization, what residual numbers are acceptable, and how to detect when a previously-good calibration has gone bad.
+
+The skill is appropriate for these multi-modal pairs and triples: camera-camera (stereo and multi-camera rigs), camera-LiDAR (any 3D LiDAR with any pinhole or fisheye camera), camera-IMU (visual-inertial), LiDAR-IMU (LiDAR-inertial), LiDAR-LiDAR, and LiDAR-to-base_link (a single LiDAR aligned to a robot body frame). It also covers camera intrinsics (pinhole, fisheye, omnidirectional). It does not cover the design of the perception stack itself (that is a separate skill), the specific implementation of an object detector, or sensor selection.
+
+**Mandatory safety disclaimer.** This skill produces methodology guidance. Perception failures in safety-critical robots can cause physical harm. Every recommendation must be validated in target operational design domains; never deploy a perception stack to safety-critical hardware without rigorous test coverage of edge conditions (weather, lighting, occlusion, sensor degradation).
+
+## Inputs
+
+| Input | Required | Purpose |
+| --- | --- | --- |
+| `sensor_set` | yes | Identifies the calibration pairs and the model assumptions. |
+| `calibration_goal` | no | Scopes the depth of the plan and the residual-drift framing. |
+| `accuracy_target` | no | Anchors acceptance criteria. |
+| `environment` | no | Constrains target choice and capture protocol. |
+| `tooling` | no | Adapts plan steps to the user's actual toolchain. |
+
+## How to apply
+
+The skill walks a thirteen-stage pipeline. Stages are roughly sequential — intrinsics before extrinsics, extrinsics before time-offset, but with a non-trivial dependency that time-offset estimation often needs the extrinsics to be approximately correct first, leading to an iterative outer loop in Stage 9.
+
+### Stage 1 — Restate the calibration job
+
+1. Read `sensor_set` and produce one line per sensor with: `sensor_id`, `modality`, `vendor_model`, `mount_pose_nominal`, `intrinsic_model_assumed`, `native_rate`, `timestamp_source`. If any field is missing, ask before continuing.
+2. List the *frame pairs* that must be calibrated. Each pair has a 6-DoF rigid transform to recover. For a typical small mobile platform you will have base_link↔IMU, IMU↔camera, camera↔LiDAR, plus camera intrinsics and LiDAR intrinsic corrections. Enumerate them as a graph: nodes are frames, edges are calibrations.
+3. Decide which transforms are *independently* calibrated and which are *chained*. Chained calibrations compound error; an independent pairwise calibration plus a triangle-closure check is more robust than a single chain.
+4. Restate the *purpose* in one sentence — what downstream task drives the accuracy budget. "We need camera-LiDAR extrinsics tight enough that a 30 m pedestrian is correctly fused" implies a different budget than "we need it good enough for visualization overlays".
+5. Pin the *acceptance criteria* — translation tolerance, rotation tolerance, time-offset tolerance, and reprojection or point-to-plane residual thresholds — sourced from `accuracy_target` or set as a default and flagged for confirmation.
+
+### Stage 2 — Choose the calibration targets
+
+6. For pinhole and fisheye cameras, default to a *ChArUco* board: combines a checkerboard (sub-pixel corner detection) with ArUco markers (per-image identification of corners). Specify board dimensions, square size, marker size, dictionary, and physical print accuracy (laminated, flat-mounted, dimensioned with a calibrated rule).
+7. For multi-camera rigs that cannot see one shared planar target, use a multi-target apparatus — multiple ChArUco boards at known relative poses, or an AprilTag grid covering walls of a calibration room.
+8. For omnidirectional and ultra-wide cameras, plan dense coverage — the distortion model is poorly constrained in the periphery if the target is only seen in the centre. Plan poses that cover at least 80% of the image area.
+9. For camera-LiDAR extrinsics, choose between (a) planar targets visible to both modalities (a board with visible corners *and* a flat plane the LiDAR can find), (b) edge-rich targets (boards with retro-reflective tape that LiDAR returns strongly), (c) target-free methods (using planar surfaces in the environment, edges, or mutual-information optimization on grayscale-vs-reflectance). Targetless methods need a richer scene and produce wider residuals; target-based methods are tighter when the target is well-built.
+10. For LiDAR-IMU, plan a *motion* calibration: the rig is rotated and translated through a non-degenerate sequence (yaw + pitch + roll + translation), and the optimization recovers extrinsics and time-offset jointly. No physical target is needed; a richly textured environment is.
+11. For LiDAR intrinsic correction, plan a controlled-range scan of a planar surface across the full range envelope; recover beam-angle and range-bias corrections from residual analysis.
+12. Document the target *manufacturing tolerance*. A nominally 100 mm square that is physically 99.7 mm produces a scale error that the optimization absorbs into focal length. State the print/mount procedure that bounds tolerance to a stated value.
+
+### Stage 3 — Design the capture protocol
+
+13. For camera intrinsics, target poses must vary in *distance, angle, and image position*. Default: 25–50 poses covering near (target fills half the image), far (target fills a quarter), and angled views (target normal at 30°, 45°, 60° to optical axis). Each pose contributes constraints; redundancy is what reveals bad poses.
+14. For each capture, record raw frames *and* a synchronized log of the other sensors. A calibration capture is also a regression-test capture for the future.
+15. Capture in *static* conditions: rig and target stationary, lighting steady. Motion-blur and rolling-shutter artifacts during intrinsic capture are silent killers of accuracy. If the camera has rolling shutter, document it in the model.
+16. For stereo or multi-camera, every captured pose must show enough of the target to all participating cameras. Plan target sizes and standoff distance so target is in focus and not saturated in any view.
+17. For LiDAR-camera extrinsics with a planar target, capture poses that distribute the target across the camera's FOV and across multiple ranges (close: 1–2 m; mid: 3–5 m; far: 8–15 m for short-range LiDAR; further for long-range). Vary target normal direction so the LiDAR plane fit is well-conditioned in all three axes.
+18. For motion-based LiDAR-IMU or camera-IMU, plan a trajectory that excites all six degrees of freedom and that the IMU sees rotation rates above its noise floor (e.g. ≥ 30°/s peak yaw, plus pitch and roll). Pure translation is degenerate for the rotation extrinsic.
+19. Plan capture *duration* per pose — long enough to accumulate multiple LiDAR scans for averaging, short enough that the operator can hit the schedule.
+20. Document the *operator-discipline* checklist: target flat to a mounted board, lighting unchanged across capture, no shadows of the operator on the target, no reflective surfaces in line of sight, sensor mounts torqued to spec, all cables strained-relieved (so the operator can't bump a mount mid-capture).
+
+### Stage 4 — Camera intrinsic calibration
+
+21. Pick the camera model: pinhole + Brown-Conrady (radial-tangential) for narrow-FOV cameras, pinhole + Kannala-Brandt (equidistant) for wide-FOV, Mei or Scaramuzza for omnidirectional / fisheye > 180°. Mis-matched model is the most common silent calibration bug.
+22. Detect corners with sub-pixel refinement. Reject detections where the corner saddle-point fit is weak. Output detections per pose for review.
+23. Run the calibration optimization with a non-linear least-squares solver. Report mean and per-percentile (50th, 90th, 99th) reprojection residual in pixels. The 99th percentile is what drives outlier-driven worst-case behaviour; the mean alone hides bad poses.
+24. Diagnose. A bias in residuals as a function of image position means the distortion model is mis-specified. A bias as a function of pose means a target-mounting problem (board not flat) or a rolling-shutter effect.
+25. Drop any individual capture whose residual exceeds 3× the median per-pose residual, *and* understand why before discarding more than 10% of captures.
+26. Acceptance: mean reprojection residual ≤ 0.5 px for global-shutter machine-vision cameras, ≤ 1.0 px for rolling-shutter consumer cameras, *and* a flat residual distribution across image position. Stricter targets require denser captures and better targets.
+27. Save the intrinsics with provenance: target physical size, software version, operator, date, residual distribution. Calibration without provenance is unverifiable.
+
+### Stage 5 — Camera-camera extrinsic calibration
+
+28. For stereo or multi-camera rigs that see a common target, jointly optimize stereo extrinsics and per-camera intrinsics. Joint optimization is more accurate because the same observations constrain both.
+29. Acceptance for stereo: baseline known to ≤ 0.5%, rotation between cameras ≤ 0.1°, *epipolar residual* across the calibration set ≤ 0.5 px median. Epipolar residual is a stronger evaluation than per-camera reprojection because it surfaces extrinsic-specific errors.
+30. For multi-camera rigs without a common target view, plan a daisy-chain calibration: cam1↔cam2, cam2↔cam3, and validate the loop by re-deriving cam1↔cam3 directly and checking against the chained estimate. Loop-closure error reveals chain compounding.
+
+### Stage 6 — Camera-LiDAR extrinsic calibration
+
+31. Choose method: planar-target board for short and mid range; edge-feature method for longer range; mutual-information method when the target cannot be moved through the LiDAR's FOV.
+32. For planar-board methods, detect the target's plane in LiDAR (3D plane fit on returns belonging to the board, with outlier rejection) and its corners in the camera image. The optimization minimizes the residual between the projected LiDAR points and the camera detection.
+33. Acceptance: per-pose translation residual ≤ 1% of mean target distance, rotation ≤ 0.3°, *cross-validation*: hold out 20% of poses, optimize on the rest, and check the held-out residual. If held-out is materially worse than training, the calibration is over-fit (too few poses or bad target geometry).
+34. Visual check: project the LiDAR cloud onto the camera image using the recovered extrinsics for a held-out scene with rich structure (edges of buildings, vehicle outlines). Edge misalignment > 2 px at typical range means the calibration is wrong even if the residual numbers look acceptable.
+35. For multi-LiDAR-camera rigs, plan a star topology: every LiDAR is calibrated independently against a chosen reference camera, plus a closure check by calibrating LiDAR-to-LiDAR directly.
+
+### Stage 7 — LiDAR-LiDAR extrinsic calibration
+
+36. For multi-LiDAR setups, choose between ICP-on-overlap (the two LiDARs see the same scene and ICP recovers the extrinsic) and target-based (a planar target visible to both). ICP is convenient but degenerate if the overlap region lacks geometric variation in all three rotation axes.
+37. For non-overlapping LiDARs, calibrate each to a common third frame (e.g. base_link) using a motion-based approach.
+38. Acceptance: point-to-plane residual on overlap region ≤ LiDAR ranging noise plus a small constant; rotation closure across a triangle of LiDARs ≤ 0.2°.
+
+### Stage 8 — IMU intrinsic calibration
+
+39. Plan an Allan-variance run: the IMU sits still in a vibration-isolated mount for 1–4 hours; recover white-noise density, bias instability, and random-walk parameters per axis. These parameters are inputs to the fusion filter's process noise.
+40. Plan a temperature-bias run if the platform operates across a wide temperature range; many IMUs need a bias-temperature table.
+41. Acceptance: Allan-variance curve resembles the manufacturer's published curve; gross deviations indicate a faulty unit.
+
+### Stage 9 — Camera-IMU and LiDAR-IMU extrinsic + time-offset
+
+42. Motion-based jointly recovers extrinsic rotation, translation, and time-offset. The capture is an excited 1–3 minute hand-held or platform-driven sequence with rotation rates above noise floor and translation along multiple axes.
+43. Set up the optimization to estimate the 6-DoF extrinsic, the time offset (camera or LiDAR timestamps shifted by τ relative to IMU), and IMU biases as additional free parameters. Pin the IMU intrinsics from Stage 8.
+44. Initialize the extrinsic from a coarse mechanical drawing; initialize the time offset to zero. Iterate: optimize extrinsic given current offset, then re-estimate offset given extrinsic, until both converge. Failure to converge is a sign of degenerate motion or wrong IMU model.
+45. Acceptance: extrinsic translation residual ≤ 5 mm typical, rotation ≤ 0.2°, time-offset ≤ 1 ms, and the post-optimization Allan-variance-derived noise model produces sensible IMU prediction residuals (chi-squared near 1 across the dataset).
+46. If the platform exhibits rolling-shutter, include rolling-shutter readout time as a parameter; otherwise it shows up as a biased extrinsic.
+
+### Stage 10 — LiDAR intrinsic correction
+
+47. Plan a range-bias capture: a static flat target placed at a range of distances (1 m, 3 m, 5 m, 10 m, 20 m, 30 m). Compare LiDAR-reported range to ground truth (laser distance meter); fit a per-distance correction.
+48. Plan a beam-angle capture: flat targets at multiple orientations test that all beams' angle estimates agree. Outlier beams should be flagged for masking.
+49. Acceptance: corrected ranges within ±2 cm of ground truth at all calibrated ranges; per-beam residual within ±0.05° after correction.
+
+### Stage 11 — Validation and cross-checks
+
+50. After all calibrations are individually green, run a *system-level cross-check* on a recorded sequence. Visualize colourized point clouds (LiDAR coloured by camera projection), object-detection bounding boxes projected from camera into LiDAR, and the IMU-predicted pose vs. the LiDAR-derived pose during a fast manoeuvre. Each cross-check reveals a different category of subtle error.
+51. Compute the *triangle closure*: for every triple of frames (A, B, C), the composed transform A→B→C→A should be the identity. The residual transform is the closure error and quantifies the chain compounding.
+52. Compute *temporal stability*: re-run the calibration with subsets of captures (5 splits) and check the variance of recovered parameters across splits. High variance means the procedure is under-constrained.
+53. Acceptance for the system: every individual calibration meets its target, triangle closure within compound budget, temporal stability within 50% of acceptance tolerance.
+
+### Stage 12 — Drift detection in production
+
+54. Define a *runtime monitor* that periodically estimates whether the live calibration is still valid. Three useful approaches: (a) reproject LiDAR points onto camera images of known scene structure and measure edge alignment; (b) track innovation residuals in the fusion filter — sustained increase in chi-squared is a drift signal; (c) re-detect a known calibration landmark at known intervals.
+55. For each monitor, set a *threshold* and a *cooldown*. Single spikes are not drift; sustained excursion over minutes is.
+56. Define the *response* to detected drift: in-field re-run of a quick calibration (with a portable target), online estimation update (if the fusion filter supports it), conservative behaviour until next service, immediate safe-stop for high-safety platforms.
+57. Specify a *recalibration trigger schedule*: any of (a) detected drift, (b) post-impact event from the IMU watchdog, (c) sensor replacement, (d) calendar interval. Calendar intervals are platform-dependent — outdoor heavy-vibration platforms recalibrate weekly; indoor low-vibration platforms monthly to quarterly.
+
+### Stage 13 — Compose the deliverable
+
+58. Open with a one-paragraph "calibration intent" summary: what is being calibrated, why now, what accuracy is required, what the plan promises.
+59. Render the plan as a markdown checklist organised by the stages above so the operator can tick items off during capture and processing.
+60. Emit the JSON variant in `plan_json` with structured keys for every target, capture, optimization, acceptance threshold, and drift monitor.
+61. End the plan with a "what this plan does not cover" section: certain exotic sensors, non-rigid mounts, drift-prone outdoor temperature swings, and high-shock environments may require domain-specific calibration extensions.
+
+## Outputs
+
+The skill returns:
+
+1. `calibration_plan` (markdown) — full step-by-step plan for operator execution.
+2. `plan_json` (JSON) — structured plan suitable for tooling.
+
+## Examples
+
+**Input (placeholder):**
+
+`sensor_set`: "GMSL global-shutter RGB camera, 32-beam 905 nm LiDAR, 200 Hz industrial IMU, mounted on a wheeled outdoor inspection robot."
+
+`calibration_goal`: "post-integration."
+
+`accuracy_target`: "camera-LiDAR translation ≤ 5 mm, rotation ≤ 0.2°; camera-IMU time-offset ≤ 1 ms; camera intrinsic reprojection mean ≤ 0.4 px."
+
+`environment`: "indoor lab, 18–22°C, controlled lighting."
+
+`tooling`: "A2 ChArUco target available, Kalibr installed, GTSAM available, no motion-capture rig."
+
+**Plan (abbreviated):**
+
+- Targets: A2 ChArUco (8x6 squares, 60 mm square, 40 mm marker, DICT_5X5_250); secondary planar board with retro-reflective tape on a 200 mm border for LiDAR-detectable plane.
+- Camera intrinsics: pinhole + Brown-Conrady with 5 distortion coefficients; capture 40 poses covering near/mid/far and angled views; acceptance mean reprojection ≤ 0.4 px, 99th percentile ≤ 1.0 px.
+- Camera-LiDAR extrinsic: planar-board method, 30 poses across 1.5–10 m range with target normal varied; acceptance translation residual ≤ 5 mm, rotation ≤ 0.2°.
+- Camera-IMU and time-offset: 90 s hand-held excitation trajectory through pitch/yaw/roll plus translation; joint optimization in Kalibr-style estimator; acceptance time-offset ≤ 1 ms.
+- LiDAR intrinsic correction: 5 known-range planar captures from 1–20 m; fit range-bias correction.
+- Validation: project corrected LiDAR cloud onto a held-out scene and inspect edge alignment; triangle-closure check on (camera, LiDAR, IMU) ≤ 1 cm and ≤ 0.3°.
+- Drift monitor in production: weekly portable-target reprojection check; runtime chi-squared monitor on the EKF innovation; immediate safe-stop if monitor exceeds threshold for > 30 s.
+
+**Output excerpt:** the markdown plan with capture-by-capture instructions plus a JSON object whose `acceptance` block lists every numeric threshold by sensor pair, and whose `drift_monitor` block lists each runtime check with `signal`, `threshold`, `cooldown`, and `response`.
+
+## Limitations
+
+- The skill plans calibration; it does not run optimizations or process raw captures.
+- Targetless and motion-based methods need rich-structure environments; in degenerate environments (a featureless corridor) those methods fail silently. The skill flags the risk but cannot detect it from textual input alone.
+- Rolling-shutter cameras are partially supported with explicit modeling, but exotic readout patterns and frame-by-frame shutter variance may not fit standard models.
+- High-shock platforms (impacting drones, off-road vehicles) drift faster than scheduled recalibration; the user must combine the schedule with continuous online monitoring.
+- IMU intrinsic calibration is highly device-dependent; the skill gives a generic Allan-variance recipe and points the user to the IMU vendor for any device-specific extensions.
+- For exotic LiDAR modalities (MEMS, FMCW, flash) the planar-target plan is approximately right but may need adaptation; consult the LiDAR vendor's documentation.
+
+## Sources reviewed
+
+- https://github.com/ethz-asl/kalibr
+- https://github.com/koide3/direct_visual_lidar_calibration
+- https://github.com/koide3/glim
+- https://github.com/borglab/gtsam
+- https://github.com/strasdat/Sophus
+- https://github.com/opencv/opencv
+- https://github.com/isl-org/Open3D
+- https://github.com/MIT-SPARK/Kimera-VIO

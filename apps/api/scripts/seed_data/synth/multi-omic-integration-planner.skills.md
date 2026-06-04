@@ -1,0 +1,307 @@
+---
+id: skillsgit-curated/multi-omic-integration-planner
+version: 1.0.0
+name: Multi-Omic Integration Planner
+description: Plans an integrative analysis across bulk transcriptomics, single-cell RNA-seq, spatial transcriptomics, and proteomics — anchor selection, factor decomposition, batch correction, and biological interpretation.
+authors:
+  - name: skillsgit Curated
+    handle: skillsgit-curated
+    role: author
+category: biotech
+tags: [niche:multi-omics-integration, mofa, scrna-seq, spatial-transcriptomics, proteomics, batch-correction, factor-analysis, bioinformatics-pipelines]
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6, gpt-4o]
+  tools_required: []
+  tools_optional: [code_execution, file_io]
+  min_context_tokens: 32000
+  estimated_tokens_per_invocation: 8500
+trigger_keywords:
+  - multi-omics
+  - data integration
+  - mofa
+  - factor analysis
+  - cross-modality
+  - scrna proteomics integration
+  - spatial scrna integration
+  - anchor cells
+  - cite-seq
+  - paired multi-omics
+example_invocations:
+  - "We have bulk RNA-seq, scRNA-seq, and matched proteomics from the same study — design the integration."
+  - "Plan a MOFA-based factor analysis across three omics layers for a 60-sample cohort."
+  - "How should I anchor spatial transcriptomics to a scRNA-seq reference and a CITE-seq panel?"
+  - "Design the integration plan for matched and unmatched samples across modalities."
+inputs:
+  - name: modalities_in_scope
+    type: text
+    required: true
+    description: Which omics layers are in the integration — bulk RNA-seq, scRNA-seq, snRNA-seq, spatial transcriptomics (and platform), bulk proteomics, single-cell proteomics, CITE-seq, ATAC-seq, methylation, metabolomics.
+  - name: matching_structure
+    type: choice
+    required: true
+    description: How samples or cells are matched across modalities. Drives the technical approach.
+    choices: [same-cells-paired, same-samples-different-cells, same-samples-different-platforms, unmatched-similar-conditions, atlas-versus-experimental]
+  - name: biological_question
+    type: text
+    required: true
+    description: What the integration is meant to answer — shared variation across modalities, modality-specific signals, cell-type mapping across platforms, biomarker discovery integrating multiple layers.
+  - name: cohort_scale
+    type: text
+    required: false
+    description: Number of samples, cells, and the size of each modality.
+  - name: constraints
+    type: text
+    required: false
+    description: Compute budget, restrictions on which modalities can be co-located (clinical data residency), and the deliverable format.
+outputs:
+  - name: integration_architecture
+    type: markdown
+    description: The high-level approach — anchor-based, factor-based, joint embedding, or staged — with the rationale.
+  - name: per_modality_prep
+    type: markdown
+    description: How each modality is processed and normalized before entering the integration step.
+  - name: cross_modality_step
+    type: markdown
+    description: The specific integration method, its hyperparameters, and what its output looks like.
+  - name: batch_and_confounder_plan
+    type: markdown
+    description: How batch, donor, and technical effects are handled in the joint analysis.
+  - name: interpretation_and_validation
+    type: markdown
+    description: How biological signal is extracted from the integrated output and validated against prior knowledge.
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Initial release.
+---
+
+## When to use
+
+This skill produces methodology guidance for bioinformatics workflows. Outputs are not validated clinical or research conclusions and must be reviewed by qualified scientific staff before being acted upon. Pipelines built from this guidance must be wet-lab-validated and version-locked before any decisions are made on the results.
+
+Use this skill when a project has multiple omics modalities to integrate and the integration itself is the deliverable, not a side-step. Specifically:
+
+- A study has paired or matched data across bulk RNA-seq, scRNA-seq, spatial transcriptomics, and/or proteomics on overlapping samples.
+- A multi-platform single-cell experiment (CITE-seq, paired Multiome RNA+ATAC) needs a joint analysis.
+- A spatial transcriptomics dataset needs to be anchored to a single-cell reference for deconvolution or annotation.
+- A consortium is harmonizing analyses across modalities and sites and needs a common integration plan.
+
+This skill does not run the per-modality pipelines — pair it with the relevant per-modality planner (proteomics, spatial transcriptomics, long-read genomics, the existing single-cell and RNA-seq planners). It does not produce executable code. It does not perform causal-inference integration; the focus is descriptive joint analysis suitable for hypothesis generation and biomarker discovery.
+
+## How to apply
+
+Work the steps in order. The integration step is the easy part; the per-modality preparation and the matching structure are where projects succeed or fail.
+
+### 1. Be honest about what is matched and what is not
+
+The matching structure decides the toolset.
+
+- **Same cells, different modalities** (CITE-seq for RNA+protein per cell; Multiome for RNA+ATAC per cell; spatial transcriptomics with multiplexed protein on the same section). True joint methods apply; WNN (weighted nearest neighbor), totalVI, MultiVI, and similar are appropriate.
+- **Same samples, different cells** (scRNA-seq plus bulk proteomics on the same biopsies; scRNA-seq from one section and spatial from an adjacent section). Per-cell joint methods do not apply; sample-level integration with factor analysis or pseudobulk-based methods does.
+- **Same samples, different platforms** (Visium and Xenium on adjacent sections; bulk RNA-seq and bulk proteomics on the same homogenized tissue). Sample-level integration; sometimes spatial alignment between sections, often pseudobulk on the spatial side.
+- **Unmatched, similar conditions** (a scRNA-seq atlas from one study and a proteomics cohort from another). Reference mapping and atlas alignment are the right framing; do not pretend cells correspond.
+- **Atlas versus experimental** (a published atlas as reference; new experimental data to map onto it). One-way alignment with the atlas as the reference frame.
+
+Misclassifying the matching structure produces methods that look reasonable on a slide and produce garbage results. Write it down explicitly.
+
+### 2. Run each modality through its dedicated pipeline first
+
+Integration consumes processed per-modality outputs, not raw data. Each modality has its own QC, normalization, and confounder-control requirements. Per the relevant planner:
+
+- Bulk RNA-seq: QC, gene-level counts, normalization (DESeq2-style or VST), batch awareness.
+- scRNA-seq / snRNA-seq: QC, normalization, doublet removal, basic dimensionality reduction.
+- Spatial transcriptomics: per the spatial planner.
+- Bulk proteomics: per the proteomics planner; protein-level intensity matrix.
+- ATAC-seq: peak calling, count matrix, latent semantic indexing or similar.
+
+Integration starts from these processed objects. Do not retroactively fix per-modality issues inside the integration step; they will dominate the joint result.
+
+### 3. Choose the integration paradigm
+
+Three paradigms cover most uses; pick by matching structure and biological question:
+
+- **Anchor-based / nearest-neighbor integration.** Identify mutually-corresponding observations across modalities (cells in matched single-cell data, samples in bulk-and-bulk data) and use them as anchors to align embeddings. Seurat anchors, scANVI mapping, Harmony with shared features, Symphony for atlas reference mapping. Strongest when shared features exist (gene names overlap).
+- **Factor analysis / latent variable models.** Decompose joint variation across modalities into shared and modality-specific factors. MOFA and MOFA+ for sample-level multi-omic factor decomposition; group versions for cohort structure. Strongest for sample-level (not cell-level) integration of heterogeneous modalities like RNA, proteomics, methylation.
+- **Joint embedding / generative.** Train a model that learns a shared latent space across modalities. totalVI for CITE-seq, MultiVI for Multiome, scvi-tools ecosystem for related cases. Strongest when paired per-cell data exists at scale.
+
+For cell-resolution platforms anchoring to single-cell references, the analysis is technically anchor-based even when it goes under different names (Symphony, scArches, Azimuth-style reference mapping).
+
+### 4. Standardize feature spaces where the method requires it
+
+Cross-modality integration usually requires a common feature space at some stage:
+
+- **RNA-to-protein anchoring.** Map gene to protein via UniProt or similar; one-to-many and many-to-one mappings are real. Decide whether to use first-listed mapping, expression-weighted aggregation, or all-or-nothing filtering.
+- **Bulk-to-single-cell.** Pseudobulk the single-cell data per sample-by-cell-type and compare to the bulk; or deconvolve the bulk against the single-cell reference. Both directions are valid for different questions.
+- **Spatial-to-single-cell.** Discussed in the spatial planner; the cross-platform mapping is part of integration when the spatial reference is the cohort, not the published atlas.
+- **DNA-to-RNA-to-protein.** Cascading mapping. Decide which level the analysis terminates at.
+
+Mappings must be versioned. A gene-to-protein mapping from 2024 differs from 2026 enough to change results.
+
+### 5. Handle batch and donor effects in the joint analysis
+
+Per-modality pipelines should have handled their own batch effects. Joint analysis re-exposes them:
+
+- Cross-modality "batches" can be the platform itself, the lab, the sample-prep date, and the donor across modalities.
+- For factor methods (MOFA), include batch or donor as a covariate or as a group structure rather than removing it pre-integration.
+- For anchor methods, the anchor identification itself benefits from per-modality batch control; verify that anchors are not drawn primarily within-batch.
+- For joint embedding methods, scVI-family models accept categorical covariates directly.
+
+Visualize before-and-after with PCA or UMAP colored by donor, by modality, and by batch. The desired endpoint is biology dominating over technical structure; over-correction (when biology disappears) is its own failure mode.
+
+### 6. Sample-level integration when cells are not paired
+
+When the matching is sample-level (most bulk-and-bulk and sample-matched scRNA-plus-proteomics cases), the integration is at sample level:
+
+- Pseudobulk single-cell data per sample (and optionally per cell type) before integration.
+- MOFA-family models accept multi-modal per-sample matrices and produce factors that load across modalities, identifying shared and modality-specific variation.
+- Per-factor interpretation involves looking at which features (genes, proteins) drive the factor in each modality, and how the factor scores correlate with sample metadata.
+- Cohort size matters: factor analysis on small cohorts overfits. A useful rule is at least three times as many samples as modalities, and ideally many more.
+
+For matched-sample bulk-plus-bulk cases (RNA-seq plus proteomics), simpler approaches like correlated-feature analysis (mixOmics-style sPLS or canonical correlation) are also appropriate and often easier to interpret than factor models.
+
+### 7. Cell-level integration when cells are paired
+
+When the same cells were measured across modalities (CITE-seq, Multiome, spatial-plus-multiplexed-protein), per-cell integration is possible:
+
+- totalVI for CITE-seq learns a joint latent space across RNA and protein per cell.
+- MultiVI for Multiome learns across RNA and ATAC per cell.
+- WNN (Seurat) computes weighted nearest neighbors across modalities and builds a shared graph.
+- For cell-resolution spatial plus protein imaging on the same section, the joint analysis is similar in spirit but the registration is the work.
+
+The output is a joint embedding per cell. Downstream clustering, differential analysis, and trajectory inference happen in this joint space.
+
+### 8. Cell-level integration when cells are not paired but the panels overlap
+
+A common case: an scRNA-seq dataset and a separate spatial transcriptomics dataset (or a separate CITE-seq dataset) with overlapping genes but no paired cells. Approaches:
+
+- Reference mapping with Symphony, scArches, or Azimuth-style tools maps cells from the query dataset into the reference embedding.
+- Mutual nearest neighbor (MNN) and Harmony with shared features can produce a joint embedding when run on the union of features.
+- For spatial deconvolution onto a single-cell reference, see the spatial planner.
+
+Anchors in this case are pseudo-cells matched by expression similarity, not biologically identical cells. The interpretation is therefore "where in the reference does this cell look like it sits," not "this cell is that cell."
+
+### 9. Atlas mapping has its own conventions
+
+When the reference is a published atlas:
+
+- Use the atlas's recommended mapping pipeline if one exists (scArches with the trained model, Symphony with the indexed reference).
+- Verify that the atlas covers the cell types present in the query. Missing types map to nearest available types, which silently misleads.
+- Carry a confidence score per query cell. Threshold on it; below threshold, label as unassigned and inspect.
+- Treat the atlas version as part of the analysis provenance. Atlases update.
+
+For proteomics or other modalities with smaller and rarer atlases, atlas mapping is less mature and per-study integration is more common.
+
+### 10. Differential analysis in the integrated space
+
+Once integrated, the analytic questions are:
+
+- **Shared signal across modalities.** Factors or components that vary across the same conditions in multiple modalities. Strongest evidence for biology.
+- **Modality-specific signal.** Factors that vary in one modality only. Useful — sometimes biology lives only at the protein level, sometimes at the transcript level — but interpret cautiously because technical artifacts also show up here.
+- **Cell-type-by-modality differential.** For paired single-cell data, differential expression within each cell type across modalities.
+- **Sample-condition differential on factor scores.** For factor models, the factor scores per sample are the new features for downstream contrasts.
+
+Pseudoreplication remains the most common error. Aggregate to the right level (patient, sample, donor) before testing across conditions.
+
+### 11. Validate the integration against prior knowledge
+
+Multi-omic integration outputs are easy to over-interpret. Validation steps:
+
+- Known marker genes / proteins should track together where biology demands it. If a known cell-type marker is at the top of a factor in RNA but not in protein, ask why before celebrating.
+- Pathway enrichment per factor or per joint-cluster should converge on coherent biology. Diffuse enrichment is a warning sign.
+- Cross-platform replication: factors that replicate on a held-out cohort or a published reference are more trustworthy than factors specific to one cohort.
+- Negative controls: include conditions where no biology should appear, and verify they look that way.
+
+Where possible, an experimental wet-lab validation of a key integrated finding (one cell type, one marker, one signaling pair) is the highest-quality validation and the right end of any integration paper.
+
+### 12. Cohort and study design implications
+
+A retroactive integration plan can only do so much with badly-designed data. Where the project allows input on design:
+
+- Randomize across modalities and batches together, not separately per modality.
+- Aim for paired data on the same samples wherever feasible; sample-level pairing is the cheapest defense against confounding.
+- Power per modality may not match power for the joint analysis; design with the weakest modality in mind.
+- Standard reference samples (a pooled control across all batches and modalities) anchor cross-modal comparisons.
+
+Document the design even if it cannot be changed; the analysis must respect its actual structure.
+
+### 13. Provenance for multi-modal analyses
+
+Provenance in multi-omic integration is one matrix beyond per-modality provenance:
+
+- Per-modality analysis version and the processed object hash.
+- The feature-mapping tables (gene-to-protein, peak-to-gene, etc.) with their version.
+- The integration method, version, and hyperparameters (including random seeds for non-deterministic methods).
+- The cohort table mapping observations to modalities and to conditions.
+- The atlas or reference dataset version where used.
+- The final joint object (AnnData with MuData, MOFA model, Seurat object with multiple assays) and its checksum.
+
+A reviewer should be able to take the per-modality provenance bundles, the integration provenance, and reconstruct the result.
+
+### 14. Anti-patterns to avoid
+
+- **Treating unmatched data as matched.** "We have scRNA-seq and proteomics, so we'll integrate them per cell" — without paired measurements this is incoherent. Pseudobulk and align at sample level instead.
+- **Single-direction interpretation.** "The integration says RNA drives this." Multi-omic integration is descriptive; causal claims need more.
+- **Hiding modality-specific signal as integration failure.** Sometimes biology really is modality-specific (post-translational regulation showing only at protein level). Do not force everything into shared factors.
+- **Over-correcting batch.** Joint integration that erases all donor structure also erases biological inter-individual variation that may be the point.
+- **Using paired-cell methods on unpaired data.** WNN, totalVI, and MultiVI assume per-observation pairing. They will run on unpaired data and produce wrong answers.
+- **Skipping per-modality QC because "the integration will smooth it out."** It will not.
+
+### 15. The final shape of the deliverable
+
+A complete multi-omic integration plan from this skill includes:
+
+- A clear statement of the matching structure across modalities.
+- The per-modality preprocessing references (which pipeline produced the inputs).
+- The integration paradigm and method, with rationale.
+- The feature-space mapping tables.
+- The batch-and-confounder handling approach.
+- The interpretation and validation plan.
+- The cohort-level analytic questions and the statistical models that answer them.
+- The provenance bundle structure that ties per-modality and integrated outputs together.
+
+## Inputs
+
+- The modalities in scope and their per-modality processed outputs.
+- The matching structure across modalities.
+- The biological question driving the integration.
+- Cohort scale per modality.
+- Compute and operational constraints.
+
+## Outputs
+
+- An integration architecture with paradigm and method choice.
+- Per-modality prep expectations the integration assumes.
+- The cross-modality step with hyperparameters and outputs.
+- A batch and confounder plan for the joint analysis.
+- An interpretation and validation plan.
+
+## Examples
+
+**Example A — CITE-seq joint analysis of immune subsets.** A 40-sample peripheral blood CITE-seq dataset with 150-marker protein panel and full transcriptome. The plan is: per-modality QC and normalization per the scverse defaults (RNA log-norm, protein DSB or CLR normalization); totalVI for joint latent space with donor as a categorical covariate; Leiden clustering on the joint embedding; cell-type annotation against a CITE-seq immune atlas; per-cluster differential expression in both modalities; identification of clusters where protein and RNA discriminate differently; validation against canonical marker concordance. Provenance bundles per-modality and joint analyses together with a single MuData object.
+
+**Example B — MOFA on a matched bulk RNA-plus-proteomics-plus-methylation cohort.** Sixty samples, three modalities, all measured per sample. The plan is: per-modality processed matrices (gene counts after VST, protein log-intensities after MSstats-style processing, methylation M-values); MOFA+ with all three modalities and sex and processing-batch as group structure; ten to twenty latent factors; per-factor inspection of top-loading features per modality; correlation of factor scores with clinical covariates; pathway enrichment per factor; the deliverable is a factor-by-sample matrix, factor loadings per modality, and a curated set of factors with biological interpretation.
+
+**Example C — Spatial transcriptomics anchored to a scRNA-seq reference and a multiplexed protein imaging stain.** A Visium HD cohort with adjacent-section multiplexed immunofluorescence and a per-cohort scRNA-seq reference. The plan is: per-modality processing per the spatial and single-cell planners; cell2location deconvolution of the Visium against the scRNA-seq reference; registration of the multiplexed protein image to the spatial transcriptomics image; per-spot extraction of protein-staining intensity from the registered IF image; combined spot-level analysis with deconvolved cell-type proportions and protein intensities as joint features; differential niches by clinical condition. Cross-modality validation: known marker proteins should correlate with their transcript-level deconvolution outputs.
+
+## Limitations
+
+- This skill is descriptive, not causal. Mechanistic claims require designed experiments beyond integration.
+- It does not generate executable code. Pair with the bioinformatics pipeline architect and per-modality planners.
+- Multi-omic methods evolve quickly; the named tools reflect current defaults and should be re-validated at implementation time.
+- Very small cohorts (under ten samples) limit the credible scope of any factor decomposition. The integration plan may still apply; the conclusions become exploratory.
+- Causal-inference and mediation methods across omics are an active research area not covered here; treat the outputs of this skill as inputs to those analyses, not substitutes.
+
+## Sources reviewed
+
+- https://github.com/bioFAM/MOFA2
+- https://github.com/scverse/mudata
+- https://github.com/scverse/scvi-tools
+- https://github.com/scverse/scanpy
+- https://github.com/BayraktarLab/cell2location
+- https://github.com/mixOmicsTeam/mixOmics
+- https://github.com/satijalab/seurat

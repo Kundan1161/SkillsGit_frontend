@@ -1,0 +1,276 @@
+---
+id: skillsgit-curated/safety-requirements-deriver
+version: 1.0.0
+name: Safety Requirements Deriver
+description: Translates identified hazards and safety constraints into draft safety requirements — functional, performance, monitoring, and fail-safe behavior — and assigns each one to hardware, software, or procedural responsibility, formatted for review by a qualified safety engineer.
+authors:
+  - name: skillsgit Curated
+    handle: skillsgit-curated
+    role: author
+category: robotics
+tags: [niche:functional-safety, safety-requirements, requirements-allocation, fail-safe, robot-controller, iso-13849, iec-61508]
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6, gpt-4o]
+  tools_required: []
+  min_context_tokens: 32000
+  estimated_tokens_per_invocation: 9000
+trigger_keywords:
+  - safety requirements
+  - functional safety requirements
+  - safety constraint allocation
+  - fail-safe behavior
+  - monitoring requirement
+  - hardware-software allocation
+  - safety integrity
+  - safety function
+  - performance level
+  - SIL allocation
+example_invocations:
+  - "Turn the hazard analysis into draft safety requirements with hardware/software responsibility."
+  - "Help me write the safety requirements for our cobot's speed-and-separation function."
+  - "I have constraints C1-C12 from the hazard analysis; derive the requirements and assign owners."
+inputs:
+  - name: hazards_and_constraints
+    type: text
+    required: true
+    description: The hazards and safety constraints produced upstream (typically from a hazard analysis). May be a list, a table, or a free-text description. The more structured, the cleaner the derivation.
+  - name: system_architecture
+    type: text
+    required: false
+    description: The robot system's control architecture — safety-rated controller (and what it does), standard controller, sensors, actuators, HMI, supervisory systems, network topology. Drives the hardware/software/procedural allocation.
+  - name: target_standards
+    type: choice
+    required: false
+    description: The applicable normative regime. Biases requirement terminology and the allocation hints. Does not constitute a compliance opinion.
+    choices: [iso-13849, iec-61508-61511, iso-10218-ansi-r15-06, iso-13482, iso-3691-4-amr, mixed-or-unknown]
+  - name: known_components
+    type: text
+    required: false
+    description: Specific components or subsystems that are already chosen — safety-rated controller model, scanner model, e-stop type, HMI vendor — that constrain the allocation.
+  - name: operating_envelope
+    type: text
+    required: false
+    description: Speed range, force range, payload range, reach envelope, expected duty cycle. Drives performance bounds in the requirements.
+outputs:
+  - name: safety_requirements_document
+    type: markdown
+    description: A structured set of draft safety requirements traced to the upstream hazards and constraints, partitioned into functional, performance, monitoring, and fail-safe categories, with hardware/software/procedural allocation and verification notes.
+  - name: allocation_matrix
+    type: markdown
+    description: A matrix view of requirements by responsibility (safety-rated controller / standard controller / sensor / actuator / HMI / procedure / supervisory system), suitable for handing to the integration team.
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Initial release.
+---
+
+## When to use
+
+Use this skill when a hazard analysis (or equivalent set of identified hazards and safety constraints) is in hand and the team needs to translate it into safety requirements that a development organization can actually implement and a safety engineer can verify. The skill takes constraints (statements of what the system must enforce) and turns them into requirements (statements of what the design will do, by which subsystem, with which performance, and against which verification evidence). The output is draft input to a qualified safety engineer who will refine the language, assign integrity targets (PL or SIL), and decide what evidence will close each verification gap.
+
+Use it when the constraints exist but the allocation between hardware, software, and procedure has not yet been made; when the team has been writing requirements in free prose and wants a structural pass; when an upstream hazard analysis is being handed to the development organization and the bridge from analysis to development backlog is missing; or when an existing requirements document is being audited for traceability and category coverage. The skill is opinionated about five things. First: **safety requirements are derived from constraints, not invented.** Every requirement traces to a constraint, and every constraint produces at least one requirement; the trace is the document's spine. Second: **requirements come in four flavors and the categorization is enforced.** Functional ("what the system does"), performance ("how fast, how accurately, how often"), monitoring ("what the system observes about its own state"), and fail-safe ("what the system does when monitoring detects degradation"). Skipping a flavor for a constraint is a defect. Third: **the allocation is explicit and contested.** A requirement assigned to "the controller" is unfinished; the requirement names safety-rated controller vs. standard controller, hardware vs. software within the controller, and where procedural action by a human is implicit, that procedure is itself a requirement on the organization. Fourth: **verification evidence is sketched, not invented.** Each requirement carries a hint at how it will be verified (analysis, inspection, test, demonstration) and what would constitute passing evidence; the actual verification campaign is the qualified safety engineer's territory and the skill does not pretend to design it. Fifth: **integrity targets are flagged, not assigned.** Performance Level (ISO 13849), Safety Integrity Level (IEC 61508/61511), and category ratings are quantitative determinations that require component data and a qualified engineer; this skill notes which requirements need an integrity target and frames the consideration, but it does not assign.
+
+Do not use this skill as a substitute for qualified safety engineering. The output is draft. It is suitable as a starting document for a safety engineer to refine, contest, and certify. It is not suitable as a release artifact or a certification submission.
+
+## Mandatory disclaimer
+
+This skill produces methodology guidance only. Functional safety determinations require qualified safety engineers and, for products entering the market, a notified-body assessment. No skill output may serve as a final hazard analysis, safety case, or certification artifact. Robot deployments that interact with people or load-bearing structures must follow applicable statutory safety regulations regardless of any AI-assisted analysis. The skill cannot determine Performance Level (ISO 13849), Safety Integrity Level (IEC 61508/61511), or category ratings; those determinations require a quantitative analysis and a qualified safety engineer with access to component data and the as-built system. Cite this output only as draft input to a human-led review, never as a conclusion.
+
+## How to apply
+
+The derivation proceeds in eleven moves.
+
+1. **Ingest the upstream constraints and hazards.** Read the input and produce a clean internal table: constraint ID, the constraint statement, the hazard(s) it addresses, and any context (residual notes, loss linkages). If the input is unstructured, the first deliverable is a normalized table that the rest of the analysis depends on. Where the input is missing context that prevents derivation (e.g., a constraint refers to a "protected envelope" with no boundary description), record the gap and proceed with a flagged assumption.
+
+2. **For each constraint, classify whether it needs a safety function or only procedural enforcement.** A safety function is enforced by hardware or software whose failure is constrained by the safety case. A procedural enforcement is enforced by trained personnel following a written procedure. Constraints enforced only procedurally are not exempt from requirements; they generate requirements on the procedures and on the training program. Constraints that should be safety-functional but are reachable only procedurally are flagged as findings.
+
+3. **Decompose each constraint into the four requirement categories.** (a) **Functional requirement** — what the safety function does when conditions are met. "The cell shall stop motion when the protected envelope is breached." (b) **Performance requirement** — how the function performs against the physical reality. "Stopping shall be completed within the time-to-contact at the worst-case approach speed of 1.6 m/s, with a margin." (c) **Monitoring requirement** — what the system observes to detect that the function is healthy. "The protected-envelope sensor shall report a heartbeat at least every 100 ms; failure to report shall be detected within one diagnostic cycle." (d) **Fail-safe requirement** — what the system does when the monitoring requirement is not met. "Loss of the heartbeat shall transition the cell to safe state (motion stopped, safe outputs energized as required by the standard regime)." Not every constraint will produce a requirement in every category, but every category is considered, and skipped categories are noted as explicitly inapplicable rather than silently dropped.
+
+4. **Write each requirement in the imperative, with an ID, traceability, and a single verifiable predicate.** "REQ-S-001: The cell shall stop motion within 250 ms of detected envelope breach. Traces to: C1, H3. Category: performance." Compound requirements ("the cell shall stop motion and shall log the event and shall notify the operator") are split into atomic requirements that can be tested independently. Requirements that mix "shall" with "should" or "may" are rejected and rewritten as either a true requirement or a non-normative note.
+
+5. **Allocate every requirement to a responsible element.** The allocation taxonomy: (i) safety-rated controller hardware; (ii) safety-rated controller software (including parameter configuration); (iii) standard (non-safety-rated) controller hardware or software, where the requirement is permitted to be enforced there given the standards regime; (iv) specific sensor (with model when known); (v) specific actuator; (vi) HMI; (vii) supervisory system; (viii) procedure (with the procedure's owner); (ix) training; (x) marking or documentation for use. The allocation is recorded against the requirement and rolled up into the allocation matrix. Allocations that mix layers (e.g., "monitoring in safety-rated controller; fail-safe action in standard controller") are flagged as needing safety-engineer review because the integrity of the chain is no stronger than its weakest link.
+
+6. **Mark requirements that need an integrity target.** Each requirement that is part of a safety function gets a placeholder "integrity target: TBD by safety engineer" with a hint at the considerations (severity of the controlled hazard, frequency of demand, possibility of avoidance). The skill does not assign PL, SIL, or category. The hint helps the safety engineer prioritize the determinations.
+
+7. **Sketch verification evidence per requirement.** Four standard kinds: **analysis** (the requirement is met by demonstrable design properties — calculations, models, deterministic argument); **inspection** (review of the implementation against a checklist or coding standard); **test** (an executed test case with measurable pass criteria); **demonstration** (an end-to-end exercise of the function in conditions representative of operation). Most performance and fail-safe requirements get test or demonstration; monitoring requirements often get inspection plus test; functional requirements typically get test. The verification sketch names the kind and a one-line description of what would pass — not the full test procedure.
+
+8. **Write the fail-safe behavior section explicitly.** Across all constraints, a system's fail-safe state is one or a few well-named states. The skill names them: "safe state A — all motion stopped, all energized actuators in their safe direction, safe outputs latched, HMI showing the cause of the transition; reset requires a confirmed action by an authorized operator." For each requirement that fails to a safe state, the requirement points to the named state. If two constraints disagree on the fail-safe state, that disagreement is a finding for the safety engineer.
+
+9. **Catalog the procedural and training requirements.** Procedures and training are deliverables of the safety case the same way hardware and software are. The skill produces a list of procedural requirements (each with an owner role, a frequency if recurring, and the constraint it implements) and a list of training requirements (audience, content sketch, frequency of recertification). Procedural and training requirements that are the sole enforcement of a constraint that should have been safety-functional are flagged for safety-engineer review.
+
+10. **Build the allocation matrix.** Rows are requirements; columns are the allocation categories. The matrix is what the integration team uses to see whose backlog the requirement lands in. The matrix also surfaces concentrations — a controller that is allocated 80% of the safety functions is a single point of failure that the safety engineer will want to assess.
+
+11. **Compose the document.** The standard layout below is used. Every requirement has an ID, traceability, category, allocation, verification sketch, and an integrity-target placeholder. The mandatory disclaimer is repeated at the head and the foot. The allocation matrix is included as an appendix and as a standalone deliverable.
+
+### Standard safety requirements document layout
+
+1. `# Safety Requirements: <system name>` — version, date, target standards regime, mandatory disclaimer.
+2. `## Scope and basis` — names the hazard analysis (or equivalent) the requirements derive from, including version and ID.
+3. `## Functional safety requirements (REQ-F-)` — by traceability to constraints.
+4. `## Performance requirements (REQ-P-)` — by traceability to constraints.
+5. `## Monitoring requirements (REQ-M-)` — by traceability to constraints.
+6. `## Fail-safe behavior` — the named safe states and the requirements that point to each.
+7. `## Procedural requirements (REQ-Proc-)` — what humans must do, when, and how often.
+8. `## Training requirements (REQ-T-)` — who must be trained, in what, recertification frequency.
+9. `## Information-for-use requirements (REQ-IFU-)` — markings, manuals, warnings.
+10. `## Verification sketches` — by requirement, naming the kind and the passing condition.
+11. `## Integrity target placeholders` — list of requirements awaiting PL/SIL/category determination by the qualified safety engineer.
+12. `## Allocation matrix (appendix)` — rows × columns view of who owns what.
+13. `## Findings and open questions` — concentrations, mixed-layer allocations, constraints with only procedural enforcement, disagreements between requirements.
+14. `## Mandatory disclaimer` — repeated in full at the foot of the document.
+
+### Composition rules
+
+- **Every requirement traces to a constraint.** Orphan requirements are removed.
+- **Every constraint generates at least one requirement.** Orphan constraints are surfaced in findings.
+- **Requirements are atomic.** No compound "shall" statements.
+- **The four-category structure is considered for every constraint.** Categories that do not apply are recorded as explicitly inapplicable.
+- **Allocations are concrete.** "The controller" is not an allocation; "safety-rated controller software, function block FB_SAFE_STOP" is.
+- **Verification is sketched, not designed.** The safety engineer designs the campaign.
+- **Integrity targets are placeholders.** The skill does not assign PL, SIL, or category.
+- **The fail-safe state is named and consistent.** Disagreements between requirements about the fail-safe state are findings.
+- **Mandatory disclaimer travels with the document.** Head and foot.
+
+## Inputs
+
+- **Hazards and constraints (required, text).** Upstream from the hazard analysis or equivalent.
+- **System architecture (optional, text).** Controllers, sensors, actuators, HMI, supervisory systems.
+- **Target standards (optional, choice).** ISO 13849, IEC 61508/61511, ISO 10218 / ANSI R15.06, ISO 13482, ISO 3691-4 (AMR), or mixed-or-unknown.
+- **Known components (optional, text).** Specific component selections that constrain allocation.
+- **Operating envelope (optional, text).** Speed, force, payload, reach, duty cycle.
+
+## Outputs
+
+A structured safety requirements document and an allocation matrix. Both are draft input to a qualified safety engineer's review and refinement.
+
+## Examples
+
+### Worked example: speed-and-separation monitoring constraint
+
+**Input constraint (excerpt from upstream hazard analysis):** "C1. The controller shall not issue a move command unless the protected reach envelope is confirmed clear of persons by a means independent of the operator's stated location. Traces to H3 (motion initiated while person in envelope) and H1 (excess contact force)."
+
+**System architecture (input):** "Safety-rated robot controller (manufacturer's safety subsystem, supports speed-and-separation monitoring and safe operating stop). Standard cell PLC (Allen-Bradley CompactLogix). Two safety-rated area scanners (SICK microScan3, planned). HMI on the operator side. No vision-based person detection."
+
+**Target standards:** iso-10218-ansi-r15-06
+
+**Expected output (excerpted):**
+
+> # Safety Requirements: Pick-and-Place Cell, Constraint C1 Derivation
+>
+> Version 0.1 (draft) — target regime: ISO 10218 / ANSI R15.06 with reference to ISO 13849-1 for functional safety.
+>
+> ## Mandatory disclaimer
+>
+> This skill produces methodology guidance only. Functional safety determinations require qualified safety engineers and, for products entering the market, a notified-body assessment. No skill output may serve as a final hazard analysis, safety case, or certification artifact. Robot deployments that interact with people or load-bearing structures must follow applicable statutory safety regulations regardless of any AI-assisted analysis.
+>
+> ## Scope and basis
+>
+> Requirements below derive from constraint C1 (and by extension, hazards H1 and H3) of the pick-and-place cell hazard analysis, draft v0.1. Upstream constraint not modified; any change to C1 invalidates the trace.
+>
+> ## Functional safety requirements
+>
+> - **REQ-F-001.** The cell shall not initiate or continue robot motion when any portion of the protected reach envelope, as defined in the cell drawing P-CELL-01, is sensed as occupied by a person or by an obstruction not present in the configured exclusion zones. Traces to C1, H3. Category: functional.
+> - **REQ-F-002.** The protected reach envelope shall be sensed by the safety-rated area scanners as the primary means of person detection; the operator's stated location (as inferred from HMI button presses, conveyor sensors, or workflow timing) shall not constitute or contribute to envelope-clear confirmation. Traces to C1. Category: functional.
+> - **REQ-F-003.** Envelope-clear confirmation shall be issued by the safety-rated controller and consumed by it as the precondition for any move command. The standard cell PLC shall not be in the safety chain of this confirmation. Traces to C1. Category: functional.
+>
+> ## Performance requirements
+>
+> - **REQ-P-001.** The detection-to-stop time for the envelope-breach event shall be less than the safety distance margin defined in S-DIST-01 for the worst-case approach speed of 1.6 m/s, computed per the standards regime's protective-separation formula. (Placeholder: the actual time bound is a function of the safety distance, stopping distance, and approach speed; to be confirmed by the qualified safety engineer.) Traces to C1, H1. Category: performance.
+> - **REQ-P-002.** The protected reach envelope sensor coverage shall extend a minimum of [TBD: distance per S-DIST-01] beyond the swept volume of the robot at the worst-case payload. Traces to C1. Category: performance.
+>
+> ## Monitoring requirements
+>
+> - **REQ-M-001.** Each safety-rated area scanner shall report a healthy-state signal to the safety-rated controller at the diagnostic frequency required by the controller's safety subsystem; loss of the healthy-state signal shall be detected within one diagnostic cycle. Traces to C1, H5. Category: monitoring.
+> - **REQ-M-002.** The safety-rated controller shall monitor the cross-check between the two area scanners for inconsistency; an inconsistency exceeding the configured tolerance shall be detected within one diagnostic cycle. Traces to C1. Category: monitoring.
+>
+> ## Fail-safe behavior
+>
+> - **Safe State SS-A: motion stopped, safe outputs as required by the standards regime, HMI displaying the cause of the transition, reset requires confirmed operator action with cause-cleared acknowledgement.**
+> - **REQ-FS-001.** Loss of envelope-clear confirmation (whether due to detected occupancy, sensor degradation, or controller diagnostic) shall transition the cell to Safe State SS-A. Traces to C1, H4. Category: fail-safe.
+> - **REQ-FS-002.** Exit from Safe State SS-A shall require an operator action at the HMI that includes acknowledgement that the cause is investigated; a single-button reset shall not be permitted. Traces to C1, H4. Category: fail-safe.
+>
+> ## Procedural requirements
+>
+> - **REQ-Proc-001.** A pre-shift verification procedure shall confirm scanner alignment and exclusion-zone configuration; the procedure shall be executed by the cell operator and signed in the cell logbook. Frequency: daily, at shift start. Owner: production lead. Traces to C1.
+> - **REQ-Proc-002.** A monthly safety walk shall verify that the configured protected envelope corresponds to the physical cell layout, that no permanent fixtures have been moved into the swept volume, and that all warning markings are legible. Owner: facility safety officer. Traces to C1, REQ-F-001.
+>
+> ## Training requirements
+>
+> - **REQ-T-001.** Operators authorized to reset after a stop in this cell shall receive training covering: the collaborative-mode operating principles, the meaning of the HMI cause-display, the steps required to investigate the cause, and the conditions under which reset is permitted. Recertification: annually. Traces to C1, REQ-FS-002.
+>
+> ## Information-for-use requirements
+>
+> - **REQ-IFU-001.** Cell markings shall identify the boundary of the protected reach envelope visibly from all approach directions. Traces to C1, residual R1-related awareness need.
+>
+> ## Verification sketches
+>
+> | Requirement | Verification kind | Passing condition (one-line) |
+> | --- | --- | --- |
+> | REQ-F-001 | Test | Place a person-sized opaque obstruction in the envelope; verify the cell does not initiate motion. |
+> | REQ-F-002 | Inspection + test | Inspect the controller's logic to confirm operator-location inputs do not contribute to the confirmation; test by simulating those inputs without scanner-clear. |
+> | REQ-F-003 | Inspection | Review the safety-rated controller program; envelope-clear is consumed by the safety subsystem. |
+> | REQ-P-001 | Analysis + test | Stopping distance and time computed; demonstrated with worst-case approach speed in test conditions. |
+> | REQ-P-002 | Inspection | Compare configured scanner zones against S-DIST-01. |
+> | REQ-M-001 | Test | Disconnect a scanner; verify loss-of-health detected within the diagnostic cycle. |
+> | REQ-M-002 | Test | Inject a cross-check inconsistency; verify detection within the cycle. |
+> | REQ-FS-001 | Test | Trigger each fault path; verify transition to SS-A. |
+> | REQ-FS-002 | Demonstration | Single-button reset is rejected; cause-cleared acknowledgement is required. |
+> | REQ-Proc-001 | Inspection of records | Logbook entries verified across a sample period. |
+> | REQ-Proc-002 | Inspection of records | Walk records and any findings reviewed. |
+> | REQ-T-001 | Inspection of records | Training records and recertification dates verified. |
+> | REQ-IFU-001 | Inspection | Markings visible from each approach direction. |
+>
+> ## Integrity target placeholders
+>
+> | Requirement | Hazard severity hint | Demand frequency hint | Avoidance possibility hint | Determination needed |
+> | --- | --- | --- | --- | --- |
+> | REQ-F-001 | High (contact at hazardous energy) | High (every cycle) | Low (operator presence is the normal state) | PL or SIL TBD by safety engineer |
+> | REQ-F-003 | High | High | Low | TBD |
+> | REQ-M-001 | High (loss of detection during operation) | Continuous | Low | TBD |
+> | REQ-FS-001 | High | On demand of any monitoring requirement | Low | TBD |
+>
+> ## Allocation matrix (appendix excerpt)
+>
+> | Req | Safety-rated controller HW | Safety-rated controller SW | Standard PLC | Scanner | HMI | Procedure | Training | IFU |
+> | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+> | REQ-F-001 | x | x | | x | | | | |
+> | REQ-F-002 | | x | (excluded) | x | (excluded) | | | |
+> | REQ-F-003 | | x | (excluded) | | | | | |
+> | REQ-P-001 | x | x | | x | | | | |
+> | REQ-M-001 | | x | | x | | | | |
+> | REQ-FS-001 | x | x | | | x | | | |
+> | REQ-FS-002 | | x | | | x | x | x | |
+> | REQ-Proc-001 | | | | | | x | x | |
+> | REQ-T-001 | | | | | | | x | |
+> | REQ-IFU-001 | | | | | | | | x |
+>
+> ## Findings and open questions
+>
+> - **Concentration finding:** the safety-rated controller is allocated to most safety functions. This is appropriate for the architecture but means the controller's safety subsystem integrity dominates the safety case; the qualified safety engineer should ensure the subsystem's PL/SIL claim aligns with the highest-integrity requirement in the set.
+> - **Standards regime placeholder:** REQ-P-001 references the protective-separation formula by name only; the actual distances depend on the standards regime's specific formula (which the qualified safety engineer applies with the operating speeds and reaction times of the as-built system).
+> - **Procedural-only:** none of the requirements above are enforced solely procedurally; all safety-function-bearing constraints have hardware/software allocations. Procedural requirements supplement the safety functions.
+> - **Open question:** is the standard PLC excluded from the safety chain by configuration, or merely not used? The exclusion must be enforced by configuration (or by the absence of safety-relevant signals routed through it), not by convention.
+
+## Limitations
+
+- The skill produces draft. Integrity target placeholders are real placeholders; PL, SIL, and category assignments are out of scope and require a qualified safety engineer with component data.
+- The verification sketches are sketches. A real verification campaign requires the qualified safety engineer to design tests with measurable pass criteria, controlled conditions, and traceability evidence acceptable to the reviewing authority.
+- The allocation depends on the architecture input. If the architecture is vague, the allocations are vague; the open-questions section is where the gaps are recorded.
+- The skill defaults to the safer allocation when ambiguous. Where a requirement could plausibly be allocated to either the safety-rated or the standard controller, it goes to the safety-rated controller and the choice is flagged. A reviewer who knows the architecture can argue the choice down.
+- The skill cannot detect that a constraint should have been written differently. If the upstream constraint is wrong, the requirement derived from it will be wrong in the same way. The hazard-analysis review and the requirements review are separate gates; this skill assumes the constraints are reasonable input.
+- Cybersecurity-derived safety requirements are not synthesized here. A network-compromised controller can produce hazards; the parallel security analysis (e.g., IEC 62443-aligned) produces its own requirements that overlap with safety. Integration of the two is a qualified-engineer activity.
+- Human-factors requirements are touched but not designed. Procedural and training requirements appear; a serious task analysis, cognitive-load review, or interface usability assessment requires human-factors specialists.
+- The skill is conservative about claims of completeness. Coverage is structural (four categories considered for each constraint), not exhaustive (no claim that all latent requirements are surfaced). A safety engineer's review is the gate that closes coverage.
+
+## Sources reviewed
+
+- https://github.com/voyage/open-autonomous-safety
+- https://github.com/github/codeql-coding-standards
+- https://github.com/davidski/evaluator
+- https://github.com/PagerDuty/incident-response-docs
+- https://github.com/counteractive/incident-response-plan-template

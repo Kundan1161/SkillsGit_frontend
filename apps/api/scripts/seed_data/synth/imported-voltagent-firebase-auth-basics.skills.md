@@ -1,0 +1,114 @@
+---
+id: skillsgit-curated/imported-voltagent-firebase-auth-basics
+version: 1.0.0
+name: Firebase Authentication Basics
+description: Set up Firebase Authentication for user sign-in and secure data access — email/password, federated providers, phone SMS, anonymous, and custom systems.
+authors:
+  - name: Firebase
+    handle: firebase
+    role: author
+  - name: skillsgit Curated
+    handle: skillsgit-curated
+    role: maintainer
+category: engineering
+tags: [imported, source-voltagent, firebase, auth, identity, sign-in]
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6, gpt-4o]
+  min_context_tokens: 32000
+  estimated_tokens_per_invocation: 6000
+trigger_keywords: [firebase auth, sign-in, google sign-in, identity provider, id token]
+example_invocations:
+  - Set up Google sign-in in my Firebase web app
+  - Add email/password authentication to my Flutter app
+  - Configure auth providers via firebase.json
+inputs: []
+outputs: []
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Imported from VoltAgent/awesome-agent-skills under Apache-2.0.
+---
+
+# Firebase Auth Basics
+
+## When to use
+
+Use this skill when setting up Firebase Authentication for user sign-in and securing data access — picking providers, configuring `firebase.json`, integrating client SDKs, and writing auth-aware security rules.
+
+## How to apply
+
+Prefer Google Sign-In as a good and secure default provider. Configure providers either by adding an `auth` block to `firebase.json` and deploying, or via the Firebase Console.
+
+## Prerequisites
+
+- A Firebase Project created via CLI.
+- Firebase CLI installed and authenticated.
+
+## Core Components
+
+### Users
+
+Identified by unique IDs (`uid`) and can have properties like email, display name, and photo URL.
+
+### Identity Providers
+
+- **Email/Password** — basic email and password authentication.
+- **Federated providers** — Google, Facebook, GitHub, etc.
+- **Phone number SMS** authentication.
+- **Anonymous** guest accounts.
+- **Custom** authentication systems.
+
+### Tokens
+
+- **ID Token** — Short-lived (1 hour), verifies identity.
+- **Refresh Token** — Long-term, used to mint new ID tokens.
+
+## Setup Process
+
+### Step 1 — Provisioning
+
+Either:
+
+- Add an `auth` block to `firebase.json` with desired providers, then:
+
+```bash
+npx -y firebase-tools@latest deploy --only auth
+```
+
+- Or enable providers through the Firebase Console.
+
+### Step 2 — Client Implementation
+
+Platform-specific setup is available for:
+
+- Web (JavaScript/TypeScript SDK)
+- Flutter
+- Android (Kotlin)
+
+### Step 3 — Security Rules
+
+Protect data using `request.auth` in Firestore and Storage security rules.
+
+```
+match /users/{userId} {
+  allow read, write: if request.auth != null && request.auth.uid == userId;
+}
+```
+
+## Default Recommendation
+
+> Google Sign-In is recommended as a good and secure default provider.
+
+## Attribution
+
+This skill was imported from `VoltAgent/awesome-agent-skills` under the MIT license, originating from the `firebase/skills` repository under the Apache-2.0 license. Original content authored by the listed contributor(s) at the source repository. Modifications by skillsgit: frontmatter normalization to fit marketplace spec; addition of attribution and sources sections.
+
+## Sources reviewed
+
+- https://github.com/VoltAgent/awesome-agent-skills (MIT)
+- https://github.com/firebase/skills/tree/main/skills/firebase-auth-basics (Apache-2.0)

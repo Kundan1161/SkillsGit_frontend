@@ -1,0 +1,210 @@
+---
+id: skillsgit-curated/ai-ux-pattern-picker
+version: 1.0.0
+name: AI UX Pattern Picker
+description: Pick the right interaction patterns for an LLM feature — autonomous vs co-pilot, single-shot vs conversational, streaming vs batched, show-your-work, feedback affordances, and recovery from wrong answers.
+authors:
+  - name: skillsgit Curated
+    handle: skillsgit-curated
+    role: author
+category: productivity
+tags: [niche:ai-product-design, ai-ux, interaction-design, copilot, conversational-ui, streaming, citations, feedback]
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6, claude-haiku-4-5, gpt-4o, gpt-4.1, gemini-1.5-pro]
+  tools_required: []
+  tools_optional: [web_search]
+  min_context_tokens: 24000
+  estimated_tokens_per_invocation: 5500
+trigger_keywords:
+  - ai ux pattern
+  - copilot vs autonomous
+  - streaming vs batched
+  - conversational vs single-shot
+  - show your work
+  - ai feedback affordance
+  - recovery from wrong answer
+  - ai interaction design
+  - ai ui pattern
+  - citation ui
+  - confidence ui
+  - llm interaction pattern
+example_invocations:
+  - "Help me pick the right interaction pattern for an AI feature that drafts emails inside our CRM."
+  - "Should this AI feature be a co-pilot or run autonomously? Walk me through the choice."
+  - "Which UX pattern fits a search experience that uses an LLM to generate answers?"
+  - "I have a use case for an in-app AI assistant. Recommend the interaction model and the recovery patterns."
+inputs:
+  - name: use_case
+    type: text
+    required: true
+    description: The user job the AI feature solves, the surface it lives on, and what success looks like for the user.
+  - name: stakes
+    type: choice
+    required: false
+    description: How much the user pays if the output is wrong.
+    choices: [low, medium, high, irreversible]
+  - name: latency_tolerance
+    type: choice
+    required: false
+    description: How long the user is willing to wait for the result.
+    choices: [sub_second, one_to_three_seconds, several_seconds, background]
+  - name: output_shape
+    type: choice
+    required: false
+    description: The kind of output the feature produces.
+    choices: [short_text, long_text, structured_data, action, decision, multi_modal]
+  - name: user_expertise
+    type: choice
+    required: false
+    description: How expert the user is in the domain the AI is helping with.
+    choices: [novice, intermediate, expert, mixed]
+  - name: trust_starting_point
+    type: choice
+    required: false
+    description: How much trust the user already has in AI features in this product.
+    choices: [low, building, established]
+outputs:
+  - name: pattern_recommendation
+    type: markdown
+    description: Recommended interaction patterns across each axis — autonomy, conversational vs single-shot, streaming, show-your-work, feedback, recovery — with the rationale and the trade-offs against the alternatives.
+  - name: pattern_summary
+    type: json
+    description: Structured recommendation with `autonomy`, `interaction_mode`, `output_delivery`, `show_your_work`, `feedback`, `recovery`, `confidence_surfacing`, and `escape_hatch` keys.
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Initial release.
+---
+
+# AI UX Pattern Picker
+
+## When to use
+
+Use this skill when a team is designing an LLM-powered feature and needs to decide its interaction model. The skill produces a structured recommendation across the axes that consistently decide whether an AI feature feels delightful or frustrating: how much autonomy the model has, whether the interaction is a single shot or a conversation, whether output streams or appears at once, whether the model shows its work, how the user gives feedback, and what recovery affordances exist when the model is wrong.
+
+The skill is not a generic design-system reference and does not produce mockups. It produces a written recommendation — the chosen pattern on each axis, the rationale, the trade-offs against the alternatives, and the failure modes to design against. The recommendation feeds into the feature spec (the dedicated feature-spec skill) and the design files the team builds afterwards.
+
+The skill applies to in-app AI features of all shapes: copilots, assistants, search experiences with generative answers, drafting and rewriting tools, summarisation, classification, extraction, agentic workflows, and inline suggestions. It is less useful for chat-only standalone products where the chat surface is the whole product; the trade-offs there are dominated by conversational design specifically and are better served by a deeper conversational-UX practice.
+
+## Inputs
+
+| Input | Required | Purpose |
+| --- | --- | --- |
+| `use_case` | yes | The grounding case for every recommendation. |
+| `stakes` | no | Drives the autonomy choice and the recovery affordances. |
+| `latency_tolerance` | no | Drives streaming vs batched. |
+| `output_shape` | no | Constrains how the output can be rendered. |
+| `user_expertise` | no | Drives show-your-work and feedback. |
+| `trust_starting_point` | no | Drives autonomy and confidence surfacing. |
+
+## How to apply
+
+The skill walks eight decisions in order. Each decision is named, the recommended option is given with rationale, and the alternatives are described with the conditions under which they are preferred.
+
+### Decision 1 — Autonomy: autonomous, co-pilot, or assistant
+
+1. The autonomy axis decides who acts. Three positions are useful.
+2. **Autonomous.** The model takes the action without confirmation. Suitable only for low-stakes, reversible actions where the cost of a wrong action is recoverable and where the user has explicitly opted in. Even with low stakes, default to "show me what you did" rather than silent action; users tolerate occasional wrong-but-visible better than occasional wrong-and-invisible.
+3. **Co-pilot.** The model proposes; the user reviews and commits. The default position for almost every consumer-facing AI feature in a productivity surface. The proposal must be cheap to accept (one keystroke or click), cheap to modify, and cheap to reject. The cost of a wrong proposal is just the user's reading time.
+4. **Assistant.** The model answers a direct question or performs a discrete task on demand. No standing relationship with the user's flow. Useful when the AI feature is opt-in per use rather than always-on. The feature lives behind a trigger (a command, a button, a slash) and produces an output the user copies or applies.
+5. The recommendation is co-pilot for medium and high stakes regardless of `latency_tolerance` or `user_expertise`; assistant for low-frequency or exploratory use cases; autonomous only when stakes are low and reversibility is high and the user has explicitly authorised the standing autonomy.
+6. For irreversible side effects (sending an email, charging a card, deleting a record), autonomy is never appropriate. The model proposes the action; the user confirms; the user can preview what the action will produce before committing.
+
+### Decision 2 — Interaction mode: single-shot, conversational, or guided
+
+7. The interaction-mode axis decides the shape of the dialogue.
+8. **Single-shot.** The user provides an input; the model produces an output; the interaction ends. The simplest mode. Best when the task has a clear answer and the user does not need to refine in conversation. Lower latency, lower context cost, easier to evaluate, easier to brand.
+9. **Conversational.** The user and the model exchange messages until the user is satisfied. Required when the task is open-ended, when refinement is integral to the task, or when the user needs to provide additional context the model could not have requested up front.
+10. **Guided.** A structured form with model-assisted fields. The user fills slots; the model suggests values or validates entries. Best when the task has a fixed schema but each field benefits from intelligence. Combines the predictability of a form with the helpfulness of a model.
+11. Default to single-shot for tasks with a stable output schema (extraction, summarisation, classification, structured generation). Default to conversational only when the task genuinely needs back-and-forth. Default to guided when there is a form somewhere in the user's path that an LLM can make smarter without rebuilding the form.
+12. A common mistake is to make every feature conversational because chat is the visible idiom of LLM products. Conversational interfaces impose memory cost on the user, slow down repetitive tasks, and complicate evaluation. Reserve them for tasks that genuinely justify the cost.
+
+### Decision 3 — Output delivery: streaming, batched, or progressive
+
+13. The output-delivery axis decides how the output reaches the screen.
+14. **Streaming.** Tokens appear as they are generated. The right default for long free-text outputs where the user can start reading or scanning before the full output is ready. Reduces perceived latency substantially even when actual latency is unchanged.
+15. **Batched.** The full output appears at once. The right default for structured outputs the UI cannot render partially — a JSON object, a code block that triggers validation, a table that needs to be sorted. Also right for short outputs where streaming gains nothing.
+16. **Progressive.** The output is broken into pieces that each have meaning on their own — a list of items appearing one by one, a multi-step plan with each step animating in, a summary followed by details. Useful for long outputs with internal structure where each piece is independently readable.
+17. Match delivery to `output_shape`. Long text plus high latency tolerance: streaming. Structured data: batched. Lists and plans: progressive. Multi-modal output with both text and image: batched on the parts that need validation, streamed on the text.
+18. Always show a non-trivial loading state if the first token is more than five hundred milliseconds away. A spinner is acceptable; a fully-skeletonised result is better. Empty space during model latency is the cheapest source of user frustration.
+19. Always allow the user to stop generation. A "stop" or "cancel" affordance is non-negotiable for any feature where output takes longer than a few seconds. The token they would have paid for is not worth the trust they lose if they cannot escape.
+
+### Decision 4 — Show your work: full, citations, or hidden
+
+20. The show-your-work axis decides what reasoning surfaces.
+21. **Hidden.** No internal reasoning is shown. The right default for short, low-stakes outputs where the rationale would be noisier than the answer.
+22. **Citations.** The output is accompanied by a list of sources it drew from, with click-through to the original content. The right default for any feature whose correctness depends on retrieval. Citations are the single highest-impact pattern for trust in RAG-style features.
+23. **Full.** The internal reasoning trace is shown alongside the answer. Useful when the user is technical and wants to debug the model; appropriate for research, compliance, and data-analysis features where the reasoning is part of the deliverable.
+24. Avoid showing raw chain-of-thought to non-technical users. The reasoning is often verbose, sometimes wrong even when the answer is right, and tends to anchor users on incidental detail. A summary of the reasoning ("considered three sources, decided based on the most recent") is usually better than the raw trace.
+25. When citations are shown, they must be verifiable. A citation that points to a document with no anchor or to a fabricated source destroys more trust than no citations. The default rule: every citation links to the exact passage the model used; if no passage can be linked, the citation is suppressed and the relevant sentence is marked as unsupported.
+26. Citations apply to non-RAG features too. When the model used a tool call, show the tool name and the parameters. When the model used a calculation, show the calculation. Reasoning that resulted in a number is best shown alongside the number for technical and high-stakes audiences.
+
+### Decision 5 — Confidence surfacing: signal, none, or behavioural
+
+27. The confidence-surfacing axis decides how the user knows when to trust.
+28. **None.** No explicit confidence indicator. The right default for most consumer-facing features. Users have no good intuition for probabilities; explicit confidence numbers are often miscalibrated, and miscalibration is worse than absent calibration.
+29. **Categorical signal.** A small set of states: "I am sure", "best guess", "unsure — please verify". Useful when the model has a calibrated source for the signal (a judge with known agreement against humans, a retrieval-confidence score that correlates with correctness). Always paired with an action: a "verify" button, a path to a source, a way to ask the model to try again.
+30. **Behavioural confidence.** The model expresses uncertainty in its language ("I think...", "based on what I found...") rather than in a separate UI element. Often the right default because it is impossible to game — the model cannot pretend to be confident if the rubric requires hedging when sources are weak.
+31. Never expose raw log-probabilities or sampling temperatures to the user. They are not interpretable and create false precision. If the team wants to expose them for a research mode, gate that mode behind an opt-in toggle and label it as developer-only.
+32. The hardest case is a feature with mixed-confidence outputs — some parts are certain, some are guesses. Highlight the uncertain parts within the output (underline, colour, footnote) rather than slapping a single confidence on the whole answer. Aggregate confidence on a long output is almost always meaningless.
+
+### Decision 6 — Feedback affordance: explicit, implicit, or both
+
+33. The feedback axis decides how the team learns from production.
+34. **Explicit.** Thumbs up, thumbs down, a comment field, a "this was wrong" link. Familiar to users, high signal per data point, low coverage because most users do not click. Best when the team has the bandwidth to review and act on the feedback.
+35. **Implicit.** Behavioural signals — did the user accept the output, edit it, regenerate, abandon, undo. Lower signal per data point but full coverage. The strongest implicit signal is "did the user keep the output unedited or with light edits"; the strongest negative is "user discarded the output and rolled their own".
+36. **Both.** The default for any production AI feature. Explicit feedback feeds the disagreement queue in the eval harness; implicit feedback is the truth-on-the-floor that catches regressions explicit feedback misses.
+37. Place the explicit feedback close to the output. A thumbs button at the corner of the answer outperforms a separate "give feedback" page by an order of magnitude. The interaction cost must be one click; anything more selects for already-frustrated users.
+38. When negative feedback arrives, do something visible. The most common useful response is "regenerate with explicit consideration of the failure". The user gets a second chance; the team learns whether the second try succeeds.
+39. Aggregate feedback by prompt version. A drop in acceptance rate or a spike in thumbs-down is a leading indicator of a regression that the eval harness may have missed.
+
+### Decision 7 — Recovery from wrong answers
+
+40. Every LLM feature ships with the assumption that the model will sometimes be wrong. The UX must include recovery affordances that turn "wrong" from a dead end into a workflow.
+41. **Regenerate.** A button that re-runs the model with a different sample or a slightly different prompt. Cheap, fast, and the user is in control. Always present unless the action is irreversible.
+42. **Edit-the-prompt.** A way to refine the request without restarting from scratch. "Make it shorter", "use a more formal tone", "include the customer's account number". For conversational features this is just the next message; for single-shot features it is an explicit refinement input.
+43. **Manual fallback.** A path to do the task without the AI. The blank document, the empty search box, the "compose by hand" button. The fallback must be discoverable from the AI surface, not buried elsewhere.
+44. **Escalation.** For high-stakes features, a "send to a human" or "open a ticket" path. The escalation captures the original input, the AI output, and the user's note so the human can begin where the AI failed.
+45. **Undo.** For any action the AI took (sent a message, made an edit, scheduled an event), an undo affordance with a generous time window. The undo button is the cheapest possible licence to ship a feature with imperfect quality.
+46. The recovery affordances must be present from day one. Adding them after a public regression is a recovery from a recovery problem.
+
+### Decision 8 — Escape hatch and discoverability
+
+47. Every AI feature has an off ramp: a way to dismiss the suggestion, turn off the assistant, opt out of the proactive trigger. The escape hatch is global, not buried in settings.
+48. The escape hatch is discoverable from the surface of the feature. A user who is annoyed by a suggestion should find the "stop suggesting" affordance in the place where the suggestion appears.
+49. Conversely, the on-ramp matters. AI features that fire unprompted (suggested replies, suggested summaries, in-line completions) compete with the user's flow. The first appearance must be unmissable but the second must be quiet. Once the user has dismissed three times, the system stops suggesting for a cool-down period.
+50. For high-stakes domains, default to opt-in. The AI feature exists but does not fire until the user requests it. The cost of an unsolicited wrong suggestion in a medical, legal, or financial surface is higher than the value of a successful one.
+51. Discoverability is also a quality signal. A feature that no user finds is a feature that no user uses, regardless of how well it scores. The strategy includes a placement decision, an onboarding moment, and a way to measure "share of relevant moments that triggered the feature".
+
+## Outputs
+
+The `pattern_recommendation` markdown walks the eight decisions for the specific use case, names the chosen pattern, gives the rationale tied to the inputs, and lists the trade-offs against the alternatives. The `pattern_summary` JSON captures the chosen option per axis for downstream tooling and design files.
+
+## Examples
+
+For an in-CRM email-drafting feature with medium stakes, one-to-three-seconds latency tolerance, long text output, mixed user expertise, and a building trust starting point, the recommendation lands on: co-pilot autonomy (draft never auto-sends), single-shot interaction (one input, one output, regenerate for variants), streaming delivery, citations to the customer's prior emails or notes the model drew on, behavioural confidence in the prose, explicit-plus-implicit feedback, regenerate-edit-manual fallback recovery, opt-in trigger via a "draft" button.
+
+For an inline classification feature that tags incoming tickets, low stakes for individual ticket but high stakes in aggregate, sub-second latency tolerance, structured output, expert user, established trust, the recommendation lands on: co-pilot (tags are suggestions, the agent can change), single-shot, batched delivery (the tag must be parsed before display), no show-your-work in the inline view but a hover-to-see-reasoning affordance for experts, no confidence signal in the inline view (categorical signal in the detail view), explicit thumbs feedback on the tag, edit-the-tag and reclassify recovery, no escape hatch needed because the feature is non-blocking.
+
+## Limitations
+
+The skill recommends patterns; it does not produce the visual design, the copy, or the motion. Those flow from the patterns but require a designer.
+
+The skill is biased toward defaults that match contemporary AI products as of the time of writing. Specific industries with different norms (medical, legal, financial) need an industry-specific overlay that the skill flags but does not provide.
+
+The skill assumes the team controls the surface where the AI feature lives. For features that ship inside a host application the team does not control (a browser extension, a third-party plugin surface), several axes — escape hatch, discoverability, opt-in — are constrained by the host.
+
+## Sources reviewed
+
+- https://github.com/microsoft/generative-ai-for-beginners
+- https://github.com/openai/openai-cookbook
+- https://github.com/vercel/ai-chatbot
+- https://github.com/vercel/ai
+- https://github.com/langchain-ai/langchain
+- https://github.com/run-llama/llama_index
+- https://github.com/Shubhamsaboo/awesome-llm-apps

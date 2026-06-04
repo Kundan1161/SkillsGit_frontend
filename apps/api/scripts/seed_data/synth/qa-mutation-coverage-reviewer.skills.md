@@ -1,0 +1,217 @@
+---
+id: skillsgit-curated/qa-mutation-coverage-reviewer
+version: 1.0.0
+name: QA Mutation Coverage Reviewer
+description: Interpret a mutation-testing report, prioritize surviving mutants by risk, and produce targeted test additions that kill the most important survivors first.
+authors:
+  - name: skillsgit Curated
+    handle: skillsgit-curated
+    role: author
+category: engineering
+tags: [niche:testing-qa, mutation-testing, coverage, test-quality, survivors, prioritization]
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6, gpt-4o, gpt-4.1]
+  tools_required: [file_io]
+  tools_optional: [code_execution]
+  min_context_tokens: 32000
+  estimated_tokens_per_invocation: 6000
+trigger_keywords:
+  - mutation testing
+  - mutation score
+  - surviving mutants
+  - stryker report
+  - pitest report
+  - test coverage quality
+  - kill mutants
+  - mutation analysis
+  - test gap
+  - mutation report review
+  - mutation testing report
+  - improve test suite
+example_invocations:
+  - "Review this Stryker report and tell me which surviving mutants to kill first."
+  - "Our mutation score is 62%. Triage the survivors and propose tests for the top 10."
+  - "Read this pitest output and produce a prioritized action plan to raise the score."
+inputs:
+  - name: mutation_report
+    type: text
+    required: true
+    description: The mutation-testing report (JSON, HTML, or text summary) with surviving mutants and locations.
+  - name: source_code
+    type: text
+    required: false
+    description: The production code where mutants survived. Lets the agent write concrete killing tests.
+  - name: existing_tests
+    type: text
+    required: false
+    description: The current test suite for the affected modules so suggestions extend rather than duplicate.
+  - name: target_score
+    type: number
+    required: false
+    description: Desired mutation score for the module or suite.
+  - name: stack
+    type: text
+    required: false
+    description: Language and test framework so killing tests are idiomatic.
+outputs:
+  - name: triage_report
+    type: markdown
+    description: Prioritized survivor list with risk class, root cause, recommended action, and effort estimate.
+  - name: killing_tests
+    type: text
+    description: Concrete test cases that kill the top-priority surviving mutants.
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Initial release.
+---
+
+# QA Mutation Coverage Reviewer
+
+## When to use
+
+Use this skill when a team has run a mutation-testing tool and is staring at a list of surviving mutants without a clear path to action. Mutation testing reveals which test cases are merely executing the code versus actually asserting on its behavior; the report is most valuable when triaged into a prioritized plan.
+
+Good fit:
+
+- A team that just stood up mutation testing and has its first report.
+- A team whose mutation score has stalled and they want to know where to invest.
+- A code-review situation where a PR added 95% line coverage but the mutation score did not move.
+- A pre-release hardening sprint targeted at test quality, not test count.
+
+Poor fit:
+
+- A team with no test suite at all (start with example tests; mutation testing layers on top).
+- Codebases where mutation testing is impractical (UI rendering, integration with stateful externals); use it on the pure logic core.
+- Teams chasing a target score for compliance reasons without intent to act on the survivors — mutation testing's value is in the action.
+
+The output is a prioritized survivor triage and a set of concrete killing tests for the top items, sized so an engineer can land them in one or two sittings.
+
+## How to apply
+
+1. **Parse the report.** Extract every surviving mutant with: file, line, column, mutator name (e.g. `ConditionalsBoundaryMutator`, `BooleanLiteralMutator`, `ArithmeticOperatorReplacement`), the original code, and the mutated code.
+
+2. **Group survivors by file and function.** Hot-spots emerge — a single function with eight survivors usually shares one root cause: that function has only happy-path coverage. Group survivors so the fix can be one focused test addition.
+
+3. **Classify each mutant by category.** Use this taxonomy:
+   - **Boundary**: changed `<` to `<=`, `>` to `>=`, off-by-one. High-value to kill; boundaries are bug-rich.
+   - **Negation**: flipped a boolean, changed `&&` to `||`. Catches conflated conditions.
+   - **Arithmetic**: changed `+` to `-`, `*` to `/`. Catches sign and operator confusion.
+   - **Return**: replaced the return with a constant. Detects whether the test actually inspects the return value.
+   - **Conditional**: removed or always-took a branch. Detects untested branches.
+   - **Method call**: removed a void call. Detects side-effect-untested behavior.
+   - **Literal**: replaced a literal with another value.
+   - **Equivalent**: the mutant is semantically equivalent to the original; cannot be killed and should be excluded from the score.
+
+4. **Identify equivalent mutants and dismiss them.** Equivalent mutants are noise. Mark them with the rationale and exclude from the action plan. Examples: a defensive `if x == null` early-return when the caller is type-safe and never passes null; a loop bound that the compiler will simplify to the same code.
+
+5. **Prioritize by risk class.** Score each survivor on:
+   - **Blast radius**: is this code on a critical path (auth, payment, data integrity)? High = 3.
+   - **Mutant category**: boundary and negation rank highest because they often reflect real bug shapes.
+   - **Recency**: code changed in the last 30 days ranks higher.
+   - **Coverage paradox**: lines marked covered but with surviving mutants are the most dangerous — the team thinks they are safe.
+   Sum to a 1-9 score. Sort descending.
+
+6. **Cap the action list.** Pick the top 10-20 survivors for the action plan. The long tail can be addressed after the team sees the score move.
+
+7. **Diagnose the root cause of each prioritized survivor.** For each top survivor, name why the existing tests did not kill it. Common causes:
+   - The tests call the function but never assert on the return.
+   - The tests assert on the return but only on the happy path.
+   - The function has a side effect (database write, log line, event publish) that no test inspects.
+   - The boundary value (zero, max, empty, single-element) is never used as input.
+   - The negative case (invalid input, missing dependency) is never exercised.
+   - A helper or branch is dead code reachable only through complex states.
+
+8. **Recommend an action per survivor.** Options:
+   - **Add killing test**: write a new test case that exposes the mutant.
+   - **Strengthen existing test**: the test exercises the code but fails to assert; tighten the assertion.
+   - **Refactor for testability**: the code's structure makes the mutant unreachable; extract a function so the boundary can be tested.
+   - **Mark equivalent**: with rationale.
+   - **Defer**: low priority; revisit next quarter.
+
+9. **Write the killing tests.** Emit concrete test code in the target framework. Each test must demonstrably distinguish the original from the mutant by failing on the mutant and passing on the original. Naming convention: `should_<assert>_when_<condition>` so the test communicates the invariant.
+
+10. **Strengthen assertions, do not just add coverage.** A test that calls the function with 50 inputs and asserts nothing is worse than no test — it produces false confidence and gets bypassed. Every new assertion should target a specific observable.
+
+11. **Cover boundaries explicitly.** For every numeric or collection boundary in the prioritized survivors, write tests at the boundary, one below, one above, plus zero and the max representable when relevant.
+
+12. **Cover negations explicitly.** For every flipped-boolean survivor, write a test that exercises both arms of the condition with assertions that differ between arms.
+
+13. **Cover side effects with spies.** For removed-method-call survivors, the existing tests do not inspect side effects. Add spies or in-memory fakes that record the side effect and assert it occurred.
+
+14. **Avoid the over-mocking trap.** A test full of mocks may technically kill mutants while drifting from real behavior. Prefer real collaborators or in-memory fakes; mock only the outermost externals.
+
+15. **Re-run mutation testing on the touched files after adding tests.** Verify the killing tests killed the mutants and did not break others. Some new tests may slow the run; balance by scoping mutation testing to changed modules in CI.
+
+16. **Set a realistic target score.** 70% is good for most product code; 85%+ for libraries with stable APIs; aiming for 100% encourages writing pointless tests. State the target and the modules where it applies.
+
+17. **Exclude generated code, migration scripts, and trivial bindings.** These produce survivors that are not worth killing. Configure exclusions in the mutation tool and document why.
+
+18. **Detect test-quality smells from survivor patterns.** If many survivors are "removed method call" mutants, the suite under-asserts side effects. If many are "boundary" mutants, the suite tests the middle but not the edges. Surface the pattern, not just the individual fix.
+
+19. **Plan the cadence.** Run mutation testing nightly on changed modules; once per release on the full suite. Block PRs only on a regression of the per-module score, not on absolute thresholds (which become rituals).
+
+20. **Surface the cost-benefit per survivor.** Each prioritized item gets an effort estimate (15m, 1h, half-day) so the team can pick by capacity. A half-day refactor that kills five high-risk survivors beats five quick assertions on low-risk ones.
+
+21. **Plan for false positives in the score.** Mutation tools sometimes produce timeouts, infinite loops, or compile errors. These are not survivors and should be filtered, with the rationale in the report. Track timeouts as a tool-tuning task, not a coverage gap.
+
+22. **Tie killing tests to a single PR.** Bundle 5-10 killing tests in one focused PR per area. Cross-cutting PRs are hard to review and easy to revert.
+
+23. **Document the rationale in the test.** Above each killing test, a one-line comment names the mutant it kills, so a future reader knows why the test exists. Without this, future refactors will delete the test as "redundant."
+
+24. **Re-run the prioritization quarterly.** Production code drifts. New survivors appear. Stale survivors get refactored away. A quarterly pass keeps the action list current.
+
+25. **Report the new score with confidence interval.** Mutation testing is stochastic in the order of mutant selection. Report the new score with the sample size and the date.
+
+## Inputs
+
+- `mutation_report` (required): JSON, HTML, or text from a mutation-testing tool.
+- `source_code` (optional): the production code where survivors live.
+- `existing_tests` (optional): the current suite for the affected modules.
+- `target_score` (optional): the team's goal.
+- `stack` (optional): language and framework for idiomatic killing tests.
+
+## Outputs
+
+- `triage_report` (markdown): prioritized survivors with category, root cause, action, effort.
+- `killing_tests` (text): runnable tests for the top-priority survivors.
+
+## Examples
+
+**Example: a Stryker JS report for a billing module**
+
+Input: 312 mutants total, 218 killed, 87 survived, 7 timed out. Mutation score 71%. The billing-calculator file has 22 survivors clustered in `applyDiscount`, `prorate`, and `roundFinal`.
+
+The agent produces:
+
+- Hot-spot identification: 22 of 87 survivors in three functions; one root cause likely.
+- Categorization: 9 boundary mutants on the discount thresholds; 6 arithmetic mutants on the proration formula; 4 return-value mutants on `roundFinal` (tests call it but never inspect the rounded value); 3 method-call mutants on the audit-log emission.
+- Equivalents: 2 mutants in `applyDiscount` are equivalent (defensive clamps the spec already guarantees).
+- Prioritized list of 12 survivors with effort estimates.
+- Killing tests: a boundary-test fixture for `applyDiscount` that hits 0, 0.01 below the threshold, the threshold, and 0.01 above; a proration test that compares against a reference table; an assertion that `roundFinal` returns a multiple of the smallest unit; an audit-log spy that records and inspects the emitted event.
+- Expected new score: 84-87%, taking about 6 engineer-hours.
+
+## Limitations
+
+- Mutation testing is expensive. The skill assumes a report exists; it does not run mutation testing itself.
+- Equivalent mutants require human judgment. The skill flags candidates but cannot prove equivalence.
+- Killing tests target the surviving mutants but cannot guarantee they catch unrelated future bugs.
+- The prioritization is heuristic; teams with unusual risk profiles should adjust the weights.
+- Some languages and frameworks have weak mutation-testing tool support; recommendations may be limited there.
+- Mutation testing tells you which tests are weak. It does not tell you whether you have the *right* tests. Pair with risk-based test strategy review.
+- The skill assumes the supplied test suite is otherwise healthy; if the suite is itself flaky, fix flakes first before chasing mutation score.
+
+## Sources reviewed
+
+- https://github.com/stryker-mutator/stryker-js
+- https://github.com/stryker-mutator/stryker-net
+- https://github.com/hcoles/pitest
+- https://github.com/infection/infection
+- https://github.com/boxed/mutmut
+- https://github.com/muter-mutation-testing/muter
+- https://github.com/dubzzz/fast-check

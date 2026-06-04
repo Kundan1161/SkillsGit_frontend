@@ -1,0 +1,339 @@
+---
+id: skillsgit-curated/ltv-cac-modeler
+version: 1.0.0
+name: LTV/CAC Modeler
+description: Build or critique a unit-economics model for a paid-acquisition program — cohort LTV, blended vs paid CAC, payback period, channel-level economics, and the sensitivity tests that show whether the answer is robust.
+authors:
+  - name: skillsgit Curated
+    handle: skillsgit-curated
+    role: author
+category: marketing
+tags: [niche:paid-acquisition, ltv, cac, unit-economics, cohort-analysis, payback-period, channel-economics, contribution-margin]
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6, gpt-4o]
+  tools_required: []
+  min_context_tokens: 32000
+  estimated_tokens_per_invocation: 8000
+trigger_keywords:
+  - ltv
+  - lifetime value
+  - cac
+  - customer acquisition cost
+  - payback period
+  - unit economics
+  - cohort analysis
+  - blended cac
+  - paid cac
+  - contribution margin
+  - channel ltv cac
+  - ltv cac ratio
+example_invocations:
+  - "Build an LTV/CAC model for our paid acquisition program."
+  - "Critique our payback-period math — it looks too good."
+  - "We mix blended and paid CAC in the same chart and I think it's wrong. Help."
+  - "Model channel-level LTV/CAC for Meta vs Google vs LinkedIn."
+  - "What should our paid CAC ceiling be if we want a 12-month payback?"
+inputs:
+  - name: business_model
+    type: choice
+    required: true
+    description: The revenue model the unit economics are being built for.
+    choices: [subscription, transactional, marketplace, ad-supported, freemium, hybrid]
+  - name: financials
+    type: text
+    required: true
+    description: Average order value or starting ARPU, gross margin %, monthly or annual retention by cohort if known, refund and chargeback rates, and any expansion revenue dynamics. Numeric estimates are fine; flag what is known vs guessed.
+  - name: cohort_data
+    type: text
+    required: false
+    description: Cohort-level retention or revenue curves if available, by acquisition month and ideally by channel. The skill works without this but produces a coarser model.
+  - name: acquisition_data
+    type: text
+    required: false
+    description: Paid spend by channel, attributed new customers by channel, and any incrementality-corrected figures (geo or lift study).
+  - name: target_payback
+    type: text
+    required: false
+    description: The team's stated payback target (e.g., "12 months CAC-paid" or "ratio ≥ 3:1 at month 24"). The skill will not invent one; if absent, it asks.
+outputs:
+  - name: model_narrative
+    type: markdown
+    description: A written walkthrough of the model — assumptions, formulas in plain language, choices made and why, and what the headline numbers do and do not mean.
+  - name: scenario_table
+    type: markdown
+    description: A base / conservative / aggressive scenario table with the LTV, CAC, payback, and ratio numbers under each scenario.
+  - name: sensitivity_findings
+    type: markdown
+    description: Which inputs the answer is most sensitive to, and which inputs the team should sharpen before acting.
+  - name: open_questions
+    type: markdown
+    description: Specific clarifications whose answers would change the conclusion.
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Initial release.
+---
+
+## When to use
+
+Use this skill when a team needs honest unit-economics math to make a decision — paid budget approval, channel-mix change, fundraising case, board update, runway planning — and either does not have a model yet or has one nobody trusts. Typical triggers:
+
+- A growth team is being asked "what is our CAC payback" and currently has three different numbers floating around the org.
+- A board deck is being prepared and the LTV figure on the slide was calculated in 2023 with a different product.
+- Channel-mix decisions are being made on blended CAC and the team suspects paid CAC tells a different story.
+- A new acquisition channel is being evaluated and the team wants a channel-specific LTV/CAC, not a corporate average.
+- An existing model is producing answers that look too good (12-month payback at high growth, blended CAC dropping every quarter) and someone wants a sanity check.
+
+Do NOT use this skill for:
+
+- DCF or full company valuation — those are different exercises.
+- Pricing strategy — that is a separate skill space.
+- Marketing measurement and attribution per se — see the MMM/MTA Reviewer skill.
+- Operational forecasting at the campaign level — see the Paid Channel Audit skill.
+
+## How to apply
+
+The skill builds (or critiques) the model in stacked layers: revenue per customer, retention curve, gross margin, lifetime value, cost of acquisition, payback, sensitivity. At each layer it names the assumption, the source, and the failure mode. The output should be defensible against a skeptical CFO, not just internally consistent.
+
+### Step 1 — Anchor on the decision the model serves
+
+Ask: "What decision will be made differently if this model says LTV/CAC is 4 vs 2?" The decision sets the level of rigor.
+
+- If the answer is "we will increase paid budget 30%," the model must support a magnitude claim — sensitivity matters, scenarios matter.
+- If the answer is "we will write a number on a deck slide," the model still needs to be defensible but tolerates more compression.
+- If the answer is "we will compare two channels," channel-level granularity is required and a corporate-blended number is wrong.
+
+### Step 2 — Define "customer" precisely
+
+A surprising share of LTV/CAC disputes come from inconsistent definitions of "customer." Pin down:
+
+- The event that makes someone a customer (first paid charge, first activated session, first trial conversion).
+- Whether trial users count as customers in the denominator of CAC.
+- Whether one-time buyers count in subscription LTV math.
+- Whether intracompany expansion counts as new customer revenue or as expansion of an existing customer.
+
+Document the choice. The chosen definition propagates through every downstream number.
+
+### Step 3 — Construct the revenue-per-customer curve
+
+For each cohort, the model needs a monthly revenue-per-active-customer curve, not just an average:
+
+- **Subscription**: starting MRR per customer, then monthly retention (logo and revenue separately if expansion is meaningful), with explicit handling of annual contracts (recognize over twelve months, but cash arrives day one).
+- **Transactional**: average order value, purchase frequency curve, and average orders per customer over time.
+- **Marketplace**: take rate, GMV per active user per month, and active-user retention.
+- **Freemium**: free-to-paid conversion curve at each month-since-signup, then the paid model from there.
+- **Ad-supported**: ARPU per active user per month, retention curve.
+
+If the team gives a single "ARPU" number, treat that as the cohort-month-1 value and build the curve forward; do not assume flat ARPU.
+
+### Step 4 — Build a defensible retention curve
+
+The retention curve is usually the biggest LTV driver and the most contested input. Three honest options:
+
+- **Empirical curve, mature data**: use the actual cohort retention from cohorts old enough to have stabilized. Validate that recent cohorts are not materially worse than the cohorts you are projecting from.
+- **Empirical curve plus parametric tail**: actual data for the early months, fit a parametric tail (geometric or BG/NBD-style) past the empirical horizon, with explicit decay assumptions.
+- **Parametric only**: when no empirical data exists. The model exists; flag everywhere that LTV is an extrapolation.
+
+Never assume "100% terminal retention." Even the best products have a non-zero perpetual churn floor.
+
+### Step 5 — Compute gross profit per customer
+
+LTV is gross profit per customer over their lifetime, not revenue. The skill should enforce this. For each revenue dollar:
+
+- Subtract cost of goods sold (hosting, processing, COGS, content licensing).
+- Subtract direct customer support cost. If the team's gross margin number already includes support, do not double-count.
+- Subtract refunds and chargebacks as a percentage.
+- Decide explicitly whether to subtract a share of fixed customer-success cost. Conservative models do; aggressive ones do not. Document the choice.
+
+The gross margin % matters more in low-margin businesses (commerce, marketplaces) than in software, but the principle is universal.
+
+### Step 6 — Choose the LTV horizon
+
+Pick a horizon that matches the decision:
+
+- **24-month LTV** for most subscription businesses and any growth-stage decision. Honest, conservative, comparable across companies.
+- **36-month LTV** when retention is mature and well-instrumented.
+- **Lifetime ("forever") LTV** only as a sensitivity check. Never as the headline number for a board.
+- **Time-to-payback LTV** (LTV at the month CAC is recovered) is a useful sanity number.
+
+State the horizon next to every LTV figure. "LTV is $X" is not a number; "24-month gross-profit LTV is $X" is.
+
+### Step 7 — Compute CAC: paid vs blended
+
+CAC has two flavors, both legitimate, both wrong on their own.
+
+- **Paid CAC** = paid acquisition spend / customers acquired from paid in the same window. The denominator should match the same channel set as the numerator (do not put total spend over total customers).
+- **Blended CAC** = total acquisition spend (paid + organic content + brand + headcount? — choose) / total new customers. Tells you the corporate cost of growth.
+
+The two reconcile only when paid is the entire acquisition program, which is rare. Report both, label them, and never let them be averaged.
+
+### Step 8 — Decide what counts as acquisition spend
+
+In paid CAC, the question is what to include:
+
+- Always: media spend.
+- Usually: agency fees, creative production directly attributable to paid.
+- Sometimes: paid-marketing headcount, attribution tooling, tracking infrastructure.
+- Avoid: random allocation of brand spend, PR, lifecycle email, in-product growth.
+
+Be explicit. A paid CAC that excludes agency fees can look 15–30% better than one that includes them.
+
+### Step 9 — Build channel-level CAC where decisions need it
+
+Cross-channel decisions require channel-level CAC. For each channel:
+
+- Spend = direct media + channel-attributable production and tooling.
+- Customers attributed = ideally from a measurement model the team trusts (see the MMM/MTA Reviewer skill). At minimum, use a stable rule (first-touch from warehouse, or last-paid-click) and apply it consistently.
+
+Acknowledge the measurement problem in the open questions if no defensible channel attribution exists. Do not fabricate per-channel CAC and pass it as fact.
+
+### Step 10 — Compute payback period
+
+Payback is the month at which cumulative gross profit per cohort equals CAC. Compute it from the cohort curve in Step 3, not from a "divide LTV by months" shortcut.
+
+Report:
+
+- **CAC-payback** (cumulative gross profit catches CAC).
+- **Cash-payback** if relevant (cumulative cash collected catches cash spent, which differs from gross-profit payback in annual-prepay subscriptions).
+- The month, not "approximately one year" — month 14 vs month 18 is a meaningful difference.
+
+### Step 11 — Compute the LTV/CAC ratio responsibly
+
+LTV/CAC is a ratio of two estimates, each carrying uncertainty. Two rules:
+
+- Use the same horizon LTV across compared channels or cohorts. A 24-month LTV divided by paid CAC is comparable; a forever-LTV divided by paid CAC is not.
+- Report the ratio with a band, not a point: under conservative and aggressive scenarios. A single "LTV/CAC is 3.4" is less useful than "2.6 to 4.1 across scenarios."
+
+Common benchmarks (3:1 healthy, 1:1 underwater) are heuristics borrowed from venture capital and are not universal. Note them but do not anchor the team on them.
+
+### Step 12 — Build base / conservative / aggressive scenarios
+
+The skill should always output three scenarios. Vary the largest-impact inputs:
+
+- Retention curve: empirical, empirical minus 15%, empirical plus 10%.
+- Gross margin: stated, stated minus 5 percentage points, stated plus 3.
+- CAC: current trailing-90-day, with a +20% inflation, with a –10% optimization.
+- Attribution model: as-is, with a 25% paid-CAC inflation if the team relies on last-click, etc.
+
+The scenario table is the part the CFO actually reads.
+
+### Step 13 — Run a sensitivity analysis
+
+For each input, compute approximate elasticity: a 10% change in that input produces a what-percent change in the output. Rank inputs by elasticity and highlight the top three. The top three are the inputs the team needs to sharpen — everything else is decoration.
+
+In most models, the top sensitivities are retention curve, gross margin, and CAC. If a model's top sensitivity is a refund-rate guess, that is itself a finding.
+
+### Step 14 — Stress-test against known failure modes
+
+Walk these explicitly:
+
+- **Survivorship bias in cohorts.** Aggregating "blended LTV across all cohorts" with longer-lived cohorts overrepresented can flatter LTV.
+- **Selection bias in paid.** Customers acquired through paid retargeting are often existing organic visitors converted; counting them as "paid" inflates paid LTV.
+- **Brand-bleed into paid CAC.** If brand spend drives branded search and branded search is in paid CAC, paid CAC looks artificially low.
+- **Promotional cohorts.** Customers acquired during a deep discount have systematically lower LTV; pulling them into the model average tilts the result.
+- **One-time tailwinds.** A pandemic year, a viral moment, a competitor outage — none of these recur, and a model that bakes them in is fragile.
+
+### Step 15 — Set a defensible CAC ceiling
+
+Given the target payback and the scenarios, back out a CAC ceiling per channel. The ceiling is the CAC at which the program meets the payback target under the **conservative** scenario, not the base. This is the number marketing should operate to; running to the base-scenario ceiling routinely overshoots payback when reality is less generous than the base.
+
+### Step 16 — Reconcile blended and paid
+
+Show the team one chart: paid CAC and blended CAC over the trailing twelve months. If they diverge, name the structural reason (organic-share change, retargeting mix, new channel ramp). Avoid the temptation to "explain" the divergence away.
+
+### Step 17 — Address the LTV/CAC payback paradox
+
+A team can hit LTV/CAC 3:1 with a 36-month payback or 3:1 with a 9-month payback. The two are very different businesses. Recommend reporting both ratio and payback together, never one alone.
+
+### Step 18 — Document assumptions in a single block
+
+End the model with a single Assumptions section that lists, in numbered form:
+
+1. Customer definition.
+2. LTV horizon.
+3. Retention curve source and tail.
+4. Gross margin definition.
+5. CAC scope (what is and is not included).
+6. Channel attribution method.
+7. Currency and FX assumptions.
+
+This block lets a reviewer rerun the numbers and disagree precisely.
+
+### Step 19 — Name open questions
+
+Examples often worth asking:
+
+- "Is the retention curve being applied to the same cohorts that the LTV horizon is calibrated against?"
+- "Is paid-acquisition headcount counted inside paid CAC or outside?"
+- "Does the model differentiate between annual and monthly billing for time-to-payback purposes?"
+- "Is there a separate model for self-serve vs sales-assisted customers, or are they pooled?"
+
+### Step 20 — Write the model narrative
+
+The narrative leads with the headline numbers under the base scenario, then shows the scenarios, then the sensitivity ranking, then the assumptions, then the open questions. The reader should be able to disagree with one assumption and know exactly which numbers move.
+
+### Step 21 — Calibrate confidence
+
+End with an explicit confidence section: which numbers are well-grounded, which are estimates, which are placeholders. A defensible model names its weakest links.
+
+## Inputs
+
+- `business_model` (required): subscription, transactional, marketplace, ad-supported, freemium, hybrid.
+- `financials` (required): ARPU, gross margin, retention if known, refunds, expansion.
+- `cohort_data` (optional): cohort retention or revenue curves.
+- `acquisition_data` (optional): paid spend and attributed customers by channel.
+- `target_payback` (optional): the team's stated payback target.
+
+## Outputs
+
+- `model_narrative` — assumptions, formulas, headline numbers, scenarios.
+- `scenario_table` — base / conservative / aggressive.
+- `sensitivity_findings` — which inputs the answer is most sensitive to.
+- `open_questions` — clarifications that would change the conclusion.
+
+## Examples
+
+**Example 1 — Subscription B2C, model critique.**
+
+Input: "We're a $35/month consumer subscription. Marketing says paid CAC is $48 and LTV is $420, so LTV/CAC = 8.75. The CFO doesn't trust it. Gross margin is 70%. We've been live 18 months."
+
+Expected behavior:
+- Pull apart the LTV: $420 at 70% gross margin = $294 gross-profit LTV. The 8.75 ratio used revenue LTV, not gross-profit LTV; corrected, it is 6.1.
+- Check retention horizon: at 18 months of company history, "LTV $420" is almost certainly extrapolated. Ask whether the parametric tail is documented.
+- Conservative scenario: empirical retention through month 12, parametric tail through month 24, gross-profit LTV ~ $180. Conservative LTV/CAC ~ 3.8.
+- Open question: is the paid CAC of $48 inclusive of agency fees and paid-marketing headcount? If only media, true paid CAC may be $60–70 and conservative LTV/CAC closer to 2.5–3.
+- Findings: the 8.75 number is indefensible. Defensible range is 2.5 to 6.1 across scenarios. Report both ratio (24-month gross-profit) and CAC payback (which the input does not specify and the team should compute).
+
+**Example 2 — Marketplace, channel-level decision.**
+
+Input: "Two-sided marketplace, $2.4M/month paid split Google ($1.6M) and Meta ($800k). Take rate 12%, GMV per active demand-user per month $90, demand retention 65% month-2 dropping to ~25% steady state by month 12. Need channel-level LTV/CAC for a board meeting."
+
+Expected behavior:
+- Build the demand-side LTV curve: month-1 GMV $90 × take rate 12% = $10.80 contribution. Apply retention to project 24-month contribution-margin LTV.
+- Subtract a stated share of variable supply-side cost from contribution to get gross-profit LTV.
+- Build channel-level paid CAC for Google and Meta, with explicit attribution method (first-touch warehouse recommended given marketplace dynamics, with the caveat that this likely over-credits Meta if Meta drives more upper-funnel discovery).
+- Scenario table with retention sensitivity, attribution sensitivity, and take-rate sensitivity.
+- Open question for the board: should the channel decision be made on observational paid CAC or on an incrementality-adjusted view? Recommend a Meta geo holdout to size the gap before the next budget cycle.
+
+## Limitations
+
+- The skill builds a model, it does not access the company's data warehouse. Every number it uses is supplied by the requester and clearly labeled.
+- LTV is always an estimate. A model that pretends otherwise is the failure mode the skill exists to prevent.
+- Channel-level CAC is only as good as the underlying attribution. Where attribution is fragile, the skill flags it; it does not invent a defensible answer.
+- The skill assumes the team can compute or supply gross margin honestly. Where COGS allocation is contested, the model exposes the assumption rather than choosing.
+- Benchmarks (3:1 healthy, 12-month payback) are heuristics from common practice, not laws. The skill names them as orientation, not as targets.
+- The skill does not output a spreadsheet or runnable code. It outputs the narrative, the scenarios, and the assumptions a quantitative model should encode.
+
+## Sources reviewed
+
+- https://github.com/CamDavidsonPilon/lifetimes
+- https://github.com/pymc-labs/pymc-marketing
+- https://github.com/facebookexperimental/Robyn
+- https://github.com/google/meridian
+- https://github.com/facebookincubator/GeoLift
+- https://github.com/segmentio/utm-params

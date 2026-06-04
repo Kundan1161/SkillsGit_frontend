@@ -1,0 +1,102 @@
+%% Auth flow — registration, login, and authenticated request resolution.
+%% Source: apps/api/src/auth/{router,service,deps,tokens,email}.py.
+
+sequenceDiagram
+    autonumber
+    participant Client as Browser / API client
+    participant Reg as POST /v1/auth/register
+    participant Svc as auth.service.create_user
+    participant Pwd as passlib argon2id
+    participant DB as Postgres users + audit_log
+    participant Mail as SMTP / Mailhog
+    participant Login as POST /v1/auth/login
+    participant Tok as auth.tokens.make_session_token
+    participant Redis as Redis
+    participant Cookie as Browser cookie skillsgit_session
+    participant Req as Subsequent /v1/* request
+    participant Deps as auth.deps.get_optional_user
+
+    Note over Reg: LIMIT_REGISTER = 5/hour
+    Note over Pwd: argon2id (mem=64MiB, t=3, p=4)
+    Note over Mail: verify email link
+    Note over Login: LIMIT_LOGIN = 10/min and 50/hr
+    Note over Tok: JWT, jti, DEFAULT_LIFETIME
+    Note over Redis: failed-login counter and JWT denylist
+    Note over Cookie: HttpOnly, SameSite=Lax, Secure in prod
+    Note over Deps: get_optional_user resolves to current_active_user
+
+    %% Registration
+    Client->>Reg: POST email, password, display_name
+    Reg->>Svc: create_user(email, password, display_name)
+    Note over Svc: password_is_strong_enough() : >=12 chars, not in deny list
+    Svc->>DB: SELECT users WHERE email=...
+    alt email already exists
+        Svc-->>Reg: AppError(auth.email_taken, 409)
+        Reg-->>Client: 409 ErrorResponse
+    else fresh email
+        Svc->>Pwd: hash_password(password)
+        Pwd-->>Svc: hashed
+        Svc->>DB: INSERT users + audit_log(auth.register)
+        Svc-->>Reg: User
+        Reg->>Svc: make_verification_token(user)
+        Note over Reg,Svc: JWT purpose=verify_email
+        Reg->>Mail: send verify email
+        Reg->>Tok: make_session_token(user_id, ...)
+        Tok-->>Reg: jwt, jti, expires_at
+        Reg->>Cookie: Set-Cookie skillsgit_session=jwt
+        Note over Reg,Cookie: HttpOnly, Lax, max-age=DEFAULT_LIFETIME
+        Reg-->>Client: 201 UserRead + Location header
+    end
+
+    %% Login
+    Client->>Login: POST email, password
+    Login->>Redis: is_locked_out(email)?
+    alt locked out
+        Login-->>Client: 423 Locked auth.account_locked
+    else not locked
+        Login->>Svc: authenticate(email, password)
+        Svc->>DB: SELECT user
+        Svc->>Pwd: verify(password, hashed_password)
+        Note over Svc,Pwd: or verify(_, _DUMMY_HASH) on miss (timing-attack defence)
+        alt bad credentials
+            Svc-->>Login: None
+            Login->>Redis: record_failed_login(email)
+            Login-->>Client: 401 auth.invalid_credentials
+        else valid
+            Svc-->>Login: User
+            Login->>Redis: reset_failed_login(email)
+            Login->>Tok: make_session_token(...)
+            Tok-->>Login: jwt
+            Login->>Cookie: Set-Cookie skillsgit_session
+            Login->>DB: write_audit(auth.login)
+            Login-->>Client: 200 LoginResponse ok=true
+        end
+    end
+
+    %% Authenticated request resolution
+    Client->>Req: GET /v1/me/licenses
+    Note over Client,Req: Cookie: skillsgit_session=jwt (or Authorization: Bearer skg_...)
+    Req->>Deps: depends on current_active_user
+    alt Authorization Bearer present
+        Deps->>Deps: token startswith skg_live_ / skg_test_?
+        alt API token
+            Deps->>DB: SELECT api_token WHERE prefix=... AND revoked_at IS NULL
+            Deps->>Pwd: pwd_context.verify(plaintext, token_hash)
+            Deps->>DB: SELECT user WHERE id = token.user_id
+        else Bearer JWT
+            Deps->>Tok: decode_token(jwt)
+            Deps->>Redis: is_revoked(jti)?
+            Deps->>DB: SELECT user
+        end
+    else cookie only
+        Deps->>Tok: decode_token(cookie)
+        Deps->>Redis: is_revoked(jti)?
+        Deps->>DB: SELECT user
+    end
+    alt resolved
+        Deps-->>Req: User
+        Req-->>Client: handler proceeds
+    else unauthenticated
+        Deps-->>Req: HTTPException 401 auth.unauthorized
+        Req-->>Client: 401 ErrorResponse
+    end

@@ -1,0 +1,189 @@
+<mxfile host="app.diagrams.net" agent="skillsgit-arch" version="24.7.17" type="device">
+  <diagram name="pii-and-quota" id="skg-pii-and-quota">
+    <mxGraphModel dx="2400" dy="1800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2600" pageHeight="2200" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <mxCell id="title" value="PII detection + Redis-backed monthly quota — capture/pii.py + capture/quota.py" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=none;fontSize=18;fontStyle=1;align=left;" vertex="1" parent="1">
+          <mxGeometry x="40" y="20" width="1500" height="40" as="geometry"/>
+        </mxCell>
+
+        <!-- PII outer group -->
+        <mxCell id="g-PII" value="PII detector — capture/pii.py:scan()" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;verticalAlign=top;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="80" width="1280" height="1500" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-Input" value="Input string&#10;(draft_md after LLM extract,&#10;or any captured field)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="80" y="130" width="380" height="90" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-Scan" value="pii.scan(content)&#10;regex sweep, deterministic sort" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="500" y="130" width="380" height="90" as="geometry"/>
+        </mxCell>
+
+        <!-- Hard-block patterns -->
+        <mxCell id="g-Hard" value="Hard-block patterns (reuse SECRET_PATTERNS from skills/validator.py)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;verticalAlign=top;fontSize=13;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="80" y="250" width="600" height="320" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-HardCC" value="credit_card&#10;severity=high" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="120" y="290" width="240" height="55" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-HardSSN" value="us_ssn&#10;severity=high" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="400" y="290" width="240" height="55" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-HardAws" value="aws_access_key&#10;severity=high" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="120" y="360" width="240" height="55" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-HardPriv" value="private_key (PEM)&#10;severity=high" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="400" y="360" width="240" height="55" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-HardOAI" value="openai_api_key /&#10;anthropic_api_key&#10;severity=high" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="260" y="450" width="240" height="70" as="geometry"/>
+        </mxCell>
+
+        <!-- Warn patterns -->
+        <mxCell id="g-Warn" value="Warn-list patterns (capture/pii.py:_PII_WARN_PATTERNS)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;verticalAlign=top;fontSize=13;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="700" y="250" width="600" height="540" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-WarnEmail" value="email&#10;\\b[\\w.+-]+@[\\w-]+\\.[\\w.-]+\\b&#10;severity=medium" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="740" y="290" width="520" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-WarnPhoneUS" value="phone_us&#10;(415) 555-1212&#10;severity=medium" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="740" y="360" width="520" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-WarnPhoneE164" value="phone_e164&#10;+44 20 7946 0958&#10;severity=medium" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="740" y="430" width="520" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-WarnIp" value="ipv4&#10;(skips 10/127/0/192.168/172.16-31/169.254)&#10;severity=medium" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="740" y="500" width="520" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-WarnSlackPre" value="internal_slack_channel&#10;#chan + 'slack' within 30 chars&#10;severity=low" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="740" y="580" width="520" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-WarnSlackPost" value="slack_channel_after_word&#10;'slack' + #chan within 30 chars&#10;severity=low" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="740" y="650" width="520" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-WarnJira" value="jira_ticket&#10;ABC-1234 .. ABCDEFGH-12345&#10;severity=low" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="740" y="720" width="520" height="60" as="geometry"/>
+        </mxCell>
+
+        <!-- Findings -->
+        <mxCell id="n-Findings" value="list[PIIFinding]&#10;(type, severity, span_start, span_end,&#10;masked_preview, suggested_redaction, accepted, action)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="240" y="820" width="820" height="100" as="geometry"/>
+        </mxCell>
+
+        <!-- Gates -->
+        <mxCell id="g-Gates" value="Finalize-time gates" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;verticalAlign=top;fontSize=13;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="80" y="950" width="1180" height="250" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-HasHard" value="has_hard_block(findings)&#10;any severity=high&#10;(SECRET_PATTERNS — platform rule, NOT accept-able)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="120" y="1000" width="540" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-HasUnresolved" value="has_unresolved_high(findings)&#10;any severity=high AND accepted=False&#10;(per-creator deny-list future hook)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="680" y="1000" width="540" height="80" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="n-Block" value="finalize_session raises&#10;CaptureError 422&#10;code=capture.pii_blocked" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="120" y="1110" width="540" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-Allow" value="medium / low findings flow into&#10;capture_sessions.pii_flags_json;&#10;creator owns keep/redact/edit" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="680" y="1110" width="540" height="80" as="geometry"/>
+        </mxCell>
+
+        <!-- PII edges -->
+        <mxCell id="epi1" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-Input" target="n-Scan"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="epi2" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-Scan" target="g-Hard"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="epi3" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-Scan" target="g-Warn"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="epi4" style="endArrow=classic;html=1;" edge="1" parent="1" source="g-Hard" target="n-Findings"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="epi5" style="endArrow=classic;html=1;" edge="1" parent="1" source="g-Warn" target="n-Findings"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="epi6" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-Findings" target="n-HasHard"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="epi7" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-Findings" target="n-HasUnresolved"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="epi8" value="True" style="endArrow=classic;html=1;fontStyle=1;" edge="1" parent="1" source="n-HasHard" target="n-Block"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="epi9" value="True" style="endArrow=classic;html=1;fontStyle=1;" edge="1" parent="1" source="n-HasUnresolved" target="n-Block"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="epi10" value="non-blocking" style="endArrow=classic;html=1;dashed=1;" edge="1" parent="1" source="n-Findings" target="n-Allow"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- Quota outer group -->
+        <mxCell id="g-Quota" value="Monthly extract quota — capture/quota.py" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#BE185D;verticalAlign=top;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1360" y="80" width="1200" height="1500" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-QInput" value="service.run_extract(&#10;creator, session_id,&#10;consume_quota=True)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#BE185D;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1400" y="130" width="500" height="90" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-Reserve" value="quota.reserve(creator_id)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#BE185D;" vertex="1" parent="1">
+          <mxGeometry x="1400" y="240" width="500" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-Key" value="quota_key(creator_id)&#10;= 'capture:quota:{uuid}:{YYYY-MM}'&#10;(UTC month)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#BE185D;" vertex="1" parent="1">
+          <mxGeometry x="1400" y="310" width="500" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-Incr" value="redis.INCR key" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#BE185D;" vertex="1" parent="1">
+          <mxGeometry x="1400" y="410" width="500" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-Expire" value="redis.EXPIRE key 32d&#10;(set on every call; cheap)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#BE185D;" vertex="1" parent="1">
+          <mxGeometry x="1400" y="480" width="500" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-Check" value="new_count &gt; cap?&#10;cap = settings.SKG_CAPTURE_QUOTA_PER_MONTH&#10;(default 10)" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontStyle=1;align=center;" vertex="1" parent="1">
+          <mxGeometry x="1400" y="560" width="500" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-Accepted" value="return new_count&#10;(extract proceeds)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1940" y="560" width="500" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-Decr" value="redis.DECR key&#10;(refund failed reservation — otherwise a 429 flood would&#10;cement the over-cap state)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#BE185D;" vertex="1" parent="1">
+          <mxGeometry x="1400" y="700" width="500" height="90" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-Raise" value="raise CaptureQuotaExceededError&#10;(429, capture.quota_exceeded,&#10;resets at {first-of-next-month UTC})" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1400" y="810" width="500" height="90" as="geometry"/>
+        </mxCell>
+
+        <!-- Refund -->
+        <mxCell id="n-Refund" value="quota.refund(creator_id)&#10;called from run_extract on LLMExtractError&#10;so a parse error doesn't burn a slot" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#BE185D;" vertex="1" parent="1">
+          <mxGeometry x="1400" y="920" width="500" height="90" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-RefundGet" value="redis.GET key" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#BE185D;" vertex="1" parent="1">
+          <mxGeometry x="1400" y="1030" width="500" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-RefundDecr" value="if current &gt; 0:&#10;redis.DECR key&#10;(floor 0, never negative)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#BE185D;" vertex="1" parent="1">
+          <mxGeometry x="1400" y="1100" width="500" height="80" as="geometry"/>
+        </mxCell>
+
+        <!-- Arq retry -->
+        <mxCell id="n-ArqRetry" value="Arq retry of extract_neuron&#10;jobs.py: run_extract(consume_quota=False)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#BE185D;" vertex="1" parent="1">
+          <mxGeometry x="1940" y="700" width="500" height="80" as="geometry"/>
+        </mxCell>
+
+        <!-- Peek -->
+        <mxCell id="n-Peek" value="quota.peek(creator_id)&#10;read-only GET — returns (used, cap)&#10;for the UI status header" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#BE185D;" vertex="1" parent="1">
+          <mxGeometry x="1940" y="850" width="500" height="90" as="geometry"/>
+        </mxCell>
+
+        <!-- Quota edges -->
+        <mxCell id="eq1" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-QInput" target="n-Reserve"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="eq2" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-Reserve" target="n-Key"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="eq3" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-Key" target="n-Incr"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="eq4" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-Incr" target="n-Expire"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="eq5" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-Expire" target="n-Check"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="eq6" value="no" style="endArrow=classic;html=1;fontStyle=1;" edge="1" parent="1" source="n-Check" target="n-Accepted"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="eq7" value="yes" style="endArrow=classic;html=1;fontStyle=1;" edge="1" parent="1" source="n-Check" target="n-Decr"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="eq8" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-Decr" target="n-Raise"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="eq9" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-Refund" target="n-RefundGet"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="eq10" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-RefundGet" target="n-RefundDecr"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="eq11" value="skips reserve()" style="endArrow=classic;html=1;dashed=1;" edge="1" parent="1" source="n-ArqRetry" target="n-Accepted"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="eq12" style="endArrow=classic;html=1;dashed=1;" edge="1" parent="1" source="n-Peek" target="n-Key"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- Wiring into pipeline -->
+        <mxCell id="g-pipeline" value="Wiring back into the pipeline" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;verticalAlign=top;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="1620" width="2520" height="240" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-Extract" value="POST /v1/capture/sessions/{id}/extract" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="80" y="1680" width="640" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-Finalize" value="POST /v1/capture/sessions/{id}/finalize" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="80" y="1770" width="640" height="70" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="ep11x" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-Extract" target="n-Reserve"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="ep12x" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-Extract" target="n-Scan"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="ep13x" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-Finalize" target="n-Scan"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

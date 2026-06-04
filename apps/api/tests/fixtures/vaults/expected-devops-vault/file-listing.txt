@@ -1,0 +1,6 @@
+00-index.md
+README.md
+domains/ci-cd/ci-pipeline-architect.md
+domains/incident/ops-runbook-generator.md
+domains/observability/alert-policy-architect.md
+vault.json

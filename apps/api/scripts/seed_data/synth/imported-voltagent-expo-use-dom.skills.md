@@ -1,0 +1,228 @@
+---
+id: skillsgit-curated/imported-voltagent-expo-use-dom
+version: 1.0.0
+name: Expo DOM Components
+description: Use Expo DOM components to run web code in a webview on native and as-is on web — migrate web code to native incrementally.
+authors:
+  - name: Expo
+    handle: expo
+    role: author
+  - name: skillsgit Curated
+    handle: skillsgit-curated
+    role: maintainer
+category: engineering
+tags: [imported, source-voltagent, expo, dom, webview, react-native, migration]
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6, gpt-4o]
+  min_context_tokens: 32000
+  estimated_tokens_per_invocation: 6000
+trigger_keywords: [use dom, expo dom components, webview react, recharts react native, web to native]
+example_invocations:
+  - Use recharts in my Expo app via DOM components
+  - Run a syntax highlighter inside a webview on native
+  - Expose a native Alert to a DOM component
+inputs: []
+outputs: []
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Imported from VoltAgent/awesome-agent-skills under MIT.
+---
+
+# Expo DOM Components
+
+## When to Use
+
+Use this skill when you need:
+
+- **Web-only libraries** — Charts (recharts, chart.js), syntax highlighters, rich text editors, or any library that depends on DOM APIs
+- **Migrating web code** — Bring existing React web components to native without rewriting
+- **Complex HTML/CSS layouts** — When CSS features aren't available in React Native
+- **iframes or embeds** — Embedding external content that requires a browser context
+- **Canvas or WebGL** — Web graphics APIs not available natively
+
+## When NOT to Use
+
+- **Native performance is critical** — Webviews add overhead.
+- **Simple UI** — React Native is more efficient.
+- **Deep native integration** — Use local modules instead.
+- **Layout routes** — `_layout` files cannot be DOM components.
+
+## How to apply
+
+Add `"use dom";` at the top of a file with a single default-exported React component. Pass serializable props only. Type the `dom` prop. Compose with native screens by importing the DOM component like any other React component.
+
+## Basic DOM Component
+
+```tsx
+// components/WebChart.tsx
+"use dom";
+
+export default function WebChart({ data }: { data: number[]; dom: import("expo/dom").DOMProps }) {
+  return (
+    <div style={{ padding: 20 }}>
+      <h2>Chart Data</h2>
+      <ul>{data.map((v, i) => <li key={i}>{v}</li>)}</ul>
+    </div>
+  );
+}
+```
+
+## Rules
+
+1. Must have `'use dom';` directive at the top of the file.
+2. Single default export — one React component per file.
+3. Own file — cannot be inline or combined with native components.
+4. Serializable props only — strings, numbers, booleans, arrays, plain objects.
+5. Include CSS in the component file — DOM components run in isolated context.
+
+## The `dom` Prop
+
+```tsx
+"use dom";
+
+interface Props {
+  content: string;
+  dom: import("expo/dom").DOMProps;
+}
+
+export default function MyComponent({ content }: Props) {
+  return <div>{content}</div>;
+}
+```
+
+Common options:
+
+```tsx
+<DOMComponent dom={{ scrollEnabled: false }} />
+<DOMComponent dom={{ contentInsetAdjustmentBehavior: "never" }} />
+<DOMComponent dom={{ style: { width: 300, height: 400 } }} />
+```
+
+## Exposing Native Actions
+
+```tsx
+// native parent
+<DOMComponent
+  showAlert={async (message: string) => Alert.alert("From Web", message)}
+  saveData={async (data) => { /* native save */ return { success: true }; }}
+/>
+```
+
+```tsx
+// DOM component
+"use dom";
+
+interface Props {
+  showAlert: (message: string) => Promise<void>;
+  saveData: (data: { name: string; value: number }) => Promise<{ success: boolean }>;
+  dom?: import("expo/dom").DOMProps;
+}
+
+export default function DOMComponent({ showAlert, saveData }: Props) {
+  return <button onClick={async () => { await showAlert("Hello!"); }}>Trigger</button>;
+}
+```
+
+## Using Web Libraries
+
+```tsx
+"use dom";
+import SyntaxHighlighter from "react-syntax-highlighter";
+import { docco } from "react-syntax-highlighter/dist/esm/styles/hljs";
+
+export default function SyntaxHighlight({ code, language, dom }: { code: string; language: string; dom?: import("expo/dom").DOMProps }) {
+  return <SyntaxHighlighter language={language} style={docco}>{code}</SyntaxHighlighter>;
+}
+```
+
+```tsx
+"use dom";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
+
+export default function Chart({ data, dom }: { data: Array<{ name: string; value: number }>; dom: import("expo/dom").DOMProps }) {
+  return (
+    <LineChart width={400} height={300} data={data}>
+      <CartesianGrid strokeDasharray="3 3" />
+      <XAxis dataKey="name" />
+      <YAxis />
+      <Tooltip />
+      <Line type="monotone" dataKey="value" stroke="#8884d8" />
+    </LineChart>
+  );
+}
+```
+
+## CSS
+
+```tsx
+"use dom";
+import "@/styles.css";
+
+export default function StyledComponent({ dom }: { dom: import("expo/dom").DOMProps }) {
+  return <div className="container"><h1 className="title">Styled</h1></div>;
+}
+```
+
+## Expo Router in DOM Components
+
+`<Link />` and `useRouter()` work. The following hooks need native parent → prop passing:
+
+- `useLocalSearchParams()`
+- `useGlobalSearchParams()`
+- `usePathname()`
+- `useSegments()`
+- `useRootNavigation()`
+- `useRootNavigationState()`
+
+```tsx
+// app/[id].tsx
+import { useLocalSearchParams, usePathname } from "expo-router";
+
+export default function Screen() {
+  const { id } = useLocalSearchParams();
+  const pathname = usePathname();
+  return <DOMComponent id={id as string} pathname={pathname} />;
+}
+```
+
+## Detecting DOM Environment
+
+```tsx
+"use dom";
+import { IS_DOM } from "expo/dom";
+
+export default function C({ dom }: { dom?: import("expo/dom").DOMProps }) {
+  return <div>{IS_DOM ? "In DOM" : "Native"}</div>;
+}
+```
+
+## Platform Behavior
+
+| Platform | Behavior |
+|----------|----------|
+| iOS      | Rendered in WKWebView |
+| Android  | Rendered in WebView |
+| Web      | Rendered as-is (no webview wrapper) |
+
+## Tips
+
+- Hot reload works.
+- Keep DOM components focused — don't put entire screens in webviews.
+- Native components for navigation chrome, DOM for specialized content.
+- Test on all platforms — web rendering may differ from native webviews.
+- Profile large DOM components.
+
+## Attribution
+
+This skill was imported from `VoltAgent/awesome-agent-skills` under the MIT license, originating from the `expo/skills` repository under the MIT license. Original content authored by the listed contributor(s) at the source repository. Modifications by skillsgit: frontmatter normalization to fit marketplace spec; addition of attribution and sources sections.
+
+## Sources reviewed
+
+- https://github.com/VoltAgent/awesome-agent-skills (MIT)
+- https://github.com/expo/skills/tree/main/plugins/expo/skills/use-dom (MIT)

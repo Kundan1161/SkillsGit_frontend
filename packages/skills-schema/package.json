@@ -1,0 +1,26 @@
+{
+  "name": "@skillsgit/skills-schema",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Zod schemas and TypeScript types for the skills.md frontmatter spec. Mirrors the Pydantic models in apps/api.",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "files": ["src"],
+  "scripts": {
+    "lint": "echo \"(skills-schema) lint placeholder\"",
+    "typecheck": "tsc --noEmit",
+    "test": "echo \"(skills-schema) no tests yet\"",
+    "build": "echo \"(skills-schema) consumed as source — no build step\""
+  },
+  "dependencies": {
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0"
+  }
+}

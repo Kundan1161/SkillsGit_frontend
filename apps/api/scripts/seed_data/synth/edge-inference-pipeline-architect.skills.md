@@ -1,0 +1,251 @@
+---
+id: skillsgit-curated/edge-inference-pipeline-architect
+version: 1.0.0
+name: Edge Inference Pipeline Architect
+description: Design an end-to-end edge inference pipeline — model choice, conversion chain, quantization strategy, runtime selection, fallback to cloud, observability, and OTA model updates — with sized budgets and rollback plans.
+authors:
+  - name: skillsgit Curated
+    handle: skillsgit-curated
+    role: author
+category: engineering
+tags: [niche:edge-inference, on-device-ml, model-conversion, quantization, runtime-selection, ota-updates, edge-observability]
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6, gpt-4o, gpt-4.1, gemini-1.5-pro]
+  tools_required: []
+  tools_optional: [web_search, code_execution, file_io]
+  min_context_tokens: 32000
+  estimated_tokens_per_invocation: 8000
+trigger_keywords:
+  - edge inference pipeline
+  - on-device ml deployment
+  - model conversion chain
+  - pick a mobile ml runtime
+  - tflite vs onnx runtime
+  - coreml conversion plan
+  - edge model deployment
+  - ota model updates
+  - on-device inference architecture
+  - embedded ml pipeline
+  - quantization plan for mobile
+  - hardware accelerator targeting
+example_invocations:
+  - "We want to ship a vision model into our iOS and Android apps — design the deployment pipeline."
+  - "Plan an edge inference architecture that can fall back to a cloud endpoint when the device is under-resourced."
+  - "Review our model conversion chain from PyTorch to mobile and find the gaps."
+inputs:
+  - name: model_description
+    type: text
+    required: true
+    description: Source model framework, task type (vision, audio, text, multimodal), approximate parameter count, input and output shapes, and any accuracy floor the deployed model must clear.
+  - name: target_devices
+    type: text
+    required: false
+    description: Device classes the pipeline must cover — phone tiers (flagship, mid-range, low-end), specific SoCs or NPUs, embedded boards, wearables, browser. Include OS minimum versions.
+  - name: latency_and_energy_budget
+    type: text
+    required: false
+    description: Per-inference wall-clock budget at the p50 and p95, energy cost ceiling, thermal limits, and whether inference is foreground or background.
+  - name: connectivity_assumptions
+    type: text
+    required: false
+    description: Network availability profile — always-on, intermittent, frequently offline, fully offline. Drives the fallback strategy and the model-update channel.
+  - name: privacy_and_compliance
+    type: text
+    required: false
+    description: Whether inputs may leave the device, regulated data categories, model IP sensitivity, and any signing or attestation requirements for distributed model files.
+  - name: ops_capacity
+    type: choice
+    required: false
+    description: Team capacity for ongoing fleet operations — drives how ambitious the OTA and observability plans can be.
+    choices: [solo, small_team, dedicated_ml_platform]
+outputs:
+  - name: pipeline_design
+    type: markdown
+    description: Structured plan covering model selection, conversion chain, quantization strategy, runtime selection, accelerator targeting, fallback policy, observability, OTA update channel, rollback plan, and open risks.
+  - name: design_json
+    type: json
+    description: Machine-readable plan with keys `model_choice`, `conversion_chain`, `quantization`, `runtimes`, `accelerators`, `fallback_policy`, `telemetry`, `ota`, `rollback`, `risks`.
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Initial release.
+---
+
+# Edge Inference Pipeline Architect
+
+## When to use
+
+Use this skill when a team has a trained model and a target device — phone, tablet, wearable, embedded board, set-top box, kiosk, browser, automotive head-unit — and needs a coherent plan for getting the model from the training framework onto those devices, keeping it healthy in production, and updating it safely over time. The deliverable is a written architecture, not running code. The plan tells the user which conversion path to take, which runtime to ship, what to quantize, how to fall back when the device cannot handle a request, what to log, and how to push a new model version to a fleet without bricking it.
+
+The skill is appropriate for vision models (classification, detection, segmentation), audio models (keyword spotting, denoising, speech to text), small text models, sensor-fusion models, and small generative models that fit the device. For large on-device language models with multi-gigabyte weights, KV cache discipline, and tokenizer pipelines, prefer the companion on-device LLM deployment skill — this one covers the surrounding pipeline but does not go deep on autoregressive decoding budgets.
+
+It is not the right skill for server-side model serving with autoscaling and request batching across many users, for training-loop design, or for choosing whether the problem should be solved with machine learning at all. It assumes those decisions are made.
+
+## Inputs
+
+| Input | Required | Purpose |
+| --- | --- | --- |
+| `model_description` | yes | Anchors framework, task type, and accuracy floor for the plan. |
+| `target_devices` | no | Drives runtime, accelerator, and quantization decisions. |
+| `latency_and_energy_budget` | no | Gates which quantization aggressiveness is acceptable. |
+| `connectivity_assumptions` | no | Shapes the fallback policy and update channel. |
+| `privacy_and_compliance` | no | Determines whether cloud fallback is even allowed and what telemetry can leave the device. |
+| `ops_capacity` | no | Scopes how elaborate the OTA, canary, and telemetry layers can be. |
+
+## How to apply
+
+The skill walks an eleven-stage pipeline. Stages are sequential because later stages depend on earlier decisions — quantization options narrow once the runtime is chosen, the fallback policy depends on whether telemetry exists, and the rollback plan only makes sense once an update channel has been picked.
+
+### Stage 1 — Frame the deployment problem
+
+1. Re-state the model and target in one paragraph. The paragraph must answer: what is the input, what is the output, what accuracy must be preserved, what latency must be hit, what device class must be supported, whether the inference is user-visible or background, and whether the inputs may leave the device. If any answer is missing, ask the user before continuing.
+2. Identify the user-visible failure mode. A camera-app classifier that hiccups for 200 ms is annoying; a hearing-aid model that hiccups is unusable. The downstream consequence of a slow or wrong inference drives every budget that follows.
+3. Identify the device-fleet shape. A single SKU you control end-to-end (e.g. a smart camera) deserves a different architecture from a public app shipping to a long tail of phones with five generations of GPUs. Record the fleet shape as either single-SKU, narrow-range, or open-fleet.
+4. Decide whether the inference must run fully on-device or whether a cloud round-trip is permitted for some fraction of inputs. Record this as the inference disposition: device-only, device-preferred-with-fallback, or hybrid-by-input. The disposition gates Stages 6 and 7.
+5. Write the success criteria the pipeline must clear before launch: accuracy on a held-out evaluation set, p95 latency on the worst target device, peak memory, on-device model file size, energy per inference, and crash-free session rate after the model is rolled out. Each must be a number, not "fast" or "small".
+
+### Stage 2 — Choose the deployment-ready model
+
+6. Confirm the source model framework: PyTorch, TensorFlow / Keras, JAX, a Hugging Face checkpoint, a custom training framework. The choice constrains the conversion path in Stage 3.
+7. Where possible, prefer a model whose architecture has known mature converters to the target runtime. A standard convolutional backbone has a well-trodden path; a model with custom CUDA kernels, dynamic control flow, or unusual ops will hit conversion failures and shape mismatches.
+8. Push back on bundling a single architecture for all device tiers. Recommend a two-tier or three-tier model lineup where the smallest tier targets low-end devices and a larger tier targets flagships. Each tier must clear the accuracy floor on its own; an under-sized tier that fails the floor is not a launchable tier.
+9. If the model is a fine-tuned variant of a large base, look for a distilled smaller sibling. A distilled model in the same family with one-quarter the parameters and 90% of the accuracy is almost always preferable to shipping the full-size model.
+10. Record the model lineage: base checkpoint id, fine-tune dataset id, version tag, and the hash of the weights file. The OTA stage in Stage 10 will use these to identify which model version is on which device.
+
+### Stage 3 — Design the conversion chain
+
+11. Map the conversion chain explicitly: source framework -> intermediate representation -> runtime-native format. The intermediate is usually an open exchange format (ONNX is the most common) but a direct-conversion path may exist for some targets.
+12. For each step in the chain, list the failure modes and the diagnostic. Conversion failures are usually unsupported ops, dynamic shapes, control-flow constructs, or custom layers. The plan must include, for each, what to do: rewrite the layer in supported ops, register a custom op in the runtime, or fall back to a simpler architecture.
+13. For dynamic-shape models (variable sequence length, variable image size), decide between a single dynamic-shape export and a small set of static-shape exports. Static shapes typically optimise better and convert more reliably, at the cost of multiple artifacts.
+14. Pin tool versions in the plan. A converter at version X may produce a working artifact and at version X+1 produce one that crashes the runtime; floating tool versions are a primary source of "it worked on my machine".
+15. Add a conversion test gate: after each conversion step, run the converted model on a small fixed validation set and compare numerical outputs to the source model. Allow a small tolerance (typically a few percent of activations, or accuracy delta below a threshold). The gate must be wired into CI; a conversion that silently changes outputs is the worst possible failure mode.
+16. Record an "escape valve" for the conversion chain. If the primary chain fails for a class of inputs, what is the secondary chain? For PyTorch sources, the secondary is usually a different intermediate path (TorchScript instead of ONNX) or a different runtime. For TensorFlow sources, the secondary may be a different runtime that consumes the same flat-buffer format.
+
+### Stage 4 — Pick the on-device runtime
+
+17. Enumerate runtime candidates that support the target devices. Common open-source runtimes include the cross-platform ones with broad device support, the TensorFlow-family flat-buffer runtime for mobile, the Apple-platform native runtime, an Android-native neural-network API, a Vulkan-or-Metal-backed inference runtime, and lower-level compiler stacks that target embedded boards.
+18. Score each candidate on five dimensions: device coverage (which SKUs of the fleet it actually runs on), operator coverage (does it support every op the model uses), accelerator coverage (does it dispatch to the NPU, GPU, or DSP, or is it CPU-only), package size (how big is the runtime binary added to the app), and maintenance posture (active project, recent releases, real-world adoption).
+19. Beware "best benchmark on a single device" claims. A runtime that wins a benchmark on a flagship phone may regress on a mid-range one. The plan must require benchmarking the chosen runtime on at least one device per tier of the fleet before committing.
+20. For multi-platform apps, prefer a single runtime that covers all platforms if its quality is acceptable, even at a small per-platform performance cost. The alternative — two runtimes, two conversion chains, two sets of bugs — is operationally expensive.
+21. For browser deployment, treat WebAssembly + SIMD + WebGPU as a distinct target. Compile-time and download-time costs matter as much as inference latency; the runtime that loads in 800 ms and infers in 60 ms beats one that loads in 4 s and infers in 30 ms for most consumer flows.
+22. Document the runtime's threading model. Some runtimes use a global thread pool that fights with the app's main thread; some pin to a single core; some require explicit accelerator selection. The pipeline plan must call this out so the integration step does not regress UI responsiveness.
+
+### Stage 5 — Decide accelerator targeting
+
+23. List the accelerators present on each target device class: CPU vector units (SIMD, NEON), integrated GPU, dedicated NPU or AI engine, DSP, vendor-specific blocks (camera ISP coprocessors, audio low-power cores). Each has its own supported-operator list and its own data-type support.
+24. Pick a primary accelerator per device class. The primary is the one the runtime should target by default for the common case. The runtime must also have a CPU fallback for ops the accelerator does not support and for devices where the accelerator is not present or is disabled by the OS for power reasons.
+25. The plan must include accelerator dispatch validation: for each device class, confirm that the runtime actually offloaded the expected ops to the expected accelerator. Otherwise the model may silently run on CPU and miss the latency budget.
+26. Some accelerators only support quantized integer math. The accelerator choice and the quantization choice in Stage 6 are coupled — picking an integer-only NPU forces an INT8 (or lower) quantization plan, while picking a GPU keeps floating-point options open.
+27. For NPUs whose vendor SDK is closed, weigh the integration cost: a closed SDK ties releases to a vendor and complicates open-source releases. The plan must document this trade-off explicitly so the team knows what they are committing to.
+
+### Stage 6 — Pick the quantization strategy
+
+28. Defer the deep mechanics to the companion quantization-strategy skill. The pipeline plan must record the high-level decision: precision (FP16, INT8, INT4, mixed), method (post-training quantization or quantization-aware training), granularity (per-tensor or per-channel), and the accuracy regression budget.
+29. Choose the precision against the accelerator: integer accelerators force INT8 or below; GPUs accept FP16; CPUs accept all. If the chosen accelerator forces a precision that fails the accuracy floor, the plan must surface the conflict and recommend either a different accelerator, a different quantization method, or a different model.
+30. Pin a calibration dataset for post-training quantization: a representative slice of real inputs, typically a few hundred to a few thousand samples, distributed across the classes or categories the model serves. The calibration set is part of the model artifact lineage.
+31. Pin an accuracy regression test: the quantized model must clear the accuracy floor on the same held-out evaluation set the source model cleared. The test runs in CI on every conversion.
+32. Plan for selective quantization — first and last layers, attention output projections, and softmax tails are common sensitivity hotspots that may need to stay in higher precision. The companion skill handles this in depth; the pipeline plan records that a sensitivity sweep is required.
+
+### Stage 7 — Design the fallback policy
+
+33. State whether a cloud fallback is permitted. If the privacy and compliance input forbids inputs leaving the device, the answer is no and the fallback policy is degraded-on-device only. Otherwise, the answer is conditional.
+34. List the trigger conditions for falling back, in priority order. Common triggers: device class is not in the supported list, the model file is not yet downloaded, the model file failed integrity check, on-device inference exceeded a wall-clock timeout, the device is in low-power mode, the device thermal throttles, the input is outside the supported domain (off-by-orientation, off-by-language, off-by-modality).
+35. For each trigger, specify the exact fallback: a smaller on-device model, the previous on-device model version, a cloud endpoint, or graceful degradation of the feature (e.g. hide the auto-tag UI rather than show a wrong tag).
+36. Pin the timeout values. A 600 ms timeout on a 60 ms typical inference is too tight; a 5 s timeout on the same is too loose. Anchor each timeout to the user-visible latency budget.
+37. The fallback path must be exercised in CI. A fallback that has never run is not a fallback; it is a paragraph of documentation. Include a feature-flag toggle that forces fallback in a staging build.
+38. For hybrid-by-input dispositions, define the routing rule explicitly: which features run on-device, which run in the cloud, and how the user-visible behaviour stays consistent across both paths. Inconsistent device-vs-cloud behaviour is a major source of user-reported "bugs".
+
+### Stage 8 — Plan on-device observability
+
+39. The pipeline must emit telemetry on each inference path: model version, accelerator used, wall-clock latency, peak memory at the inference point, success or failure code, and a coarse outcome signal (e.g. "model produced a result confidence above threshold").
+40. Telemetry must be privacy-preserving by default. The plan must list what is sampled, what is aggregated, and what never leaves the device. Inputs and outputs in raw form generally cannot leave the device for privacy reasons; statistics about them often can.
+41. Add a "model health" composite: a single signal per device per day that combines crash-free rate, latency p95, fallback rate, and confidence-distribution health. A regression in this composite is the canonical "stop the rollout" trigger.
+42. Sample telemetry. Sending every inference event is wasteful and a privacy risk; sample at a low rate per session, increase the rate temporarily after a model rollout to detect early regressions, and decrease it again once the new version is stable.
+43. Wire the telemetry into an existing observability stack rather than building a new one. The plan must name where the metrics land (a server-side time-series store, an existing analytics pipeline) and what dashboards exist before launch.
+44. Build at least one synthetic-canary device-class probe. A daily script on a CI-attached device of each fleet tier runs a fixed input through the model and asserts the expected output and latency. Real-world device-class issues are otherwise invisible until users complain.
+
+### Stage 9 — Plan the OTA model-update channel
+
+45. The model artifact is a separable asset, not a thing baked into the app binary. The OTA plan must describe how the artifact is delivered, verified, activated, and rolled back independently of an app-store release.
+46. Sign every model artifact. The signing key lives on a build server, not in the app. The runtime verifies the signature before activation; an unsigned or wrong-signed artifact is refused and the previous version stays active. Without signing, a hostile CDN can swap in a malicious model.
+47. Version the artifact explicitly. The version is a (semver or monotonic) identifier the device records and the telemetry emits. Older versions must be retained on the server long enough to support rollback windows.
+48. Define a delivery channel sized to the fleet. For a controlled fleet, a managed CDN with directory-style versioning is fine. For an open consumer app, prefer a managed asset-delivery service that handles partial-download resumption, cellular versus Wi-Fi policy, and storage quota.
+49. Decide an activation policy. The simplest is "download in the background, activate on next app launch". More elaborate options include shadow inference (run new and old in parallel, compare results), staged activation by user cohort, and time-window activation that avoids peak usage.
+50. Storage management on-device: the previous version is kept until the new version has run cleanly for N inferences or N days; older-than-N versions are evicted; the device never holds more than two versions at once. Storage growth on long-running devices is otherwise a slow-burning support issue.
+51. Update cadence must match the team's review capacity. A daily-update channel demands daily-canary review; a quarterly channel does not. Match the channel to the `ops_capacity` input.
+
+### Stage 10 — Define the rollback plan
+
+52. The pipeline must support fast rollback from any released model version to the previous one. The rollback trigger is either an automated regression detector (the model-health composite from Stage 8 crosses a threshold) or a manual operator action.
+53. State the exact rollback steps and which roles can authorise them. Without explicit authorisation, rollbacks delay during incidents.
+54. The rollback must be tested in staging before any production rollout. An untested rollback is an untested feature.
+55. Where a fast rollback is impossible (e.g. the previous artifact is no longer signed, or the device deleted the previous artifact under storage pressure), the rollback degrades to "fall back to cloud" or "disable the feature" with a feature-flag — the plan must define which.
+56. For models whose output is irreversibly written to user data (auto-tags, auto-categorisations), the rollback plan must also describe whether and how prior outputs are revisited. A bad model that wrote labels into a user's library cannot be fixed only by rolling back the model.
+
+### Stage 11 — Compose the deliverable
+
+57. Open the deliverable with a one-paragraph design intent: what the pipeline is for, what it explicitly does not cover, and the success criteria from Stage 1.
+58. Emit the architecture in a stage-by-stage section ordering matching the stages above. Each section must include the decision, the rationale, and the open questions.
+59. Emit the JSON variant in `design_json` with stable keys so downstream tooling (a project tracker, a wiki generator) can consume it. The JSON includes `model_choice`, `conversion_chain`, `quantization`, `runtimes`, `accelerators`, `fallback_policy`, `telemetry`, `ota`, `rollback`, `risks`.
+60. End the plan with a risk register: leakage of inputs to telemetry, vendor SDK lock-in, an accelerator that disappears in a future OS release, a runtime project losing maintenance, and conversion-chain version drift. Each risk has a mitigation or an "accepted" note.
+61. Add an explicit "what this plan does not cover" closer: it does not replace device-class benchmarking, it does not encode the team's release-engineering tooling, and it does not adjudicate accuracy-versus-cost trade-offs that require business input.
+
+## Outputs
+
+The skill returns two artifacts:
+
+1. `pipeline_design` (markdown) — the human-readable plan in stage order, suitable for a design review document.
+2. `design_json` (JSON) — structured plan with the keys listed above.
+
+## Examples
+
+**Input (placeholder):**
+
+`model_description`: "Vision classifier with about 5M parameters, trained in PyTorch, 224x224 RGB inputs, 47 output classes. Must clear top-1 accuracy of 0.78 on a held-out evaluation set."
+
+`target_devices`: "iOS 16+ on iPhone 12 and newer; Android 11+ on devices with at least 4 GB RAM; no embedded boards."
+
+`latency_and_energy_budget`: "p95 wall-clock under 90 ms per inference on the worst supported device; inference runs in the foreground while the user holds the camera."
+
+`connectivity_assumptions`: "Frequently offline — the app must work for ten minutes without network."
+
+`privacy_and_compliance`: "Camera frames never leave the device. Aggregated model-health telemetry may."
+
+`ops_capacity`: "small_team."
+
+**Plan (abbreviated):**
+
+- Inference disposition: device-only. Cloud fallback is disallowed by the privacy input.
+- Conversion chain: PyTorch source -> ONNX intermediate -> per-platform native flat-buffer for the TensorFlow-family runtime, plus a parallel Apple-platform native artifact for iOS. Per-platform converters pinned to specific versions. Numerical-equivalence gate in CI with a 0.5 point accuracy tolerance.
+- Runtime selection: Apple-platform native runtime on iOS with the NPU as primary accelerator and CPU fallback; the TensorFlow-family runtime on Android with the NPU on supported devices and GPU on the rest; CPU on devices without acceleration.
+- Quantization: INT8 post-training quantization with per-channel granularity on weights, per-tensor on activations; calibration set of 1,024 representative camera frames covering the 47 classes; accuracy regression budget of 1.5 points.
+- Fallback: fallback to the previous on-device model version if a download fails signature verification, or to a smaller "tier 2" on-device model if inference timeouts exceed 250 ms three times in a session.
+- Telemetry: model version, accelerator used, latency p50/p95, fallback rate, model-health composite. Sampled at 1% normally and 10% for two weeks after each rollout. Frames never leave the device.
+- OTA: signed model artifacts on a managed asset CDN, activated on next app launch, two-stage rollout (5% then 100% after 48 hours of clean canary health).
+- Rollback: automated regression detector on the model-health composite reverts to the prior version within one app session; manual operator override available within minutes.
+- Open risks: vendor SDK API churn on the Android NPU, calibration-set drift as the camera UI evolves, dependence on a still-maturing converter version pin.
+
+## Limitations
+
+- The skill produces a design, not running code. The conversion chain, runtime integration, and OTA service are all engineering tasks the user must execute.
+- Accelerator behaviour is device- and OS-version-specific in ways no plan can fully predict; the plan must be paired with on-device benchmarking on real hardware before any number is trusted.
+- Energy and thermal budgets are notoriously hard to estimate analytically. The plan recommends measurement; it does not predict.
+- Some closed vendor SDKs have terms of service that affect distribution. The skill flags these but cannot adjudicate legal questions.
+- The pipeline assumes the model's accuracy and behaviour have already been validated end-to-end against the use case. It does not cover task-level evaluation.
+- For very large on-device language models, prefer the companion on-device LLM deployment skill which goes deeper on KV cache, tokenizer, and context-window discipline.
+- The OTA plan does not cover app-store policies that may constrain over-the-air ML asset delivery on some platforms; consult the platform policy before committing.
+
+## Sources reviewed
+
+- https://github.com/microsoft/onnxruntime
+- https://github.com/tensorflow/tensorflow
+- https://github.com/apple/coremltools
+- https://github.com/apache/tvm
+- https://github.com/mlc-ai/mlc-llm
+- https://github.com/pytorch/executorch
+- https://github.com/onnx/onnx

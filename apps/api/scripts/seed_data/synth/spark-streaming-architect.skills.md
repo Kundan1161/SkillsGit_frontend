@@ -1,0 +1,248 @@
+---
+id: skillsgit-curated/spark-streaming-architect
+version: 1.0.0
+name: Spark Streaming Architect
+description: Designs an Apache Spark Structured Streaming pipeline — sources, watermarks, state stores, output sinks, and exactly-once guarantees — so the pipeline meets its latency SLA without drifting on state or losing data on restart.
+authors:
+  - name: skillsgit Curated
+    handle: skillsgit-curated
+    role: author
+category: data
+tags: [niche:spark-tuning, apache-spark, structured-streaming, watermarks, state-store, exactly-once, kafka]
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6, gpt-4o]
+  tools_required: []
+  tools_optional: []
+  min_context_tokens: 32000
+  estimated_tokens_per_invocation: 7000
+trigger_keywords:
+  - structured streaming
+  - spark streaming
+  - kafka streaming spark
+  - watermark spark
+  - state store spark
+  - exactly once spark
+  - streaming sink
+  - foreachbatch
+  - streaming checkpoint
+  - streaming aggregation
+  - rocksdb state store
+  - streaming join
+example_invocations:
+  - "Design a structured streaming pipeline from Kafka to a Delta serving table."
+  - "Our streaming state is growing without bound. How do we architect to keep it stable?"
+  - "We need exactly-once writes to an external API from a Spark stream. What pattern?"
+  - "Watermarks aren't working as expected — late events keep getting dropped. Design help."
+inputs:
+  - name: stream_goal
+    type: text
+    required: true
+    description: What the stream produces, the latency SLA, and who consumes it.
+  - name: sources
+    type: text
+    required: false
+    description: Source systems (Kafka topic, Kinesis stream, file source, EventHub) and ordering guarantees.
+  - name: sinks
+    type: text
+    required: false
+    description: Output destinations (Delta/Iceberg table, Kafka topic, external API, key-value store) and idempotency properties.
+  - name: state_profile
+    type: text
+    required: false
+    description: Whether the stream is stateless (filter, project), windowed (aggregations), or join-heavy. Drives state-store choice.
+  - name: lateness_policy
+    type: text
+    required: false
+    description: How late an event can arrive and still count, and what happens to ones beyond that.
+outputs:
+  - name: design
+    type: markdown
+    description: End-to-end design — source, transformation, state, sink, and operational concerns.
+  - name: code_pattern
+    type: markdown
+    description: A code skeleton with the key Spark APIs and configurations, in the user's chosen language.
+  - name: failure_plan
+    type: markdown
+    description: What happens on driver loss, executor loss, source rewind, schema change, and corrupted state.
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Initial release.
+---
+
+## When to use
+
+Use this skill when designing a new Spark Structured Streaming pipeline, or redesigning one whose state, watermarks, or sink behavior has become problematic. Typical triggers:
+
+- Greenfield streaming from Kafka or Kinesis into a serving table or downstream system.
+- State growing without bound and the team needs a watermark and retention strategy.
+- Exactly-once requirement against an external sink (REST API, third-party warehouse).
+- A streaming join that produces wrong counts because watermarks were not coordinated.
+- A pipeline whose restart takes 30+ minutes and the team needs a state-recovery plan.
+
+Do not use this skill to tune a slow streaming query in place — pair with the Spark Job Tuner skill. Do not use it for non-Spark streaming engines (Flink, Beam, Kafka Streams) — design principles overlap but the API specifics differ. Do not use it as a substitute for understanding the source — incorrect assumptions about ordering or duplicates from the source produce incorrect designs downstream.
+
+## How to apply
+
+Work the steps in order. Streaming design is unforgiving: many decisions calcify quickly because changing them means rebuilding state.
+
+### 1. State the contract
+
+1. **State the freshness SLA.** "Output must reflect events within N minutes of their event time." This single number drives most of the rest.
+2. **State the lateness tolerance.** How late can an event arrive and still be included. "1 hour late counts; later than that, dropped."
+3. **State the completeness target.** What percentage of events must reach the output within the freshness window. "99% within 5 minutes" is different from "100% within 30 minutes."
+4. **State the consumer semantics.** Exactly-once, at-least-once with downstream dedup, or at-most-once. Each has dramatically different implementation cost.
+5. **State the failure tolerance.** How long can the pipeline be down before it impacts the business; what is the maximum tolerable recovery time.
+
+### 2. Pick the source
+
+6. **Default to Kafka for new streams.** Mature connector, native offset management, well-understood semantics, broad ecosystem.
+7. **Use Kinesis when the org is AWS-centric** and Kafka would be redundant. The Spark connector is solid.
+8. **Use file source (autoloader-style) for file-arrival pipelines.** S3 / object-store landing zones with manifest-based discovery scale further than directory listing.
+9. **Avoid socket source in production.** It is for examples and tests, not production.
+10. **Understand the source's ordering guarantee.** Kafka guarantees per-partition order. Cross-partition ordering exists only via timestamps. Design the partitioning accordingly.
+11. **Understand the source's at-most-once vs at-least-once posture.** Most sources are at-least-once; duplicates are normal and must be deduplicated downstream.
+
+### 3. Decide stateless or stateful
+
+12. **A stateless query (filter, project, map) is the simplest case.** No watermark, no state store, no aggregation. The output reflects the input one row at a time. Restart cost is near zero.
+13. **A stateful query is needed for** aggregations, deduplication, windowed joins, and stream-stream joins. State complicates restart, scaling, and resource sizing.
+14. **Prefer stateless transformations where possible.** Stateless plus an idempotent sink covers many use cases without the state machinery.
+15. **Push aggregations downstream to the sink** when the sink can aggregate cheaply. A Delta sink with `foreachBatch` and a `MERGE` into an aggregate table can be more operationally stable than an in-stream aggregation, at some latency cost.
+
+### 4. Set watermarks honestly
+
+16. **A watermark says "events with event time older than max-observed-event-time minus W are dropped."** Pick W per the lateness tolerance.
+17. **Watermark trade-off: freshness vs completeness.** Short watermark (5 minutes): output emits sooner, more late events dropped. Long watermark (24 hours): more completeness, more state, slower output.
+18. **Set watermarks on a stable, monotonically-progressing column.** Usually `event_time`. Never on `ingest_time` (defeats the purpose) and never on a column that can jump backwards across sources.
+19. **For stream-stream joins, both streams need watermarks** and the watermark of the slower stream gates output. The join also needs a temporal condition on event time to bound state.
+20. **For deduplication, the watermark bounds the dedup window.** `dropDuplicatesWithinWatermark` (Spark 3.5+) is the safe API; `dropDuplicates` without watermark grows state forever.
+
+### 5. Pick the state store
+
+21. **Default to the HDFS-backed state store** for small to medium state sizes (< 1 GB per executor). It is the historical default.
+22. **Use the RocksDB state store** for large state, mature in Spark 3.2+. `spark.sql.streaming.stateStore.providerClass` set to the RocksDB provider. Off-heap RocksDB scales to many GB per executor without GC pain.
+23. **Size state-store memory explicitly.** RocksDB has its own memory budget separate from heap. Allocate via `spark.sql.streaming.stateStore.rocksdb.memoryUsage`.
+24. **Enable changelog checkpointing** with RocksDB (Spark 3.4+). Lower restart time by reading deltas rather than rebuilding full state. `spark.sql.streaming.stateStore.rocksdb.changelogCheckpointing.enabled=true`.
+25. **Plan for state growth.** State grows with key cardinality × window length. A 24-hour watermark on 100M unique users is 100M state entries. Confirm this fits the cluster.
+26. **Monitor state size.** Expose `numRowsTotal` and `customMetrics` from the query progress. Alert on unexpected growth.
+
+### 6. Pick the trigger
+
+27. **`ProcessingTime(N seconds)` — micro-batch every N seconds.** The bread-and-butter trigger; pick N to match the latency SLA. Too small (< 1s) creates overhead; too large hurts latency.
+28. **`Trigger.Once` — claim available work and exit.** Useful for cost-efficient periodic ingestion via a scheduler (Airflow, cron) — the streaming bookkeeping is preserved without keeping a cluster running.
+29. **`Trigger.AvailableNow` — same as `Once` but processes in micro-batches.** Better for large catch-up loads where a single batch is too big.
+30. **`Continuous` — sub-second latency.** Experimental in most Spark versions; limited operator support; only worth using if sub-100ms latency is required and the operators all support it.
+31. **Pick the trigger first, then size for it.** A 10-second trigger and a 1-minute trigger have different cluster sizing implications.
+
+### 7. Pick the sink and the write semantics
+
+32. **For tabular output, use a transactional table format** (Delta, Iceberg, Hudi). Native streaming sinks; idempotent batch writes.
+33. **For Kafka output, use the Kafka sink.** Idempotent if the upstream produces stable keys; at-least-once otherwise.
+34. **For external systems (REST APIs, third-party DBs), use `foreachBatch`** with a custom write function. The function receives a deterministic batch id, allowing the caller to implement idempotent writes (write-with-batch-id, skip-if-already-seen).
+35. **Avoid `foreach` for high-volume sinks.** Row-at-a-time writes do not scale; use `foreachBatch` and write in batches.
+36. **For complete-mode output** (where the sink expects the entire aggregate state on each batch), the sink must support overwrites. Restrictive; use update mode where possible.
+37. **For append mode**, only finalized output (past the watermark) is emitted. Use this for "downstream tables grown by appending finalized aggregates."
+38. **For update mode**, updates to previously emitted rows are emitted. The sink must handle upserts.
+
+### 8. Achieve exactly-once
+
+39. **Exactly-once requires three things:** the source supports replay from a stored offset, the sink writes are idempotent (either natively or via batch-id keying), and Spark's checkpoint stores both source offsets and sink commit state atomically.
+40. **The default Spark setup gives exactly-once with Kafka source and a transactional sink** (Delta, Iceberg, Hudi) out of the box. The checkpoint coordinates.
+41. **For an external sink, key writes by `batchId`.** The sink stores the last-committed batch id; a re-run of the same batch is a no-op. `foreachBatch((df, batchId) => writeFn(df, batchId))` exposes the deterministic batch id.
+42. **Avoid sinks without idempotency support.** A REST API that does not accept idempotency keys is an at-least-once sink; document it and design downstream consumers to dedupe.
+43. **Test exactly-once explicitly.** Run the job. Kill the driver mid-batch. Restart. Confirm the output has no duplicates and no missing rows for that batch.
+
+### 9. Checkpoint discipline
+
+44. **Every streaming query has a unique checkpoint location.** Never reuse a checkpoint across logically different queries. Never share between staging and production.
+45. **Store checkpoints on durable object storage** (S3, GCS, ADLS) — cluster-local disk is lost on restart.
+46. **Treat the checkpoint as immutable.** Editing it manually is corruption risk; the queries deal with it.
+47. **Plan for checkpoint loss.** A lost or corrupted checkpoint is recovered by re-reading the source from a known-good offset, not by starting fresh. Document the recovery procedure.
+48. **Garbage-collect checkpoint metadata.** Old micro-batch metadata accumulates; Spark trims it automatically per `spark.sql.streaming.minBatchesToRetain`. Set to 100–500 for most workloads.
+
+### 10. Plan for schema evolution
+
+49. **Pin the read schema explicitly for Kafka.** The value is bytes; the schema lives in your code (or in a schema registry). A reader-side schema change is a code deploy.
+50. **For schema-registry-backed Avro or Protobuf**, the schema is fetched at runtime. Plan for incompatible-schema events and where they go (a dead-letter table).
+51. **For Delta/Iceberg sinks, enable schema evolution** with explicit `mergeSchema` option. Plan for who reviews schema changes; automatic evolution is convenient and risky.
+52. **State stores cannot evolve schema.** A schema change in the aggregation key forces a state reset. Plan for the migration: dual-write to old and new for one watermark window, then cut over.
+
+### 11. Failure modes and recovery
+
+53. **Driver failure: query stops.** Recovery: orchestrator restarts the query; checkpoint resumes.
+54. **Executor failure: tasks reschedule.** Shuffle data is lost; state is recovered from checkpoint or from RocksDB local copy.
+55. **Source rewind (offset reset): replay.** Idempotent sinks plus checkpoint coordination produce correct output.
+56. **Sink failure: query retries.** A non-idempotent sink may produce duplicates here; document the risk.
+57. **Corrupted state: restart from source.** Worst case; restart cost is the entire watermark window. Plan SLA accordingly.
+58. **Slow consumer: backpressure.** Spark's micro-batch model is naturally backpressured — if a batch takes longer than the trigger, the next trigger starts immediately. Watch for monotonic lag growth; it means the cluster cannot keep up at steady state.
+
+### 12. Operate
+
+59. **Monitor query progress.** The `StreamingQueryProgress` object exposes input rate, processed rate, batch duration, watermark, and state metrics. Export to a metrics system.
+60. **Alert on lag.** Lag = max source offset minus committed offset. Sustained lag means the cluster is under-sized or there is an upstream surge.
+61. **Alert on watermark stalling.** A watermark that does not advance is a data-quality signal: an upstream that stopped producing, or a clock skew between sources.
+62. **Alert on state-store size.** Unbounded state growth is the silent killer of streaming pipelines.
+63. **Use `display` only in development.** A streaming display in production grows the driver and eventually OOMs.
+
+### 13. Document
+
+64. **The watermark policy and its rationale.** Why N hours, what gets dropped, where dropped events go.
+65. **The checkpoint location and the recovery procedure.** How to restart cold, how to restart from a specific offset, how to recover from corruption.
+66. **The state schema and the migration plan.** What forces a state reset, and how the team coordinates one.
+67. **The cluster sizing assumptions.** Steady-state input rate, peak rate, state size at watermark close. The Spark Cluster Sizer skill complements this.
+
+## Inputs
+
+- Stream goal and SLAs.
+- Source and sink with their guarantees.
+- State profile (stateless, windowed, join).
+- Lateness policy.
+
+## Outputs
+
+- A complete architecture from source to sink.
+- A code skeleton with the key APIs configured.
+- A failure plan covering driver loss, executor loss, source rewind, and corrupted state.
+
+## Examples
+
+### Example 1: clickstream to hourly aggregate
+
+Source: Kafka topic, 50k events/sec, 64 partitions. Sink: Delta table partitioned by hour, consumed by BI. SLA: 5-minute freshness, 1-hour lateness tolerance.
+
+Design: structured streaming from Kafka with 64-task parallelism. `withWatermark("event_time", "1 hour")`. Group by `(window(event_time, "1 hour"), country)` with count and approx_distinct_users. `outputMode("update")` with `foreachBatch` that `MERGE`s into the Delta aggregate table on `(hour, country)`. Trigger: `ProcessingTime("30 seconds")`. RocksDB state store with changelog checkpointing. Checkpoint on S3. 16 executors × 4 cores × 16 GB. Driver: 4-core, 16 GB. Cost about 24 instance-hours per day.
+
+### Example 2: dedup-and-forward to a REST API
+
+Source: Kafka topic of order events with duplicates from retries. Sink: an external order-processing API requiring exactly-once semantics. SLA: 2-minute latency.
+
+Design: `dropDuplicatesWithinWatermark("order_id", watermarkDelay="30 minutes")`. `foreachBatch((df, batchId) => api.send(df, batchId))` where the API accepts `batchId` as an idempotency key and is a no-op on resend. RocksDB state store. Trigger: `ProcessingTime("30 seconds")`. Checkpoint stable. 8 executors × 4 cores × 16 GB; on-demand only to avoid spot interrupts inflating latency.
+
+### Example 3: stream-stream join
+
+Source: two Kafka topics — page-view events and conversion events. Sink: a Delta attribution table. SLA: 10-minute freshness, 48-hour attribution window.
+
+Design: both streams `withWatermark("event_time", "48 hours")`. Stream-stream join on `session_id` with `event_time` condition `conversion.event_time BETWEEN pageview.event_time AND pageview.event_time + INTERVAL 48 HOURS`. RocksDB state store, well-sized — 48-hour watermark on 10M sessions/day is ~500M state entries; allocate generously. Output `append` mode (events finalized past watermark). Sink: Delta append-only. Trigger: `ProcessingTime("60 seconds")`.
+
+## Limitations
+
+- This skill targets Structured Streaming on Spark 3.2+. Older versions and the legacy DStreams API differ materially and are not covered.
+- Exactly-once semantics depend on the source and sink supporting the necessary primitives. Some real-world sinks do not, and the design must accept at-least-once with downstream dedup.
+- State-store sizing rules of thumb are starting points; specific workloads vary.
+- Continuous trigger remains experimental in most Spark versions; advice here is conservative.
+- Multi-region streaming, disaster recovery, and cross-region replication are beyond this skill's scope.
+
+## Sources reviewed
+
+- https://github.com/apache/spark
+- https://github.com/delta-io/delta
+- https://github.com/apache/iceberg
+- https://github.com/apache/hudi
+- https://github.com/apache/kafka
+- https://github.com/awesome-spark/awesome-spark

@@ -1,0 +1,205 @@
+---
+id: skillsgit-curated/video-encoding-ladder-designer
+version: 1.0.0
+name: Video Encoding Ladder Designer
+description: Design an adaptive-bitrate encoding ladder for streaming video, picking resolutions, bitrates, codecs, and per-title strategy against a target quality and audience profile.
+authors:
+  - name: skillsgit Curated
+    handle: skillsgit-curated
+    role: author
+category: creative
+tags: [niche:video-encoding-delivery, ffmpeg, abr, vmaf, codec, hevc, av1, per-title]
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6, gpt-4o]
+  min_context_tokens: 32000
+  estimated_tokens_per_invocation: 9000
+trigger_keywords:
+  - encoding ladder
+  - bitrate ladder
+  - abr ladder
+  - per-title encoding
+  - per-shot encoding
+  - vmaf target
+  - codec selection
+  - hevc av1 h264
+  - convex hull encoding
+  - rendition matrix
+  - ffmpeg ladder
+  - streaming quality
+example_invocations:
+  - "Design an encoding ladder for a 4K animated short targeting smart TVs and mobile."
+  - "Build a per-title ladder for a 90-minute live-action film at VMAF 93."
+  - "Recommend codec mix for a sports VOD library that has to reach Safari, Chrome, and Android TV."
+  - "Pick rungs for a UGC platform where the source quality varies wildly."
+inputs:
+  - name: source_profile
+    type: text
+    required: true
+    description: Description of the source material — resolution, frame rate, color space, HDR/SDR, content type (sports, animation, talking head, film), duration, source bitrate if known.
+  - name: audience_profile
+    type: text
+    required: true
+    description: Who watches it and on what — device classes (smart TV, mobile, desktop, set-top box), network conditions, geographic spread, accessibility requirements, time-to-first-frame expectations.
+  - name: quality_target
+    type: choice
+    required: false
+    description: Target perceptual quality. Defaults to broadcast-grade.
+    choices: [casual, broadcast-grade, premium, archival]
+  - name: constraints
+    type: text
+    required: false
+    description: Hard limits — storage budget, CDN egress budget, encode-time SLA, license restrictions on codecs, DRM expectations.
+outputs:
+  - name: ladder
+    type: markdown
+    description: A rendition matrix with resolution, bitrate, codec, profile, frame rate, and intended audience for each rung, plus rationale.
+  - name: encoding_recipe
+    type: markdown
+    description: Per-rung encoder settings template (rate control mode, GOP structure, keyframe cadence, scene-cut handling) with codec-specific notes.
+  - name: quality_plan
+    type: markdown
+    description: How quality will be measured (VMAF/PSNR/SSIM targets, per-shot vs per-title, sampling) and acceptance gates before publish.
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Initial release.
+---
+
+## When to use
+
+Invoke this skill when an agent is asked to specify the set of encoded renditions ("ladder", "rungs", "profiles") that an ABR streaming player will switch among. Common framings of the request:
+
+- "What bitrates and resolutions should we encode this title at?"
+- "Design a ladder for our VOD library."
+- "Should we add an AV1 rung? Drop the 720p? Move 1080p down to 3 Mbps?"
+- "Pick a codec mix that covers iOS, Android, and connected TV without exploding storage."
+- "Move us from static ladders to per-title or per-shot encoding."
+
+Out of scope for this skill: packaging the encoded renditions into HLS/DASH manifests (use the streaming-package-architect skill), authoring captions and accessibility tracks (use the captions-and-accessibility-deliverable-pipeline skill), and building the live origin/CDN topology (use the live-streaming-stack-architect skill). Do not invoke this skill to author marketing copy, choose a player, or write DRM contracts.
+
+The skill assumes the user can run open-source encoders (the FFmpeg toolchain with x264, x265, SVT-AV1, libvpx, aomenc — license tags collected in `## Sources reviewed`) or equivalent commercial encoders. It is codec-aware and license-aware but vendor-agnostic.
+
+## How to apply
+
+Follow the procedure end to end. Skip a step only when the input plainly does not contain the input that step needs, and call that out so the buyer knows what was assumed.
+
+1. Read the source profile carefully. Record source resolution, frame rate (and whether constant or variable), pixel format, chroma subsampling, color primaries, transfer function (SDR BT.709, HDR10 PQ, HLG, Dolby Vision), bit depth, audio configuration (channel layout, sample rate), and approximate duration. If any of these are missing, list the assumption you will use and flag it as a question for the buyer.
+
+2. Classify the content type. Use a short label that drives complexity expectations: animation, talking-head, drama, action, sports, screen recording, mixed user-generated. Content type directly drives the bitrate-versus-quality slope. Animation flattens and tolerates lower bitrates at high resolutions; sports has aggressive motion and demands more bits or a deeper rate-control pass.
+
+3. Enumerate the audience tiers and the device families inside each. For each device family list the most useful capabilities: max decode profile (H.264 high, HEVC main, HEVC main10, AV1 main), max resolution decode, max frame rate, HDR support, hardware vs software decode, DRM support, range of network bandwidths you expect, and likely battery sensitivity. Mobile and battery-powered devices prefer hardware-accelerated decoding even when software paths exist.
+
+4. Establish the codec floor. H.264 (license tags vary by build — GPL when using x264) is still the universal baseline; ladder one chain that every device in the target population can decode. Reserve advanced codecs for the rungs where they earn their keep: HEVC for 4K and high-frame-rate content, AV1 for the highest bitrates where its compression efficiency offsets the missing hardware decode on older devices, VP9 only when AV1 is unavailable on a critical platform and HEVC licensing is a blocker.
+
+5. Decide the codec mix. Three common shapes:
+   - **Universal chain only**: a single H.264 ladder. Cheapest to encode, widest reach, largest egress per quality-equivalent rung.
+   - **Universal plus modern**: H.264 ladder for compatibility, an HEVC or AV1 ladder for top rungs and modern devices. Best egress-versus-compatibility trade-off and the most common production posture.
+   - **Per-codec ladder per device family**: full ladders in two or three codecs, selected by player capability negotiation at session start. Highest storage cost, best per-device efficiency.
+
+   Recommend a shape, name the trade-off, and tie it to the audience profile.
+
+6. Pick a quality criterion. Default to perceptual VMAF for SDR content because it tracks subjective quality better than PSNR or SSIM and has open-source tooling. Use targets like 93 for premium, 88 for broadcast-grade, 80 for casual, and call out that VMAF is unreliable on screen-recording, anime, and synthetic content where alternative models or operator review may be needed.
+
+7. Decide the ladder design strategy. Three options:
+   - **Static ladder**: a fixed set of resolution-bitrate pairs applied to every title. Cheap, predictable, suboptimal for outliers.
+   - **Per-title ladder**: encode test points, measure quality (VMAF or equivalent), build a convex hull of efficient operating points per title, pick rungs along the hull. Saves significant bitrate on easy content, spends bits on hard content, requires test-encode infrastructure.
+   - **Per-shot ladder**: split the asset at scene cuts, run per-title logic per shot, stitch into renditions whose bitrate envelopes vary internally. Highest quality-to-bitrate gain, highest pipeline complexity, requires careful keyframe alignment for ABR seamlessness.
+
+   Recommend one and justify it against catalog size, catalog volatility, content homogeneity, and encode budget.
+
+8. Lay out the rungs. For each rung name resolution, frame rate, codec, profile and level, target bitrate (or target VMAF and let the rate control deliver the bitrate), max bitrate cap, and intended audience. Common shape for premium SDR video:
+   - 240p H.264 baseline-profile sub-500 kbps for emergency low bandwidth.
+   - 360p H.264 main-profile around 700 kbps.
+   - 480p H.264 main-profile around 1.2 Mbps.
+   - 540p H.264 main-profile around 1.8 Mbps.
+   - 720p H.264 high-profile around 2.5–3.5 Mbps.
+   - 1080p H.264 high-profile around 4.5–6 Mbps.
+   - 1440p HEVC or AV1 around 6–8 Mbps when the source supports it.
+   - 2160p HEVC main10 or AV1 main around 10–16 Mbps for HDR-eligible content.
+
+   Adjust generously for high-motion sports, downward for animation. Anchor every rung in a quality target rather than fixing the bitrate.
+
+9. Verify rung adjacency. Adjacent rungs should be 1.5× to 2× apart in bitrate so the player has meaningful switching headroom. Excessively close rungs waste storage. Excessively spread rungs cause visible quality jumps on adaptation.
+
+10. Verify resolution-frame-rate-bitrate sanity. Frame rate at any rung should be less than or equal to the source frame rate. Frame rate should monotonically decrease (or stay equal) down the ladder. Resolution should not exceed the source. Bitrate should monotonically decrease down the ladder. Reject any rung that violates these rules and replace it.
+
+11. Pick a rate-control mode per codec. Constant Rate Factor (CRF) for VOD where storage envelope is flexible. Constrained Variable Bitrate (capped CRF or VBV) for VOD with delivery caps. Constant Bitrate (CBR) for live, where buffer behaviour matters more than peak quality. Note the codec-specific knobs: x264 CRF 18–23 range, x265 CRF 22–28 range, SVT-AV1 CRF 25–35 range. Recommend a starting CRF and a target VMAF and run a calibration pass.
+
+12. Define GOP structure. Keyframe cadence drives segment alignment in ABR. Use a fixed GOP that aligns across every rung — for example, 2 seconds at the lowest frame rate, every rung sharing identical IDR placement. Open GOPs save bits but break some segmenters; closed GOPs are safer for adaptive switching. Disable scene-cut keyframes when the segmenter requires lockstep IDRs, and lengthen the GOP for VOD where seek granularity is acceptable.
+
+13. Handle HDR. If the source is HDR, do not down-convert in the ladder definition step. Encode at least one HDR-capable rung (typically HEVC main10 or AV1 main with PQ or HLG transfer) and one SDR-tone-mapped path for non-HDR devices. Carry static metadata (MaxCLL, MaxFALL) and dynamic metadata (HDR10+, Dolby Vision) only where the codec and packager preserve them.
+
+14. Plan audio rungs. Audio is its own ladder. Stereo AAC-LC at 96–128 kbps for mobile, 192 kbps for desktop, multichannel E-AC-3 or AC-4 for surround when devices support it. Provide a description-track placeholder for accessibility; the captions skill will fill that in.
+
+15. Set the quality measurement plan. Define how each encode will be scored: sample frames or every frame, what VMAF model to use (default vs phone vs 4K), how many samples constitute a passing run, what threshold causes a re-encode, and how operator review fits in. Specify a small "golden set" of reference clips that exercise the corner cases of the catalog so regressions can be detected.
+
+16. Budget storage and egress. Estimate per-title storage by summing rung bitrate × duration across the chosen ladder, then multiply by replication. Estimate egress per delivered hour by weighting rung bitrates by expected viewer distribution. Present the trade-off: a leaner ladder saves storage and egress at the cost of quality on devices that could have used a richer rung; a richer ladder is the reverse.
+
+17. Plan the encode budget. List the encoder, threading mode, and approximate wall-clock encode time per minute of source. Note that AV1 is the slowest of the modern codecs; if encode time is binding, lower the AV1 preset, reserve AV1 for evergreen content, or skip AV1 entirely. Faster presets cost quality; slower presets cost time.
+
+18. Surface license-and-trademark constraints. H.264 and HEVC have patent-pool licensing implications at scale; AV1 and VP9 are royalty-free under their patent licenses. The encoder licenses (x264 GPL, x265 GPL with a commercial alternative, SVT-AV1 BSD-3, libvpx BSD, aomenc BSD) determine whether the build can ship inside a closed product. Call these out so legal can sign off.
+
+19. Define the failure plan. What does the pipeline do when an encode misses its quality target? Re-encode at slower preset, raise CRF cap, fall back to a previous version, or queue for operator review. Without this, quality regressions ship silently.
+
+20. Surface a calibration plan. The ladder is a hypothesis. Recommend a short list of test titles drawn from the catalog (an animation reference, a sports reference, a drama reference, a low-light or noisy reference) and run the proposed ladder on each. Measure the per-rung VMAF and bitrate against the targets. Tune CRF, preset, and rung placement on the test set before committing the ladder to the pipeline.
+
+21. Plan refresh cadence. Codecs improve. Encoder defaults shift. Audience device populations shift. State a review cadence (commonly every six to twelve months) at which the ladder is re-derived against the current catalog and audience, and the new ladder is compared against the old before replacing it. Without a refresh cadence the ladder ages into a ten-year-old artifact whose assumptions no one remembers.
+
+22. Document the rejection criteria for new codecs. The pipeline will get pressure to add new codecs (LCEVC overlays, JPEG XS for contribution, future AOM successors). Codify the bar: hardware decode coverage in the target audience above a stated threshold, encoder maturity (stable release at least one major version), license posture clear, packager and player support landed, measured bandwidth saving net of encode-time cost above a stated threshold. Without explicit criteria, codec adoption becomes a fad rather than an engineering decision.
+
+23. Output the three artifacts: the ladder matrix, the per-rung encoding recipe, and the quality plan. Each should be copy-pasteable into a wiki or ticket. Be explicit about what was inferred versus stated so the operator can review the assumptions before the first encode is queued.
+
+24. Note the skill's adjacent dependencies. The ladder feeds the streaming-package-architect skill, which expects aligned IDR placement and matched audio rungs. The audio description rung interacts with the captions-and-accessibility-deliverable-pipeline skill, which produces the audio-description deliverable referenced here. Surface those handoffs in the design so downstream owners are not surprised by missing inputs.
+
+## Inputs
+
+- Source profile: resolution, frame rate, color space, HDR/SDR, content type, duration.
+- Audience profile: device families, network conditions, decode capabilities.
+- Quality target: casual, broadcast-grade, premium, archival.
+- Constraints: storage budget, egress budget, encode SLA, codec-license posture.
+
+## Outputs
+
+- Rendition matrix with resolution, frame rate, codec, profile/level, target bitrate, max cap, audience.
+- Per-rung encoder recipe with rate control, GOP, keyframe cadence, and codec-specific knobs.
+- Quality plan with VMAF model, sampling, acceptance threshold, and re-encode policy.
+
+## Anti-patterns
+
+- **Static ladder copy-paste.** Adopting another operator's ladder without measuring its fit against the present catalog and audience. The ladder is a function of content and viewers; it does not transfer.
+- **Adding rungs to make a chart look complete.** A 12-rung ladder with adjacent rungs only 1.2× apart wastes storage and offers the player no real switching value. Trim aggressively.
+- **Encoding 4K rungs that no one watches.** If telemetry shows a tiny fraction of viewers receiving the top rung, the encode and storage cost is misallocated. Move that budget into per-title encoding for the 1080p tier where it lands on screens.
+- **Skipping the lowest rung to save storage.** The lowest rung is what keeps mobile users on rural networks streaming at all. Removing it for storage savings is a regression in reach.
+- **Locking in CRF values without quality measurement.** CRF is not a quality contract; it is a rate-control knob. Measure the resulting VMAF on the catalog's reference titles before declaring the ladder good.
+- **Treating AV1 as a free win.** AV1 saves bits but costs encode time and may not be hardware-decoded on a meaningful share of the audience. The win is real but conditional; the conditions must be checked.
+
+## Examples
+
+**Premium 4K HDR drama, global subscribers, smart-TV-heavy audience.** Recommend a static-plus-per-title hybrid: HEVC main10 ladder for 4K HDR rungs, H.264 high-profile ladder for the 1080p-and-below SDR rungs, optional AV1 top rung for modern web and Android-TV traffic. Rungs at 240p, 360p, 540p, 720p, 1080p in H.264; 1440p and 2160p in HEVC; 2160p AV1 as a parallel top rung. VMAF target 93 with the default model. CRF anchor with VBV cap. Closed GOP at 2 seconds.
+
+**Sports live UGC clip library, mostly mobile playback, low encode budget.** Recommend a lean static ladder: H.264 baseline at 240p, main at 360p/540p/720p, high at 1080p. Skip 4K. Skip AV1 — encode time and lack of mobile hardware decode outweigh the bitrate savings. Per-title encoding only on the top-100 most-watched clips refreshed weekly. VMAF target 85 with the phone model. Aggressive scene-cut handling because clip duration is short and seek granularity matters less than fast-first-frame.
+
+**Anime VOD catalog, modest device mix, modest budget.** Recommend per-title encoding with strong VMAF gains expected because animation tolerates very low bitrates. Single-codec HEVC ladder if the audience tolerates HEVC-only playback, otherwise H.264 main with HEVC parallel for top rungs. Lower CRF anchor than live-action equivalents; rely on the operator's golden-set of hard scenes (banding-prone gradients, fine line work) to catch artifacts.
+
+## Limitations
+
+- The skill cannot run encodes. It produces specifications that an operator or pipeline must execute and measure.
+- Convex-hull per-title gains depend on the encoder's rate-control behaving consistently across operating points. Verify on a pilot title before rolling out to a catalog.
+- VMAF is well-calibrated for SDR live-action. It is less reliable for animation, screen recordings, and HDR — operator review is required for those classes.
+- Codec patent licensing changes over time. The license notes here are guidance, not legal advice; route through counsel before shipping at scale.
+- The skill assumes a downstream packager and player exist. It does not produce manifests or DRM keys.
+
+## Sources reviewed
+
+- https://github.com/FFmpeg/FFmpeg — FFmpeg multimedia framework (LGPL-2.1+ / GPL-2+ depending on build flags).
+- https://github.com/Netflix/vmaf — VMAF perceptual quality library and reference models (BSD-2-Clause-Patent).
+- https://gitlab.com/AOMediaCodec/SVT-AV1 — SVT-AV1 encoder (BSD-3-Clause Clear + AOM Patent License).
+- https://github.com/Xilinx/ABR-video-transcode — example ABR transcode graphs (Apache-2.0).
+- https://github.com/terranvigil/dynamic-crf — VMAF-driven dynamic CRF selection patterns (MIT).
+- https://github.com/farshidrezaei/mosaic — Go ABR encoder that constructs ladders programmatically (MIT).
+- https://github.com/Ruan-666/Machine-Learning-for-Per-Title-Encoding-Project — per-title ladder construction examples (no declared license; reviewed for methodology, no code reused).

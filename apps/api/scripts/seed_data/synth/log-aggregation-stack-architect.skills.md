@@ -1,0 +1,370 @@
+---
+id: skillsgit-curated/log-aggregation-stack-architect
+version: 1.0.0
+name: Log Aggregation Stack Architect
+description: Design a log aggregation pipeline end-to-end — collection agents, parsing, label-driven indexing versus full-text, multi-tenancy, retention tiers, cost ceiling, and query patterns.
+authors:
+  - name: Wave-4 Methodology Recovery
+    handle: wave4-observability-dashboards
+    role: author
+category: engineering
+tags:
+  - niche:observability-dashboards
+  - log-aggregation
+  - log-collection
+  - retention-tiers
+  - log-cost
+  - structured-logging
+  - log-tenancy
+  - log-pipeline
+license_type: free
+ai:
+  required_models:
+    - claude-opus-4-7
+    - claude-sonnet-4-6
+  compatible_models:
+    - gpt-4o
+    - gpt-4.1
+    - gemini-1.5-pro
+  min_context_tokens: 32000
+  tools_optional:
+    - web_search
+  estimated_tokens_per_invocation: 7500
+trigger_keywords:
+  - log aggregation
+  - log pipeline
+  - log retention
+  - log volume
+  - log cost
+  - log labels
+  - log indexing
+  - log tenancy
+  - log routing
+  - structured logging
+example_invocations:
+  - "Our log bill is twelve times what it was last year. Design a stack that caps spend without blinding us during incidents."
+  - "We want to move off a search-indexed log system. What architecture should replace it?"
+  - "Design a multi-tenant log pipeline for a platform with thirty engineering teams."
+  - "How should we tier hot, warm, and cold log retention with a 30-day debug window?"
+inputs:
+  - name: workload_profile
+    type: text
+    required: true
+    description: Daily log volume, peak burst rate, line size distribution, the dominant log formats, the number of services and teams, and the workloads' criticality.
+  - name: query_patterns
+    type: text
+    required: false
+    description: Typical queries — incident triage by request ID, audit lookups by user ID, dashboard aggregations, analytics jobs. Include rough frequency and acceptable latency.
+  - name: constraints
+    type: text
+    required: false
+    description: Cost ceiling, retention obligations (regulatory or contractual), data residency, available object storage, and any existing tooling the team must keep.
+outputs:
+  - name: log_stack_design
+    type: markdown
+    description: A pipeline blueprint — agents, processors, label and index strategy, tenancy model, retention tiers, cost projection, and query patterns the user can validate against their workload.
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Initial release covering the five-stage pipeline model, label-versus-text indexing trade-off, tenancy isolation patterns, and the three-tier retention model.
+---
+
+# Log Aggregation Stack Architect
+
+## When to use
+
+Use this skill when a team is designing or rebuilding a centralised logging system that more than one service writes into and more than one team queries. Common triggers:
+
+- Migrating off a hosted full-text log service whose bill has become unsustainable.
+- Standing up a new platform that needs a logging substrate the platform team will operate for tenant teams.
+- Consolidating per-team log pipelines into a single multi-tenant pipeline with isolation guarantees.
+- Adding a long-retention compliance tier to an existing pipeline that only does hot storage today.
+
+Do not use this skill to write code that emits structured logs from a specific application — pair it with a structured-logging skill, which produces the format that this stack will ingest. Do not use it to choose a specific commercial vendor — the skill produces a design that several vendors can implement and helps the team compare.
+
+## How to apply
+
+The design progresses through five stages in order. Each stage has a decision and a quantified artifact.
+
+### Stage 1 — Profile the workload, including the worst hour
+
+Before any technology decision, quantify the workload. The user almost always volunteers the daily average and almost never the peak, so ask for both:
+
+| Quantity | Why it matters | What to ask the user |
+| --- | --- | --- |
+| Average bytes per second | Drives long-term storage cost | "Daily log GB divided by 86400 — give me a rough number per environment." |
+| Peak bytes per second over the worst hour | Drives agent and ingestion sizing | "What does the graph look like during a stampede or a crash loop? 5x the average? 30x?" |
+| Average line size | Drives parsing CPU and compression assumptions | "Are these 200-byte JSON lines or 4 KB lines with embedded payloads?" |
+| Number of distinct services or sources | Drives label cardinality | "How many distinct service names, environments, namespaces?" |
+| Lines containing payloads above 1 KB | Drives whether to separate large-payload routing | "Do you log request bodies or stack traces routinely?" |
+| Number of distinct teams who query | Drives tenancy design | "How many on-call rotations or business units?" |
+
+If the user cannot answer the peak question, do not proceed; insist on a back-of-envelope estimate. Designing a logging stack against the average is how teams build pipelines that fall over during the exact incidents they were built for.
+
+Two rules of thumb to share:
+
+- **Plan ingestion capacity for at least five times the average.** Crash loops, retry storms, and debug-flag-on incidents routinely produce ten-times bursts.
+- **A single misbehaving service can produce the majority of all logs.** Build the pipeline so that one shouter does not deny service to the rest.
+
+### Stage 2 — Choose collection agents and a parsing point
+
+A log pipeline has five stages: produce, collect, parse and enrich, route and buffer, store and query. The first two are where most teams over-spend and under-think.
+
+For collection, the practical choices are:
+
+- A **per-node agent** (one daemon per host or kubelet) that tails container or system logs. Lowest overhead, best for environments where every workload writes to standard out or to a known directory.
+- A **per-pod sidecar** for workloads that emit to a non-standard sink (a file inside the container, a Unix socket, or a custom binary protocol). Highest overhead; use only when the per-node agent cannot reach the logs.
+- A **direct application push** from the application process to an ingestion endpoint. Lowest operational footprint but couples the application to the logging stack and loses logs during application restarts; avoid for production workloads that already use stdout.
+
+Decide where parsing happens. There are three legitimate parsing points:
+
+1. **At the source**, by emitting structured (JSON or key-value) logs from the start. This is the cheapest at scale; the cost is paying the parsing work once in the producer, never again.
+2. **At the agent**, by configuring parsers per log source. Necessary for systems whose output cannot be changed (databases, proxies, third-party agents). Keeps the central pipeline clean.
+3. **At the central processor**, only as a fallback for low-volume sources whose format is unknown until ingestion. Never the default — central parsing is the largest non-storage cost in any logging stack.
+
+Establish a contract: every team that owns a high-volume source must emit structured logs. The contract belongs in the platform's golden-path documentation, not as a request for each new service.
+
+### Stage 3 — Decide label-driven indexing versus full-text indexing
+
+This is the single largest architectural choice and the most common source of cost surprise.
+
+| Approach | What gets indexed | Query strengths | Query weaknesses | Cost shape |
+| --- | --- | --- | --- | --- |
+| **Label-driven (metadata indexing)** | A small fixed set of metadata fields (service, environment, region, severity, tenant). Log body remains compressed, scanned at query time. | Slicing by service, time window, severity; tailing live streams; bulk scanning a single service. | Free-text search across the corpus; high-cardinality fields like request IDs. | Storage dominates spend; index is cheap. |
+| **Full-text indexing** | Every token in every line, plus structured fields. | Arbitrary substring search; ad-hoc analytics across services; needle-in-haystack lookups. | Index size frequently exceeds raw data; ingest is CPU-heavy; storage cost scales with token diversity. | Index dominates spend; storage second. |
+| **Hybrid (label index plus secondary text index)** | Labels indexed always; a separate, smaller text index over a curated subset (last 24 hours, error severity only, or a specific tenant). | Best of both for the curated slice; cheap fallback. | Operational complexity; two systems to keep consistent. | Storage and index roughly equal, with a tighter ceiling than full-text. |
+
+A practical default for engineering teams that emit structured logs:
+
+- **Label-driven indexing for the long retention tier.** The query pattern that matters during incidents is "filter by service, severity, and a time window, then grep the body" — label indexing handles this efficiently.
+- **A small hybrid text index for the most recent 24 to 72 hours, scoped to error and warn severities,** for cases where the responder does not yet know the service or route to filter on.
+- **A separate analytics store (a column-oriented warehouse) for audit and long-horizon analytics queries.** These do not belong in the incident-time log query path; mixing them inflates cost and crashes incident performance.
+
+Cardinality discipline for labels:
+
+- **Cap the label set to single digits in count.** Every additional label multiplies the index size combinatorially.
+- **Reject any label whose value space is unbounded** (request IDs, user IDs, trace IDs, full URLs). These belong in the log body, recoverable by scan, never in the index.
+- **Codify the allowed label set** in the agent or processor configuration so producers cannot smuggle high-cardinality labels in.
+
+### Stage 4 — Build the tenancy model
+
+A multi-team pipeline without tenancy becomes a tragedy of the commons. Define tenancy at three levels:
+
+- **Ingestion isolation.** Per-tenant rate limits and per-tenant burst caps. When tenant A starts shouting, tenant B's logs are not delayed and tenant A's old logs are not lost — instead, tenant A receives backpressure with a clear name on it. Most modern log backends expose these as per-tenant limits; configure them as part of tenant onboarding, not as an afterthought.
+- **Storage isolation.** Per-tenant storage namespaces or buckets, so retention, deletion, and data-residency obligations can be enforced and audited independently. The blast radius of a wrongful deletion is one tenant, not the whole platform.
+- **Query isolation.** Per-tenant query quotas measured in bytes scanned per minute and concurrent queries. A team that runs a runaway query does not freeze every other team's incident response. Expose the quota to the tenant in their query UI so the failure mode is "your query was throttled" not "the platform is broken".
+
+Two organisational rules:
+
+- **Tenancy aligns with the on-call rotation, not with the org chart.** If two teams share on-call, they share a tenant; if one team has two on-call rotations, give them two tenants.
+- **Cross-tenant queries require a platform role.** A central observability team needs read across all tenants for platform-wide diagnosis; individual engineers should not, both for cost and privacy.
+
+### Stage 5 — Retention tiers and cost ceiling
+
+Define three tiers with explicit lifetimes and explicit access paths.
+
+| Tier | Typical lifetime | Storage substrate | Query latency target | Use cases |
+| --- | --- | --- | --- | --- |
+| **Hot** | 24 to 72 hours | Indexer's local store, ideally on fast attached disk | Sub-second filter, seconds for full scan of a service | On-call investigation, live tailing, dashboard panels |
+| **Warm** | 7 to 30 days | Object storage with metadata index | Single-digit seconds for filter, tens of seconds for scan | Postmortems, recent audit, weekly review |
+| **Cold** | 90 days to 7 years | Object storage with cheap archival class, queried only with an explicit unload step | Minutes to hours | Compliance retrieval, regulator response, long-horizon analytics |
+
+Cost-ceiling discipline:
+
+- **Set a daily ingest budget per tenant.** Express it in bytes per day and pin it to roughly five times the tenant's measured average. Crossing the budget triggers a soft alert at 80% and a hard throttle at 100% with a paging escalation to the tenant owner — not a silent overage that surprises the platform team at month end.
+- **Pre-compute the storage cost per tier per tenant per month** and publish it on a self-service page. Teams that can see their cost will make better choices than teams that cannot.
+- **Drop or sample non-essential noise at the agent**, not at the centre. Health-check 200s, scheduled-poll lines, and Kubernetes liveness pings are obvious candidates. Document the drop list per service so future debuggers know what was discarded.
+- **Promote, do not demote.** A line should be promoted to a hotter tier only by explicit pipeline configuration, never by an ad-hoc spike. This means the worst hour cannot displace days of legitimate data from the hot tier.
+
+### Stage 6 — Validate against the user's query patterns
+
+Run the proposed design against the user's list of typical queries. For each query, confirm three things:
+
+1. **Which tier holds the answer** under the proposed retention.
+2. **What labels and time window** are required to keep the query within the per-query byte ceiling.
+3. **What the failure mode is** if the query falls outside those bounds — does the user get a slow scan, a hard error, or a quota warning?
+
+If any high-frequency query falls into cold tier or fails the byte ceiling, revisit the indexing decision in stage 3 before publishing the design.
+
+### Stage 7 — Operations: failure modes you must design for
+
+A log pipeline that has never had its failure modes rehearsed will fail badly the first time something breaks. Pre-decide responses to these scenarios.
+
+- **The ingestion endpoint goes down.** Agents must buffer to local disk with a bounded ceiling, retry with backoff, and drop with a named counter when the local buffer overflows. Silent loss is unacceptable; a metric named after the loss is acceptable.
+- **A single tenant produces a hundred times its normal volume.** Per-tenant rate limits kick in before the platform is degraded. The tenant's owner is paged because their service is broken, not because the platform is broken. The platform team is notified for situational awareness, not paged.
+- **The object-storage backend has elevated latency or partial unavailability.** Hot-tier writes continue to local disk; warm and cold writes queue with a bounded retry. Queries against affected tiers return a clear "partial result, slower than usual" indicator rather than an opaque timeout.
+- **A query during an incident is scanning terabytes.** The query is killed at the per-query byte ceiling with a clear error pointing the user at a narrower filter. The on-caller learns to add filters; they do not learn to distrust the platform.
+- **A retention boundary is approaching for a tenant with a regulatory hold.** Deletion is paused per the hold; the hold is visible in the tenant's storage view. Holds are managed in a versioned configuration, not by an out-of-band ticket.
+
+Document each of these in the platform runbook before the first tenant onboards.
+
+### Stage 8 — Onboarding contract for a new tenant
+
+Publish a single page that every new tenant reads before their first byte lands. It covers:
+
+- **Format expectations.** Structured logs in the platform-standard schema, with required fields (timestamp, severity, service, trace_id, span_id, message). The platform-standard schema lives in a versioned file; tenants pin a version.
+- **Allowed label set.** The complete list of labels they may emit and the cardinality bound on each. The platform rejects unknown labels at ingestion with a named error.
+- **Their daily budget.** In bytes per day, peak bytes per second, and number of distinct series. Crossing the soft alert and the hard cap is documented with named consequences.
+- **Their tenancy identifier.** How services declare it (a label, an environment variable, a sidecar config), and how the platform routes on it.
+- **Their query quota.** Concurrent queries, bytes scanned per minute, and the failure mode when crossing.
+- **The escalation path.** Who they page if the platform is broken; who they email if their budget needs to grow; who they ticket for a non-urgent change.
+
+Tenants who skip this page produce the majority of incidents; the page is not optional.
+
+## Inputs
+
+- **Required:** workload profile with at least average and peak ingest rate, source count, and team count.
+- **Recommended:** representative query patterns with frequency and latency targets; current spend if migrating; regulatory retention obligations.
+- **Optional:** existing agent and parser inventory; the object storage system available; the structured-logging format already in use.
+
+## Outputs
+
+A markdown design with these sections, in order:
+
+1. **Workload profile** — the quantified table from stage 1.
+2. **Collection topology** — agent placement, parsing point, structured-logging contract.
+3. **Indexing model** — label set, hybrid text index scope, analytics store boundary.
+4. **Tenancy model** — ingestion, storage, query isolation; cross-tenant access policy.
+5. **Retention tiers** — three-tier table with lifetimes, substrates, access paths, daily budgets.
+6. **Query validation matrix** — each typical query mapped to a tier, a label filter, a byte ceiling, and a failure mode.
+7. **Migration plan** — if relevant, an ordered list of services and dates to onboard.
+
+## Examples
+
+### Example 1 — Containerised microservices, escaping a hosted full-text vendor
+
+User says: *"We send 4 TB per day to a hosted log search vendor and our bill is unsustainable. The product is fine but we cannot afford it. We have 60 services across 8 teams, all on Kubernetes."*
+
+Recommended response shape:
+
+- Profile shows 4 TB/day average, estimated peak around 20 TB/hour-of-day. Confirm with the user.
+- Collection: per-node agent on each Kubernetes node, tailing container stdout. No sidecars except for two legacy services that emit to a file.
+- Parsing at the source. The platform team publishes a structured-logging library; the migration ticket per service is "switch to the new logger, drop the parser regex".
+- Indexing: label-driven on `service`, `environment`, `namespace`, `severity`, `tenant`. Hybrid text index over the last 48 hours of error- and warn-severity logs. A column-oriented warehouse for product analytics is out of scope here and gets a separate pipeline.
+- Tenancy: one tenant per on-call rotation, eight in total. Per-tenant ingest budgets in bytes, alerting at 80%.
+- Retention: 48 hours hot, 30 days warm in object storage, 1 year cold (regulatory).
+- Validation: confirm incident-triage queries hit the hot tier; confirm audit lookups hit warm with index plus filter; confirm long-horizon retention scans require a documented unload.
+
+### Example 2 — Platform team standing up a new pipeline
+
+User says: *"We are a 200-person company moving from per-team log shipping to a central pipeline. No legacy budget, but no spare cycles either."*
+
+Recommended response shape:
+
+- Collection: per-node agent only. Sidecar policy: only with a written platform-team exception.
+- Parsing: source-side structured logs required; documented in the golden-path onboarding.
+- Indexing: label-driven only at launch; defer the hybrid text index by one quarter.
+- Tenancy: tenants align with on-call rotations; cross-tenant read scoped to the platform team and the security team.
+- Retention: 24 hours hot, 14 days warm, 90 days cold. Revisit cold at first compliance request.
+- Validation: write the query matrix during launch, even before traffic is high; the matrix is the platform team's design contract with tenants.
+
+### Example 3 — Adding a long compliance tier without disturbing the rest
+
+User says: *"Our SOC 2 auditor wants seven-year retention on authentication events. Our pipeline keeps everything for thirty days. We do not want to multiply our bill by eighty."*
+
+Recommended response shape:
+
+- Define a dedicated routing rule at the agent that copies only the authentication-event source to a parallel compliance pipeline. The hot pipeline is unchanged.
+- The compliance pipeline writes directly to an archival object-storage tier with cheaper-per-GB cost and longer read latency.
+- The compliance pipeline applies stricter PII handling at parse time (the auditor likely cares about confidentiality as much as retention).
+- Query path for the compliance tier is an explicit "unload to a queryable workspace" operation, not part of the daily query UX. Auditors and security responders are the only readers.
+- Document the data-lifecycle promise: events are stored for seven years from emission, deleted on day 2556, deletion is auditable.
+
+### Example 4 — Detecting and remediating a runaway log source
+
+User says: *"One of our services accidentally turned debug logging on in production. It is now producing 40% of platform volume. How does the platform notice and how do we stop the bleeding?"*
+
+Recommended response shape:
+
+- The per-tenant ingest budget alerts at 80% and hard-throttles at 100%. The owning team is paged for their own service, not the platform team.
+- The platform tenant dashboard shows top emitters with a week-over-week growth column. A 40% surge would have annotated within minutes.
+- Stop-the-bleed playbook: the owning team rolls back the debug flag and the platform records the event in the tenant's onboarding history. Repeat offenders move to a stricter per-tenant cap.
+- Post-event review: was the budget too generous? Did the alerting reach the right person? Update the onboarding contract with the lesson.
+
+## Common pitfalls
+
+When reviewing an existing pipeline against this methodology, the following findings recur and each has a standard remediation.
+
+1. **Parsing happens at the centre for high-volume sources.** Push parsing back to the producer; pay the work once. Centre-side parsing is a 3-5x cost multiplier.
+2. **High-cardinality labels in the index.** Identify the offending labels, drop or relabel at ingestion, and document the change in the producer's onboarding. Cardinality is not a problem you scale away; it is a problem you prevent.
+3. **No per-tenant rate limits.** One shouty tenant degrades all others. Add caps before the next incident, not after.
+4. **Hot tier sized to retain a week.** Hot storage is expensive; warm tier handles week-old queries acceptably. Resize hot to 24-72 hours and route the rest to warm.
+5. **No cold tier despite a regulatory requirement.** The auditor will find this. Add cold-tier routing for the regulated source class as a discrete project.
+6. **Health-check noise dominates a service's logs.** Drop at the agent with a documented filter; never index what nobody reads.
+7. **Cost dashboard is internal-only.** Tenants make better choices when they see their cost. Publish per-tenant cost views.
+8. **No structured-logging contract.** Without one, every new service is a regression. Publish a versioned schema and gate onboarding on it.
+
+## Limitations
+
+- **Not a vendor selection guide.** The skill produces an architecture; multiple commercial and open implementations satisfy each stage.
+- **Not for security event management.** SIEM pipelines have different retention obligations and different correlation needs; design those separately.
+- **Not for high-volume audit logging where every event must be cryptographically chained.** That domain needs an append-only audit log with integrity proofs, which is a different stack with different cost shapes.
+- **Cardinality and budget numbers are starting points.** Every workload differs; treat the table values as defaults to revisit after thirty days of production data.
+- **Migration plans are not gantt charts.** The skill produces an order, not a date schedule; pair it with a project-planning skill if calendar commitments are required.
+- **The skill assumes object storage is available.** Pipelines without it have very different cost shapes and a much narrower retention envelope; consult a storage architect first.
+- **PII discovery is out of scope.** The skill recommends scrubbing at the right layer but does not enumerate fields; pair with a privacy review for the specific corpus.
+
+## Worked stack assessment template
+
+When asked to review an existing log pipeline, return the assessment in this fixed structure. The structure forces concrete numbers and prevents the assessment from becoming generic advice.
+
+For each of the five pipeline stages — produce, collect, parse, route, store-and-query — capture:
+
+- **Current state.** One paragraph describing what is in place. Numbers where the user can produce them, named gaps where they cannot.
+- **Findings.** Bulleted observations, each tagged as "blocker", "cost issue", or "operational risk". Reserve "blocker" for issues that prevent the next intended change; cost issues are about money, operational risks are about people getting paged.
+- **Remediation.** One actionable step per finding, with the owning role and an order-of-magnitude effort estimate (hours, days, weeks).
+
+At the end, cross-stage findings:
+
+- **Cardinality.** Are any labels above the bound? Which sources contribute most? What is the cleanup order?
+- **Cost.** Top tenants by ingest, top services by index, top queries by bytes scanned. The top of each list is where the next budget conversation should focus.
+- **Tenancy.** Are the tenants aligned with on-call rotations? Where do per-tenant quotas not exist that should?
+- **Retention.** Is each tier sized to its actual use? Are there regulatory tiers that should exist but do not?
+- **Resilience.** Which failure modes from stage 7 are unrehearsed? Schedule a rehearsal.
+
+Conclude with a prioritised list of the next five interventions, each estimated and assigned. A platform team can pick this up on a Monday and act on it the same week.
+
+## Glossary used in this skill
+
+A short glossary so design conversations do not stall on vocabulary.
+
+- **Source.** Anything that emits log lines: a service, a database, a proxy, an operating-system component.
+- **Agent.** The component that collects log lines from sources and forwards them centrally.
+- **Parser.** The step that turns a raw line into a structured record.
+- **Label.** A small bounded metadata field used for indexing. Distinct from a body field, which is the content of the log itself.
+- **Tenant.** A logical isolation boundary. Typically aligned with an on-call rotation.
+- **Tier.** A retention class with a fixed lifetime and access path. Three tiers: hot, warm, cold.
+- **Ingest budget.** A bytes-per-day cap per tenant, enforced at the ingestion path.
+- **Query ceiling.** A bytes-scanned-per-query limit at the query layer, enforced before a query runs.
+
+## Handoff to neighbouring designs
+
+A log stack design does not stand alone. Coordinate handoffs with adjacent observability designs.
+
+- **To metrics and tracing.** Logs, metrics, and traces share label vocabularies. A `service`, `environment`, and `region` label that means three different things across three pipelines is a recipe for misdiagnosis. Publish the shared label catalogue once and enforce it in all three.
+- **To incident response.** The log stack's query playbook (the operational query patterns above) should be referenced from the incident-commander's runbook. On-callers do not memorise queries; they read them from runbooks.
+- **To compliance.** Retention obligations and PII rules originate in compliance, not in engineering. Loop in the compliance owner for the cold tier design and for the scrub rules; their sign-off is part of the design output.
+- **To finance.** Daily ingest budgets per tenant intersect with the finance team's cost ownership model. Confirm budget ownership before publishing; a budget with no owner is a budget that will be exceeded.
+- **To platform onboarding.** Every onboarding playbook must reference the tenant contract from stage 8. A platform team that adds the contract to onboarding cuts incidents by a measurable fraction within a quarter.
+
+## Query-pattern catalogue
+
+Before signing off on the design, walk through this catalogue of typical query shapes and confirm each has a path. A pattern with no path is a design gap.
+
+- **Incident triage.** "All logs from `service=checkout`, `severity>=warn`, last 15 minutes, where the body mentions a specific request ID." Path: hot tier, label filter, body scan within a small window. Bytes scanned bounded by the time window.
+- **Postmortem.** "All logs from `service=checkout`, last 24 hours, grouped by route." Path: hot or warm tier depending on age, label filter, group-by on a low-cardinality field. Bytes bounded by the day.
+- **Audit lookup.** "Every action by user X in the last 90 days." Path: warm tier, label filter on `service=auth`, body scan for the user ID, time-bounded to the 90-day window. Slower; expected.
+- **Analytics aggregation.** "Daily count of successful logins per region for the last quarter." Path: analytics store, not the operational log pipeline. Surface a clear "this query belongs in the analytics warehouse" indicator if a user attempts it against the log query UI.
+- **Compliance retrieval.** "All authentication events for tenant Y between two dates." Path: cold tier with an explicit unload to a queryable workspace; SLA in hours, not seconds.
+- **Live tail.** "Stream new logs for `service=checkout` matching a free-text pattern." Path: hot tier streaming endpoint. Patterns must be bounded; never let the tail itself be a regex scan over the corpus.
+
+If any of these patterns has no clean path, mark it explicitly in the design as out of scope and document the alternative tool. Buyers of the design will rediscover unmet patterns within a quarter; surface them up front.
+
+## Sources reviewed
+
+- Open-source log aggregation system using label-driven indexing (AGPL-3): https://github.com/grafana/loki
+- High-performance, low-footprint telemetry agent (Apache-2.0): https://github.com/fluent/fluent-bit
+- Mature pluggable log routing daemon (Apache-2.0): https://github.com/fluent/fluentd
+- Pipeline-style telemetry agent supporting receivers, processors, exporters (Apache-2.0): https://github.com/open-telemetry/opentelemetry-collector
+- Reference structured-logging library for production workloads (MIT): https://github.com/uber-go/zap
+- Industry SRE workbook on logging and incident response (CC-BY): https://sre.google/workbook/

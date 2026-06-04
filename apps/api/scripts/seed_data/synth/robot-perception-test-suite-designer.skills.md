@@ -1,0 +1,263 @@
+---
+id: skillsgit-curated/robot-perception-test-suite-designer
+version: 1.0.0
+name: Robot Perception Test Suite Designer
+description: Design a perception test suite — ODD coverage, edge-case curation, synthetic augmentation, regression cohorts, labeled-data hygiene, and release gates.
+authors:
+  - name: skillsgit Curated
+    handle: skillsgit-curated
+    role: author
+category: robotics
+tags: [niche:robot-perception, testing, odd-coverage, regression-suite, labeled-data, synthetic-data, release-gate, perception-eval]
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6, gpt-4o, gpt-4.1, gemini-1.5-pro]
+  tools_required: []
+  tools_optional: [web_search, code_execution, file_io]
+  min_context_tokens: 32000
+  estimated_tokens_per_invocation: 7500
+trigger_keywords:
+  - perception test suite
+  - odd coverage
+  - regression set perception
+  - edge case curation
+  - synthetic augmentation perception
+  - labeled data hygiene
+  - release gate perception
+  - long tail testing robot
+  - perception ci
+  - hard negative mining
+  - perception benchmark
+  - evaluation dataset robot
+example_invocations:
+  - "Design the perception test suite for an outdoor delivery robot — ODD coverage, edge cases, release gates."
+  - "Build a regression-cohort plan for our 3D detector so we never silently regress on pedestrians at night."
+  - "Audit our labeled-data hygiene — labels feel noisy and we can't trust the eval numbers."
+inputs:
+  - name: stack_description
+    type: text
+    required: true
+    description: Brief of the perception stack — sensors, models, outputs, and the platform's deployment target.
+  - name: operational_design_domain
+    type: text
+    required: false
+    description: Conditions the stack must operate in — lighting, weather, dynamic actor density, environment classes.
+  - name: existing_test_assets
+    type: text
+    required: false
+    description: What is already in place — labelled validation sets, recorded logs, simulators, CI infrastructure.
+  - name: known_failures
+    type: text
+    required: false
+    description: Failure modes observed historically — incidents, near-misses, customer complaints, regressions across releases.
+  - name: release_cadence
+    type: text
+    required: false
+    description: How often the stack ships and how blocking the testing must be — daily merges, weekly releases, quarterly OTA.
+outputs:
+  - name: test_suite_plan
+    type: markdown
+    description: Structured plan covering ODD coverage matrix, regression cohorts, edge-case curation, synthetic augmentation, labeled-data hygiene, and release-gate criteria.
+  - name: plan_json
+    type: json
+    description: Structured plan with `cohorts`, `odd_matrix`, `edge_cases`, `augmentation`, `label_hygiene`, `gates`, `ci_integration`.
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Initial release.
+---
+
+# Robot Perception Test Suite Designer
+
+## When to use
+
+Use this skill when a team needs a written plan for *how to test* the perception stack of a robot — not the unit tests of individual functions, but the end-to-end behavioural and metric tests that gate releases. The plan covers what scenes to include in the regression cohort, how to maintain ODD coverage as the platform's operating envelope expands, how to curate edge cases without drowning in long-tail data, how synthetic augmentation fits, what label-quality discipline keeps the metrics trustworthy, and what gates a release must clear.
+
+The skill is appropriate for any perception stack: 2D camera detection, 3D LiDAR or fusion, semantic and panoptic segmentation, tracking, mapping, and localization. It complements the other robot-perception skills: the stack-architect produces the design, the calibration-planner produces the calibration plan, the object-detection-reviewer audits the inference pipeline, and this skill ensures the whole stack stays measurable and safe across releases.
+
+**Mandatory safety disclaimer.** This skill produces methodology guidance. Perception failures in safety-critical robots can cause physical harm. Every recommendation must be validated in target operational design domains; never deploy a perception stack to safety-critical hardware without rigorous test coverage of edge conditions (weather, lighting, occlusion, sensor degradation).
+
+## Inputs
+
+| Input | Required | Purpose |
+| --- | --- | --- |
+| `stack_description` | yes | Anchors the plan in the platform's perception outputs. |
+| `operational_design_domain` | no | Drives the coverage matrix. |
+| `existing_test_assets` | no | Avoids duplicating existing work. |
+| `known_failures` | no | Seeds the edge-case cohort. |
+| `release_cadence` | no | Sets the depth and runtime budget of the suite. |
+
+## How to apply
+
+The skill walks a thirteen-stage pipeline. The early stages establish the test-design philosophy and the asset inventory; the middle stages produce cohorts, augmentation, and label-hygiene plans; the later stages assemble gates and CI integration.
+
+### Stage 1 — Restate the perception contract under test
+
+1. From `stack_description` derive the perception outputs the suite is testing: 2D detections (per class), 3D detections (per class), semantic masks, panoptic IDs, ego-pose, freespace, tracked actors with velocity. Each output is tested separately and end-to-end.
+2. For each output, name the *primary metric* the suite gates on. For detections: per-class average precision at well-chosen IoU. For segmentation: mean IoU plus per-class IoU. For tracking: HOTA or MOTA plus identity-switch rate. For ego-pose: ATE/RPE over reference trajectories.
+3. Name *guardrail metrics* the suite tests but does not gate on as headline — latency, calibration health, false-positive rate, worst-slice metric. The release-gate logic combines them.
+4. Identify the *blast radius* of each output's failure: which downstream consumer relies on it, what happens if it goes wrong, how the safety case treats it. High-blast-radius outputs deserve denser cohorts and stricter gates.
+
+### Stage 2 — Inventory existing test assets
+
+5. From `existing_test_assets` (or by asking) enumerate: labelled validation sets and their provenance, raw recorded logs (sensor, location, conditions, duration), simulators (which, fidelity, asset library), bench rigs (HIL, sensor-replay), and CI capacity (compute budget, max test runtime).
+6. Score each asset for *trustworthiness*: who labelled it, when, against what spec, with what inter-annotator agreement. An untrusted eval set produces untrusted release decisions.
+7. Score each asset for *relevance*: how much of the asset is in-ODD for the current deployment, how much is borrowed from a related but different domain, how much has aged out as the platform changed.
+8. Identify gaps: ODD regions that have no labelled coverage, sensor configurations that the assets predate, classes that are under-represented. Gaps become work items in Stage 5.
+
+### Stage 3 — Build the ODD coverage matrix
+
+9. Take the user's `operational_design_domain` and structure it as a matrix: rows are environment dimensions (lighting, weather, ground type, dynamic-actor density, time-of-day, geography, season), columns are perception outputs.
+10. For each cell, record: scenes available in the regression set, scene count, labelled-frame count, last-collection date, freshness, and whether the cell is *gated* (release-blocking) or *monitored* (tracked, not blocking).
+11. The matrix is the canonical document. Coverage gaps in any gated cell are blockers for deployment to that ODD region.
+12. For each adversarial ODD condition (direct sun, fog, retro-reflective surfaces, occlusion-heavy crowds, rare-class objects), require explicit coverage even if the platform "rarely sees" the condition. Rare-but-catastrophic is the worst failure pattern.
+13. Define a *coverage floor* — every gated cell has at least N scenes and M labelled frames, where N and M scale with safety class. High-safety platforms get a higher floor.
+
+### Stage 4 — Define regression cohorts
+
+14. Split the test suite into cohorts that serve different purposes; each cohort has stable membership, known metric expectations, and explicit gating policy:
+    - **Smoke cohort** — small (≤100 frames), runs every commit, sanity-checks that no metric collapsed and no class disappeared. Fast feedback.
+    - **Functional cohort** — medium (1k–10k frames), runs every PR or nightly, includes representative ODD coverage, gates on primary metrics.
+    - **Release cohort** — large, full ODD-stratified, runs before every release, gates on per-slice metrics, never reused for development iteration. Looking at it during model development is the perception-equivalent of training-on-test.
+    - **Long-tail cohort** — curated rare-and-hard scenes, gates only on regressions (the metric must not get worse than last release), not on absolute numbers. Used to prove rare-class behaviour does not silently degrade.
+    - **Field-replay cohort** — recent recordings from the deployed fleet, run before any update; gates on regressions against the current production model.
+    - **Adversarial cohort** — explicitly constructed adversarial cases (occlusion, distractors, lookalikes, sensor degradation), gates on per-case pass rates rather than aggregate metric.
+15. Each cohort has a published *thresholds-by-slice* table. Per-class thresholds, per-ODD thresholds, per-cohort thresholds. A single global metric hides per-slice regressions.
+16. Each cohort is *immutable* during a release cycle: adding new scenes mid-cycle confounds before/after comparisons.
+17. Each cohort is *versioned*: cohort v2 differs from cohort v1 by a tracked changelog so historical metric trends remain interpretable.
+
+### Stage 5 — Edge-case curation
+
+18. Edge cases are scenes where the system either has failed historically or is suspected to fail. Their job is targeted regression prevention, not aggregate metric reporting.
+19. Source edge cases from: known-failure list (`known_failures` input), incident reviews, customer complaints, hard negatives mined from production, simulator-generated corner cases (occlusion patterns, exotic poses), human review of the long-tail of confidence distributions.
+20. Catalogue each edge case as `(scene_id, condition_tags, expected_behaviour, failure_history)`. "Expected behaviour" is sometimes "the system should detect X"; sometimes "the system should remain silent and not hallucinate"; sometimes "the system should publish low confidence". Each kind of expectation needs explicit encoding.
+21. For each edge case, gate the per-case pass rate, not the aggregate. A regression set where a 1% improvement in mean comes from worsening the worst slice is a regression in disguise.
+22. Schedule *promotion* of edge cases to the standard cohorts once the system has handled them consistently for K releases. Otherwise the edge-case cohort grows without bound and stops being curated.
+23. Schedule *demotion* of edge cases that have become trivial — the system always nails them, they are no longer pulling weight in the test plan. Demoted cases are archived, not deleted.
+
+### Stage 6 — Synthetic and augmented data
+
+24. Real-data limits — collection cost, label cost, exposure to rare conditions, privacy — force teams to augment with synthetic data. The plan must address the *closed-loop sim-to-real gap*.
+25. Categorize synthetic sources: photorealistic simulator scenes, image-space augmentation (weather overlays, noise injection, brightness/contrast), procedural scene generation, sensor-noise simulation (LiDAR drop-rate, motion-blur, rolling-shutter), domain-randomization, GAN/diffusion-based augmentation.
+26. For each synthetic source, declare what it is *used for*: development (allowed in training, allowed as data-augmentation), regression testing of specific properties (e.g. weather robustness), or *exclusion-zone* (never in gated release evaluation because the sim-to-real gap is large enough to mislead).
+27. Require *paired-real-versus-synthetic* tests for any synthetic source used in gating. The same scenario captured in reality and in simulation must produce metrics within a tolerance band before the synthetic version is trusted as a stand-in.
+28. For sensor-noise augmentation, pin the noise model to the sensor's measured characteristics (Stage-8 IMU Allan-variance plus camera-noise model plus LiDAR drop-rate) rather than a textbook default. Wrong-model augmentation produces a brittle stack that crashes on real noise.
+29. Recommend safety-critical edge cases also be captured *in the real world* with mock targets (mannequins, props) — pure simulation is not sufficient for high-safety gates.
+
+### Stage 7 — Labeled-data hygiene
+
+30. Labels are the eval ground truth; bad labels poison every downstream metric. The plan defines a *label spec*: which object classes, where to draw boundaries, how to handle truncation, occlusion, multi-instance, ambiguous cases, and the "don't care" classification.
+31. Plan *inter-annotator agreement* (IAA) sampling. Every release-cohort sample is labelled by at least one annotator; a stratified random subsample is labelled by a second annotator independently. The IAA metric (Cohen's κ or per-class agreement) is itself a gating quantity.
+32. Plan *gold-standard* spot-checks. A small set of high-trust labels (drawn by senior reviewers, fully audited) is sprinkled into the labelling queue to detect drift in annotator quality.
+33. Plan *label re-review* on disputed examples and on examples where the model is consistently wrong with high confidence — these are often label errors masquerading as model errors.
+34. Plan *label-versioning*: when the label spec changes, the dataset is re-labelled or partitioned by spec version. Metrics across spec versions are not comparable.
+35. Plan *PII and licensing hygiene* for recorded data: face blurring, plate redaction, consent documentation, retention. The skill flags requirements but the actual policy is platform-specific.
+36. Plan *rare-class boosting* in labelling: rare classes get over-sampled to the cohort budget so per-class metrics are statistically meaningful. Otherwise the system is "good on average" because the metric is dominated by common classes.
+
+### Stage 8 — Metric design
+
+37. Choose per-output primary metrics following Stage 1's outputs. For detection use per-class AP at task-appropriate IoU, plus precision/recall at fixed operating points the downstream consumer uses. For tracking, use HOTA decomposed into association and localization. For segmentation, use mIoU plus per-class IoU.
+38. Add *operating-point* metrics: precision at 99% recall, recall at 99% precision, or whatever asymmetric operating point the safety case demands. Mean-only metrics hide critical regressions.
+39. Add *slice* metrics: by ODD cell, by class, by range bucket (near-field vs. far-field), by occlusion level, by day/night, by weather. The cohort is sliced and metrics are reported per slice.
+40. Add *worst-slice* metric. The headline of the release report is "worst-slice precision at recall 0.95" — not the mean — for safety-critical platforms.
+41. Add *latency* metrics measured during evaluation: end-to-end p50, p95, p99, and tail-latency-under-load. Slow models are functional failures.
+42. Add *calibration* metrics — expected calibration error or reliability diagrams — when downstream consumers use the score as a probability.
+
+### Stage 9 — Release-gate logic
+
+43. Define the gate as a logical combination of cohort outcomes. A typical structure:
+    - Smoke cohort: any class missing → block.
+    - Functional cohort: primary metric below threshold or > X% regression on any class → block.
+    - Release cohort: per-slice metric below per-slice threshold → block.
+    - Long-tail cohort: any case fully regressed (a previously-passing case now failing) → block.
+    - Field-replay cohort: regression on production scenes beyond tolerance → block.
+    - Adversarial cohort: pass rate below threshold → block.
+44. Each gate has an *override path*: who can sign off, what evidence is required, what compensating control is in place. Hard gates without overrides cause emergency-release exceptions that bypass discipline; soft gates without rigour cause silent regressions.
+45. Each gate has a *trend window*: gates compare current numbers to the last K releases, not only to absolute thresholds. A creeping multi-release decline that never crosses a threshold is the most insidious regression pattern.
+46. Include a *human-review gate* for safety-critical outputs: a sampled set of model predictions is reviewed before release, focusing on near-misses (low-margin pass cases) and on failure-case improvements.
+
+### Stage 10 — CI integration
+
+47. Pin the test infrastructure: where the cohorts live (object storage, dataset registry), how runs are orchestrated, how artifacts (per-frame predictions, visualizations) are stored, how dashboards summarize.
+48. Budget runtime per cohort: smoke under 10 minutes, functional under an hour, release within an overnight window. Cohorts that exceed budget force sampling and lose signal.
+49. Plan parallelism: cohort sharding across machines, deterministic ordering for reproducibility, retries on infrastructure flakes (but never on metric-driven failures).
+50. Plan *report* outputs: per-run, a markdown summary plus a structured JSON of every metric; per-release, a comparison report against the prior release with per-slice deltas; per-incident, a focused report on the regression-causing slice.
+51. Plan *failure-mode dashboards*: a chart per failure mode (occluded pedestrian recall, far-field car recall, segmentation-mask IoU in rain) that the team watches continuously.
+
+### Stage 11 — Continuous improvement loop
+
+52. Define the *negative-mining* loop: production fleets stream their hard cases (low confidence detections, disagreement between modalities, near-miss flags from the planner) to a triage queue. A weekly cadence reviews, labels promising examples, and adds them to the appropriate cohort.
+53. Define the *drift* loop: a passive monitor on the production data distribution flags when the input distribution moves outside the training/eval distribution (KL-divergence on features, or distance-to-nearest-trained-scene). When drift is detected, fresh data collection is scheduled.
+54. Define the *label-quality* loop: a periodic re-audit of cohort labels by senior reviewers, with corrections versioned and tracked.
+55. Define the *retire* loop: cohorts and metrics that no longer pull weight are archived. A test suite that grows without curation becomes slow, expensive, and ignored.
+
+### Stage 12 — Risk register
+
+56. Enumerate test-design risks: an eval set that has leaked into training (data-contamination), a sim-source that gives misleadingly high results, a labelling pipeline whose IAA has dropped below useful, a coverage gap that the team has not yet found, a CI infrastructure single-point-of-failure that delays releases under load, a fleet-feedback loop that takes too long to surface in cohorts.
+57. For each risk, name the owner, the detector that would surface it, and the mitigation.
+
+### Stage 13 — Compose the deliverable
+
+58. Open with a one-paragraph "test intent" summary: what the suite proves, what it cannot prove, who depends on the outcome.
+59. Render the plan as a markdown document with sections per stage, including the ODD coverage matrix, the cohort definitions, the metric table, the gate logic, the CI plan, and the continuous-improvement loops.
+60. Emit `plan_json` with structured fields: `cohorts[*]` with `size`, `purpose`, `gate_policy`; `odd_matrix` as cells; `edge_cases[*]`; `augmentation_sources[*]` with usage policy; `label_hygiene` with IAA targets; `gates[*]` with thresholds; `ci` with runtime budget; `improvement_loops`.
+61. Close with the mandatory safety disclaimer and a "what this plan does not cover" section, pointing the user at the stack-architect (for design changes), the calibration-planner (for calibration-quality gates), and the object-detection-reviewer (for inference pipeline review).
+
+## Outputs
+
+The skill returns:
+
+1. `test_suite_plan` (markdown) — full test-design document.
+2. `plan_json` (JSON) — structured plan suitable for tooling and CI integration.
+
+## Examples
+
+**Input (placeholder):**
+
+`stack_description`: "Outdoor delivery robot, 2 RGB cameras + 16-beam LiDAR + IMU, ROS 2; outputs ego-pose at 50 Hz and 3D actor tracks at 10 Hz; pedestrians and vehicles are the safety-critical classes."
+
+`operational_design_domain`: "Suburban sidewalks and crosswalks; day and dusk; rain up to moderate; ambient -5°C to 35°C; pedestrian density medium; no GPS-denied stretches."
+
+`existing_test_assets`: "12k labelled frames (mostly daytime, dry), 200 hours of recorded logs (mixed conditions, unlabelled), a CARLA-based simulator (limited asset library), nightly CI on 4 GPU nodes."
+
+`known_failures`: "Recent regression on pedestrians in low-sun glare; an identity-switch incident on dense crosswalks; one near-miss on a child-sized actor."
+
+`release_cadence`: "Weekly fleet OTA."
+
+**Plan (abbreviated):**
+
+- ODD matrix gates on: day/dusk × dry/rain × pedestrian density {low, medium, high} × range buckets {0-5m, 5-15m, 15-30m}. Glare and dusk-rain cells flagged as under-covered; collection sprint scheduled.
+- Cohorts: smoke (200 frames, every commit, 5 min), functional (4k frames, every PR, 40 min), release (12k frames stratified by ODD, weekly, 6 hours), long-tail (450 curated cases, weekly, per-case pass), field-replay (rolling 1000 recent fleet snippets, weekly, regression-only), adversarial (mannequin recordings + simulator scenarios for child-sized actors, every release, pass-rate).
+- Edge cases: tagged from the regression-on-glare, the identity-switch incident, the child-actor near-miss; each has expected behaviour ("detect with confidence ≥ 0.8 at range ≤ 15m"; "maintain track ID across the crosswalk crossing"; "publish a pedestrian class for the child target") and a regression gate.
+- Synthetic policy: CARLA scenes allowed for adversarial cohort (child-actor coverage) but not for the release-cohort gates; image-space rain augmentation allowed in training only; LiDAR drop-rate sim used to test robustness but paired against three real rainy recordings before being trusted.
+- Label hygiene: IAA sampled at 10% of release cohort, target Cohen's κ ≥ 0.9 for pedestrian boundaries; gold-standard sprinkle at 2%; quarterly senior re-audit; PII blur policy enforced and verified.
+- Metrics: per-class AP @ 0.5 IoU for detection, HOTA for tracking, worst-slice recall at precision 0.99 as headline gate, end-to-end p99 latency.
+- Gates: smoke + functional block on any class disappearance or > 1% AP regression; release blocks on per-slice worst-slice recall < 0.93 or any long-tail case regression; field-replay blocks on > 0.5% regression against current production.
+- Trend window: 4-release moving comparison; creeping decline > 2% in any class over the window auto-opens an incident even without crossing the absolute gate.
+- CI: cohorts in S3-equivalent registry; nightly run; release reports auto-posted to the team channel with per-slice deltas and worst-slice examples.
+
+**Output excerpt:** the markdown plan plus a JSON object whose `cohorts` array gives `size`, `purpose`, `gate_policy`, whose `odd_matrix` lists each cell with coverage status, and whose `gates` block enumerates each blocking condition.
+
+## Limitations
+
+- The skill plans the test suite; it does not collect data, label data, or run evaluations.
+- Coverage matrix completeness depends on the user's ODD specification. Gaps that the user has not identified will be missing from the matrix.
+- The synthetic-data policy is generic. Domain-specific simulators (medical imaging, aerial, underwater, agricultural) have idiosyncratic sim-to-real gaps that may require additional bespoke pairing tests.
+- Label-hygiene practices vary by labelling vendor and tooling. The plan recommends targets and disciplines but does not prescribe a specific labelling tool.
+- For very small teams without dedicated test infrastructure, full execution of the plan may exceed available engineering capacity; the plan flags which cohorts are highest-value and can be staged.
+- Release-gate thresholds in the example are illustrative; real thresholds derive from the platform's safety case and must be set with safety engineering involvement.
+- The skill does not certify regulatory compliance; for regulated platforms (medical, automotive, aerospace), the regulatory test plan is a superset of this one and requires domain expertise.
+
+## Sources reviewed
+
+- https://github.com/nutonomy/nuscenes-devkit
+- https://github.com/waymo-research/waymo-open-dataset
+- https://github.com/carla-simulator/carla
+- https://github.com/open-mmlab/mmdetection3d
+- https://github.com/autowarefoundation/autoware
+- https://github.com/opencv/opencv
+- https://github.com/isl-org/Open3D

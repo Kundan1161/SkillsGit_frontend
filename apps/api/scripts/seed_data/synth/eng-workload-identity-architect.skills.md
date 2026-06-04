@@ -1,0 +1,192 @@
+---
+id: skillsgit-curated/workload-identity-architect
+version: 1.0.0
+name: Workload Identity Architect
+description: Design attested per-workload identity that replaces shared long-lived secrets with short-lived credentials, SPIFFE-style federation, mTLS, and OIDC-bridged tokens.
+authors:
+  - name: skillsgit Curated
+    handle: skillsgit-curated
+    role: author
+category: engineering
+tags: [niche:identity-and-secrets, workload-identity, spiffe, mtls, oidc, attestation, zero-trust, federation]
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6, gpt-4o, gpt-4.1]
+  tools_required: [file_io]
+  tools_optional: [web_search]
+  min_context_tokens: 32000
+  estimated_tokens_per_invocation: 10000
+trigger_keywords:
+  - workload identity
+  - service identity
+  - spiffe
+  - mtls
+  - oidc bridge
+  - service-to-service authentication
+  - attested identity
+  - short-lived tokens
+  - identity federation
+  - zero trust workload
+example_invocations:
+  - "Design a workload identity layer that lets services authenticate without sharing API keys."
+  - "We need cross-cloud service-to-service trust without long-lived credentials — propose a design."
+  - "Lay out attested identity issuance for our Kubernetes plus VM fleet."
+inputs:
+  - name: fleet
+    type: text
+    required: true
+    description: Where workloads run — Kubernetes clusters, VMs, bare metal, lambdas, edge devices — across which clouds and regions.
+  - name: trust_relationships
+    type: text
+    required: false
+    description: Which services need to talk to which, and which external systems (cloud APIs, partner APIs, SaaS) workloads must authenticate to.
+  - name: existing_identity
+    type: text
+    required: false
+    description: Existing identity primitives — cloud instance roles, Kubernetes service accounts, custom PKI, SSO providers.
+  - name: latency_budget
+    type: text
+    required: false
+    description: How much per-call overhead is tolerable for identity verification (informs whether mTLS-everywhere is feasible).
+  - name: compliance_drivers
+    type: text
+    required: false
+    description: Regulatory drivers that force specific audit, separation-of-duties, or cryptographic constraints.
+outputs:
+  - name: identity_design
+    type: markdown
+    description: A target-state identity architecture with attestation, issuance, federation, consumption, rotation, and revocation.
+  - name: trust_graph_json
+    type: json
+    description: "Structured trust relationships: issuer, subject_class, audience, attestation_method, ttl, federation_path."
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Initial release.
+---
+
+# Workload Identity Architect
+
+## When to use
+
+Use this skill when an organization wants to replace shared static credentials between services with per-workload identities that are cryptographically attested, scoped, and short-lived. The output is the architecture for a service-identity layer — the mechanism by which a workload proves who it is to another workload, to a cloud API, to a database, or to a third-party system, without ever holding a long-lived shared secret.
+
+Concrete moments to invoke:
+
+- A platform team is starting to eliminate static API keys between internal services and needs the target design for what replaces them.
+- The organization runs in two or more clouds and wants service A in cloud X to authenticate to service B in cloud Y without a manually distributed token.
+- Auditors require that every service-to-service call be traceable to a specific named identity rather than a shared credential.
+- A new compliance regime mandates cryptographic non-repudiation for some class of operation and the team must decide which signing key model to adopt.
+- The team is adopting a mesh, an API gateway with mTLS, or a service-mesh sidecar pattern and needs identity to be coherent with that choice.
+
+The skill produces an architecture document with the issuer topology, the attestation strategy per fleet kind, the consumption patterns for callers, the federation paths between identity domains, the rotation cadence for issuer keys, and the operational model that keeps it running. It treats identity as foundational infrastructure, with the same rigour as networking or storage; ad hoc decisions are flagged as such.
+
+This skill is adjacent to `secrets-architecture-designer` — the secrets design declares what authenticates workloads to the secrets plane, and this skill specifies how that authentication is established. The two are typically used together, with this one running first because secret distribution depends on identity.
+
+## Inputs
+
+| Input | Required | Purpose |
+| --- | --- | --- |
+| `fleet` | yes | Defines the population of workloads needing identity and the substrates available for attestation. |
+| `trust_relationships` | no | Lets the agent shape the trust graph and the issuer topology accordingly. |
+| `existing_identity` | no | Anchors the migration — most organizations already have partial identity. |
+| `latency_budget` | no | Drives the cryptographic primitives and verification placement. |
+| `compliance_drivers` | no | Forces issuer-key custody, audit, and separation-of-duties choices. |
+
+## How to apply
+
+Execute the stages in order. The graph of identities is built bottom-up: substrate, attestation, naming, issuance, consumption, federation, lifecycle.
+
+### Stage 1 — Catalogue substrates and trust anchors
+
+1. List every distinct substrate a workload runs on: a Kubernetes cluster, a managed cloud Kubernetes service, a virtual machine fleet behind a cloud's instance-metadata service, a serverless platform with a managed identity, a bare-metal cluster on the operator's premises, an edge device with hardware-rooted identity, a developer laptop. Each substrate carries a different trust anchor.
+2. For each substrate, name the trust anchor — the lowest-level fact about the workload that can be cryptographically verified by the issuer. Examples: the cloud's instance metadata signed by the cloud control plane, the Kubernetes API server's projected service-account token, a TPM endorsement key burned at manufacture, a measured-boot quote, a hardware security module's attestation certificate.
+3. Flag substrates with weak or no trust anchor. A developer laptop, a self-managed VM with no platform metadata, or a container running on an unattested host has no cryptographic primitive the issuer can ground identity in; such workloads need a different model (human-issued bootstrap credential, short-lived join tokens, or exclusion from the high-trust identity plane).
+4. Record the operational owner of each trust anchor. Whoever can compromise the anchor can mint identities; the principle constrains who must be trusted to administer the substrate.
+
+### Stage 2 — Pick the attestation strategy
+
+5. For each substrate, choose the attestation method the issuer accepts. Standard options: platform-metadata attestation (cloud signs an attestation of the instance, the issuer verifies the signature), Kubernetes projected-token attestation (the issuer validates a service-account token bound to a specific audience), TPM remote attestation (the workload provides a TPM quote over measured-boot PCRs), join-token attestation (a one-time secret issued out of band), or chained attestation (a parent workload attests its child).
+6. Compose attestations when one alone is insufficient. A Kubernetes workload on a node that should itself be attested can be issued an identity bound to both the node's TPM quote and the pod's projected service account; either failing invalidates issuance.
+7. For each attestation, declare what cannot be verified. A cloud-signed instance attestation tells the issuer the instance is real and belongs to the account, but says nothing about the workload running inside the instance — a malicious tenant on the same instance can request the same identity unless additional binding (process-level, file-system path, container image digest) is layered on.
+8. Record the freshness requirement per attestation. A quote captured at agent start and re-presented for hours is weaker than one re-captured per identity renewal. Choose explicitly and document the trade-off.
+
+### Stage 3 — Design the naming scheme
+
+9. Identity names are stable, structured, and meaningful. A workload identity is the trust anchor plus a path that encodes the workload's role within its substrate. Define the scheme up front; renaming after thousands of workloads have adopted it is painful.
+10. Use a hierarchical name with these segments at minimum: trust domain (a single authority over a set of identities), substrate or environment, namespace, and workload class. Avoid encoding the host or the replica number — those change too often.
+11. Reserve a small set of trust domains. One per legal entity, one per very high-isolation tenant, occasionally one per environment. A trust domain per service is a category error — the trust domain is the unit of cross-issuer federation, not a way of expressing ownership.
+12. Define a naming policy that the issuer enforces at issuance time: a workload attesting from namespace `payments` cannot be issued an identity with namespace `core`. The policy is the heart of the design; a permissive issuer that lets the substrate ask for any name discards most of the value.
+
+### Stage 4 — Issue and present identity
+
+13. Define the form of issued material: an X.509 certificate with the workload identity as a SAN, a signed JWT, or both. Certificates suit mTLS-everywhere; JWTs suit HTTP APIs that accept bearer credentials; both at once is common in modern designs.
+14. Define the ttl. The agent should default to issued credentials with a lifetime in single-digit hours or shorter, with automatic renewal long before expiry. A 24-hour token is acceptable for limited cases; a 30-day token is a static credential by another name.
+15. For mTLS, define how the certificate is presented to the wire: a sidecar that terminates and re-establishes connections on behalf of the workload, an in-process library that augments the workload's TLS stack, or a node-level proxy. Each has a different blast radius if compromised; the document must pick one per substrate.
+16. For bearer JWTs, define audience and binding. An audience-bound token issued for caller-to-API-X must be rejected by API-Y; a token bound to a specific TLS channel cannot be replayed on a different connection. Loose binding is a frequent source of identity confusion.
+17. Forbid identity material at rest beyond a small in-memory window. The workload should fetch its credential, hold it in memory until renewal, and never write it to disk in a form the storage layer keeps around. Note the contract with the substrate — emptydir, tmpfs, secret-store sidecar socket — explicitly.
+
+### Stage 5 — Bridge to external authorities
+
+18. List every external system the workloads must authenticate to that does not natively trust the issuer: cloud APIs, third-party SaaS APIs, partner APIs, customer endpoints. Each requires a bridge from the workload's native identity to a credential the external system accepts.
+19. The standard bridge is an OIDC-style federated exchange: the workload presents its issued JWT to the external system's identity provider, the provider validates it against a published trust configuration, the provider returns an external credential (cloud session token, partner API token) scoped to the operation. Document each bridge: which external identity provider, which audience, which scopes, which ttl.
+20. For cloud APIs specifically, the bridge runs entirely cloud-side: the cloud accepts the workload's JWT and returns a short-lived cloud session. Document the specific federation primitive each cloud exposes and the role mapping it requires.
+21. For systems without OIDC support, the bridge stores a long-lived credential in the secrets plane and the workload retrieves it under its identity. The agent should mark every such bridge as a high-priority replacement target — the long-lived credential is the kind of artefact this design exists to eliminate.
+
+### Stage 6 — Federate between trust domains
+
+22. Federation is the explicit, asymmetric statement that trust domain A accepts identities from trust domain B for a defined set of operations. Each direction is configured separately; trust is never implicit.
+23. For cross-cloud or cross-org workloads, define which trust domains federate. A common pattern: a primary trust domain in the larger footprint and one peer trust domain per remote footprint, with one-way federation in each direction.
+24. Define the mechanism that carries federation: a periodic publish of issuer public keys (a trust bundle) to each peer, retrieved over a verified channel and pinned to a known authority. The mechanism must tolerate a peer's bundle rotation without breaking outstanding sessions.
+25. Specify when federation is denied. A workload from a federated trust domain attempting an operation reserved for the local domain must be rejected with an audit event — silently allowing the call defeats the federation boundary.
+
+### Stage 7 — Lifecycle and revocation
+
+26. Issuer keys themselves rotate. Define the rotation cadence (typically months for an intermediate signing key, longer for a root) and the procedure: new key generated, published, used to sign new credentials, old key retained for verification until the longest credential it signed has expired, then retired.
+27. Workload-identity revocation cannot rely on certificate-revocation-list checks at the wire — they are too slow and too coarse. Lean on short ttls so revocation is effectively the next renewal cycle. For emergency revocation, push a deny list to verifiers and rotate the issuer's signing key.
+28. Decommission flow: when a workload is retired, the issuer policy that allowed its identity must be removed, the substrate's trust anchor for that workload revoked, and the audit trail kept long enough to investigate any post-decommission activity.
+29. Bootstrap of the issuer itself: the issuer's signing key is itself a high-value secret. The agent should describe the key custody — sealed in a hardware security module, gated by dual control, with the audit trail of the key's use stored outside the issuer.
+
+### Stage 8 — Observability and audit
+
+30. Every issuance, renewal, and federation event emits an audit record. The record names the requesting identity (the substrate's trust anchor plus the identity claimed), the result, the policy that gated the decision, and the credentials returned (by reference, not by value).
+31. Every verifier — the sidecar, the gateway, the mesh proxy — emits a record of every authentication decision. The records must be sampled or full-volume depending on cost; document the rate.
+32. Define the metrics the platform team watches: failed attestations, denied issuances, identity churn (renewals per unit time), age distribution of in-flight credentials, federation acceptance rates per peer.
+
+### Stage 9 — Migration roadmap
+
+33. Translate the gap from `existing_identity` to the target design into ordered phases. The first phase is always to stand up the issuer and run it in shadow mode — issuing identities that no consumer yet requires — so its operational characteristics are understood before any service depends on it.
+34. Order subsequent phases by trust-anchor strength. Substrates with strong anchors (managed Kubernetes with projected tokens, cloud-managed VMs) onboard first; weak-anchor substrates onboard later with extra controls or get excluded.
+35. Record what stays static long enough to count as residual risk: any external system that cannot accept federated identity in this iteration, any substrate without a credible attestation method, any workload class whose ttl cannot yet be brought below a day.
+
+## Outputs
+
+- A markdown architecture document with sections mapping to stages 1-9.
+- A JSON trust-graph describing issuer, subject class, attestation method, name, audience, ttl, and federation path.
+- A migration roadmap with phases and exit criteria.
+
+## Examples
+
+Example skeleton invocation: a fleet of three managed Kubernetes clusters across two clouds plus a few hundred legacy VMs and a small edge fleet on customer premises. The skill produces: one trust domain per cloud plus one for the edge fleet; projected-token attestation for Kubernetes pods, cloud-metadata attestation for VMs, and TPM remote attestation for the edge devices; certificates with 6-hour ttl for mesh mTLS, JWTs with 15-minute ttl for HTTP APIs; OIDC federation from the cloud trust domains into each cloud's IAM, eliminating static cloud keys; one-way federation from cloud to edge for control-plane operations, and from edge to cloud rejected by policy; a rotation plan for the issuer's intermediate signing keys quarterly with the root sealed in an offline ceremony procedure; and a residual-risk register naming the third-party SaaS systems that still require a static API token retrieved from the secrets plane.
+
+## Limitations
+
+- The skill does not produce concrete config: it produces an architecture. Pod manifests, mesh configuration, and IAM role bindings are downstream artefacts.
+- The skill assumes a workable substrate. If the underlying platform has no credible trust anchor (an unmanaged VM with no metadata, a container running under a shared root identity), the design will surface this as a residual risk; it will not invent a primitive that does not exist.
+- The skill does not select between an in-mesh sidecar model and a service-library model on the consumer side; both are valid and the choice is dominated by language and operations preferences the architect must supply.
+- The skill is not a threat model. It will produce the controls, but exhaustive attack-tree analysis is a separate exercise.
+- The skill does not produce performance numbers. Real latency and throughput of the issuer depend on key sizes, hardware, and call rates that must be measured.
+
+## Sources reviewed
+
+- https://github.com/spiffe/spire — Apache-2.0
+- https://github.com/cert-manager/cert-manager — Apache-2.0
+- https://github.com/sigstore/cosign — Apache-2.0
+- https://github.com/external-secrets/external-secrets — Apache-2.0
+- https://github.com/openbao/openbao — MPL-2.0
+- https://github.com/google/go-tpm — Apache-2.0
+- https://github.com/keylime/keylime — Apache-2.0

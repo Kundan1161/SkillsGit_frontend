@@ -1,0 +1,151 @@
+---
+id: jane-devops-demo/2024-10-blue-green-rollback-at-3am
+version: 1.0.0
+name: 2024-10 Blue/green rollback at 3am — when the rollback path was the bug
+description: "[sample data] A blue/green deploy looked clean for 22 minutes, then green started 5xx-ing at 3am; the rollback runbook was the actual bug because it assumed warm cache state."
+authors:
+  - name: Jane Devops (sample)
+    handle: jane-devops-demo
+    role: author
+category: personas
+tags:
+  - sample-data
+  - incident
+  - rollback
+  - blue-green
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models:
+    - claude-opus-4-7
+trigger_keywords:
+  - blue/green rollback
+  - rollback runbook
+  - 3am incident
+  - cold cache
+example_invocations:
+  - "Our blue/green looked clean at deploy then died at 3am. Walk me through how to debug the rollback path itself."
+kind: memory_neuron
+parent_occupation_id: skillsgit-curated/ai-devops-engineer
+links:
+  - target: base/ops-incident-commander
+    relation: recorded-instance-of
+  - target: base/ops-runbook-generator
+    relation: extends
+  - target: base/observability-dashboard-architect
+    relation: applies
+neuron:
+  situation: |
+    A 02:38 deploy to the orders-service finished green-side
+    smoke-tested clean. At 03:02 the green pods started returning 5xx
+    on ~40% of /checkout requests. The on-call paged the incident
+    commander (me) at 03:05. Standard rollback runbook said "flip the
+    weighted route back to blue (1.0/0.0), then drain green."
+  decision: |
+    Executed the rollback as written. Blue immediately started
+    returning the same 5xx pattern at the same rate. Held the page,
+    paused the runbook, and shifted to first-principles: pulled
+    Prometheus latency + cache-hit ratio on both color sets. Discovered
+    the rollback flip drained both color caches simultaneously because
+    the connection-pool warmer was global, not per-color.
+  outcome: |
+    Cleared cold-cache 5xx by manually replaying the last 30 minutes
+    of synthetic-traffic to warm blue before draining green (took 4
+    minutes). Rewrote the rollback runbook to require a 90-second
+    cache-warm window between flip and drain. Added a Grafana panel
+    that overlays cache-hit-ratio per color so the next 3am person
+    sees the warm-state delta before they flip.
+  recorded_at: "2024-10-04"
+  confidence: 0.95
+---
+
+# 2024-10 Blue/green rollback at 3am — when the rollback path was the bug
+
+> SAMPLE DATA — this neuron is part of the seeded `@jane-devops-demo`
+> persona shipped alongside the Cycle-1 demo. Real persona neurons are
+> published by named DevOps practitioners and replace this content.
+
+## When to use
+Reach for this neuron during an incident where a rollback or
+fallback path is implicated. The specific applicability: weighted
+traffic shifting (blue/green, canary, or A/B) on services that
+depend on warm in-memory state. The general lesson: rollback runbooks
+deserve the same load testing as forward deploys.
+
+## How to apply
+1. When a runbook step makes the incident worse, pause the runbook
+   for 30 seconds and look at telemetry before executing the next
+   step. The pause is the intervention.
+2. Pull per-color telemetry for any traffic-shifting incident:
+   p99 latency by color, cache-hit ratio by color, error rate by
+   color. If your dashboards aggregate across colors, build the
+   per-color cut now.
+3. For services that depend on warm cache or pool state, require a
+   warm-up window in the rollback runbook (synthetic traffic at
+   low weight) before draining the previous color.
+4. After the incident, audit every traffic-shifting runbook in
+   your stack for shared-state assumptions: caches, connection
+   pools, leader-election state.
+
+## What happened
+The deploy itself was unremarkable — orders-service v4.21.3, a small
+fix to currency rounding, 100% staging-suite green, 22 minutes of
+production smoke at 1% green traffic with no error budget burn. At
+02:55 we shifted to 50/50 and at 02:58 to 0/100 (full green). Green
+held clean for 22 minutes.
+
+At 03:02 green pods started returning 5xx on /checkout — specifically
+on the path that hits the address-lookup cache. Error rate climbed
+from 0.1% to 38% in 90 seconds. Page fired, I joined, took IC,
+declared sev-2.
+
+Runbook said flip back to blue (weighted 1.0/0.0). Done in 8 seconds.
+Blue pods immediately started returning the same 5xx pattern. We were
+now in the worse state: both colors had been live and were both
+broken, and our textbook escape hatch wasn't working.
+
+I called a 30-second pause on the runbook ("we're flying blind on the
+runbook; let's look at telemetry before we touch anything else").
+Two dashboards mattered:
+
+- p99 /checkout latency: green and blue both spiked from 80ms to
+  4400ms after the flip.
+- cache-hit ratio on the address-lookup memcache: was 99.4% on green
+  at the time of the page, dropped to 11% on green AND blue
+  simultaneously the instant we flipped the weight.
+
+That was the giveaway. The connection-pool warmer was a single
+shared singleton that watched the active weight, not a per-color
+component. When weight flipped from 0/100 to 100/0, blue's cache
+went cold and green's stopped getting warm queries. Both colors
+were now cold; both were 5xx-ing on cache-miss timeouts to the
+upstream address service.
+
+Fix in the moment: ran the synthetic-traffic replay job
+(`scripts/replay_synth_traffic.py --duration 5m --weight 0.1`) at
+10% blue while green held. Cache warmed in ~4 minutes. Drained green.
+Total time on incident: 38 minutes (5 minutes finding the cause, 4
+minutes for the warm, 29 minutes of post-mortem prep we did live).
+
+Aftermath: rewrote the rollback runbook to require a 90-second cache
+warm-up window between flip and drain. Added a Grafana panel that
+overlays cache-hit-ratio per color on the rollback dashboard so the
+next IC sees the warm-state delta before they flip. Filed a tech-debt
+ticket to refactor the connection pool warmer to be per-color.
+
+## Lessons
+- A rollback is a deploy. It deserves the same staging + canary
+  rigor as a forward deploy. Ours didn't have either, which is how
+  the per-color warm-state assumption escaped to production.
+- During an incident, if the runbook is making things worse, pause
+  the runbook before continuing. 30 seconds of "let's look at
+  telemetry first" saved us from another 5 minutes of frantic
+  flipping.
+- "The fallback path was the bug" is more common than it should be.
+  Audit your rollback paths for shared-state assumptions: caches,
+  connection pools, leader-election state, anything that warms.
+- Per-color observability matters. If your dashboards aggregate
+  green+blue into a single metric, you can't see the cache-warmth
+  divergence at 3am — and 3am is the only time you'll need to.

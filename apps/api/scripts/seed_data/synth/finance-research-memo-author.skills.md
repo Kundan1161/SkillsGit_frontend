@@ -1,0 +1,326 @@
+---
+id: skillsgit-curated/research-memo-author
+version: 1.0.0
+name: Investment Research Memo Author
+description: Author an investment research memo — claim, evidence, mechanism, key risks, position sizing rationale, and exit triggers — in a short-form structure that compounds across a portfolio over time.
+authors:
+  - name: skillsgit Curated
+    handle: skillsgit-curated
+    role: author
+category: finance
+tags: [niche:open-financial-analytics, research-memo, investment-thesis, position-sizing, exit-trigger, risk-register, falsifiable-claims]
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6, gpt-4o]
+  tools_required: []
+  tools_optional: [web_search, file_io]
+  min_context_tokens: 32000
+  estimated_tokens_per_invocation: 9000
+trigger_keywords:
+  - research memo
+  - investment memo
+  - pitch memo
+  - long thesis memo
+  - short thesis memo
+  - position sizing
+  - exit trigger
+  - thesis falsifier
+  - investment writeup
+  - sell side memo
+  - buy side memo
+  - investment recommendation
+example_invocations:
+  - "Help me structure a long thesis memo on this name with clear falsifiers and sizing rationale."
+  - "Draft a short thesis memo from these notes — claim, evidence, mechanism, risks, exit triggers."
+  - "Author a recommendation memo template my team can use across coverage."
+inputs:
+  - name: thesis_summary
+    type: text
+    required: true
+    description: The user's working thesis in one or two sentences — the variable they think is mispriced, the direction, and the mechanism by which the mispricing resolves.
+  - name: side
+    type: choice
+    required: true
+    description: The direction of the recommendation.
+    choices: [long, short, pair-long-leg, pair-short-leg, sell-existing, hold-with-trim]
+  - name: holding_period
+    type: choice
+    required: true
+    description: The expected holding period.
+    choices: [intraquarter, six-to-twelve-months, one-to-three-years, three-plus-years]
+  - name: supporting_material
+    type: text
+    required: true
+    description: Bullet notes, model outputs, peer-comp findings, channel-check synthesis, or other research that supports the memo.
+  - name: portfolio_context
+    type: text
+    required: false
+    description: Where the recommendation fits in the broader portfolio — concentration, sector tilt, existing related positions.
+  - name: audience
+    type: choice
+    required: false
+    description: The intended reader.
+    choices: [self, pm, ic-committee, client]
+outputs:
+  - name: memo
+    type: markdown
+    description: A structured short-form memo with claim, evidence, mechanism, risks, sizing, and exit triggers.
+  - name: falsifiers_table
+    type: markdown
+    description: A table of the named falsifiers — what would have to be observed for the thesis to be wrong, with monitoring metrics.
+  - name: sizing_rationale
+    type: markdown
+    description: The sizing rationale — conviction, asymmetry, portfolio-level constraint, and the chosen size.
+  - name: exit_trigger_grid
+    type: markdown
+    description: Pre-decided exit triggers tied to observable conditions.
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Initial release.
+---
+
+## When to use
+
+Reach for this skill when an analyst or portfolio manager has done the research and now needs to write it down in a form that is short, falsifiable, defensible, and useful for the inevitable post-mortem. The skill is for memo authorship — the discipline of turning a body of research into a document that drives a decision and survives the test of time — rather than for doing the research itself. A separate skill on equity research workflows handles the research process; this skill handles the memo.
+
+Use this skill when the user can state a working thesis, has done the supporting work, and is now choosing the structure and discipline of the write-up. The skill works best when the memo is for an audience that will read it carefully — a portfolio manager, an investment committee, a careful client — and when the author is willing to commit to a falsifier and an exit before publishing.
+
+Do not use this skill to write marketing material. A memo whose primary function is to sell the view rather than to test it produces decisions that survive only as long as the market agrees. Do not use it for memos that are not falsifiable — narratives, themes, "I just like the management" pieces — without forcing the falsification step that the skill insists on. Do not use it to compress a missing body of research into a short document; the memo cannot be better than the work behind it.
+
+Outputs are educational. Memos drafted with this skill are research artifacts and not investment advice. Any position taken in response to a memo drafted with this skill should be reviewed by the appropriate function in the user's firm — portfolio manager, risk, compliance — and is the responsibility of the user, not the skill.
+
+## How to apply
+
+A useful research memo does six things. It states a falsifiable claim. It presents the strongest evidence for the claim concisely. It names the mechanism by which the claim resolves into return. It identifies the risks that would invalidate the claim, with monitoring metrics. It commits to a size with explicit rationale. It pre-decides the conditions under which the position is reduced or exited.
+
+The skill builds the memo in seven steps. The result is short — typically two to four pages for the core, with appendices that hold the model, the peer comp, and the channel-check notes. Memos that exceed this length tend to dilute the view rather than strengthen it.
+
+### Step 1 — Compress the thesis
+
+Open with one sentence that states the recommendation, the time horizon, and the expected return. Follow it with two sentences that state the thesis: the variable being mispriced, the direction, and the mechanism.
+
+Useful one-line shapes:
+
+- "Long [name], 12–18 month horizon, +30% to +45% expected return."
+- "Short [name], 6–9 month horizon, –20% to –30% expected return."
+- "Pair: long [A], short [B], 9-month horizon, 12–18% expected spread return."
+
+Useful three-sentence thesis shapes:
+
+- "[Name] is priced for a continued margin slide that is in fact a transient consequence of mix and input cost. The legacy product cycle ends in Q3; mix shifts back to higher-margin segments and inputs normalize. EBITDA margin recovers 250–350 bps within the next four quarters."
+- "[Name] reports headline growth that overstates underlying performance because the recent acquisitions are not yet annualized and the organic growth comparison is favorable for one more print. Q2 prints inside guidance but Q3 misses; consensus eases and the stock derates one to two turns."
+
+Sentences that disqualify themselves:
+
+- "[Name] is a high-quality compounder with great management."
+- "The valuation is attractive relative to peers."
+- "We like the long-term opportunity in [thematic]."
+
+These are observations, not theses. They are useful background but cannot stand as the memo's core claim because they do not predict anything specific that the market is failing to price.
+
+### Step 2 — Lay out the evidence
+
+Three to five paragraphs of the strongest evidence. The discipline is to lead with the strongest case and stop before the case starts to repeat itself.
+
+Strong evidence has properties:
+
+- **Specific.** Numbers, dated events, named programs, identifiable contracts.
+- **Independent.** Different sources reaching the same conclusion are stronger than one source repeated.
+- **Independent of the thesis.** Evidence that would still be true if the thesis were wrong is much weaker than evidence that has bearing on the thesis specifically.
+- **Asymmetric.** The strongest evidence is the kind that would be hard to fabricate if the thesis were wrong — restated financials, unwound revenue, departed customers, won contracts, lost contracts.
+
+Avoid evidence that is restating the market price as if it were independent confirmation — "the stock has held the moving average," "the multiple is below its historical median" — unless the technical or relative observation is the actual subject of the thesis.
+
+For each evidence paragraph, name the source, the date, and the inference being drawn. A reader six months later should be able to retrace the analysis to the source.
+
+### Step 3 — Name the mechanism
+
+The mechanism is the chain that connects the thesis to the price. Without a stated mechanism, the thesis is a prediction without a path.
+
+The mechanism describes:
+
+- **What the catalyst is.** A scheduled event (an earnings print, a regulatory decision, a contract decision), a recurring data print (a sector statistic, an industry release), or an emergent condition (a margin recovery becoming visible, a competitor losing share).
+- **Who notices.** Sell-side analysts, hedge-fund analysts, index providers, retail. Different actors reprice on different timescales; the mechanism that requires the slowest actor to notice has the longest path.
+- **In what order.** The path is often a sequence — the data prints, sell-side estimates revise, consensus moves, the multiple resets. The memo should state the order with at least directional timing.
+- **In what magnitude.** The total move expected, decomposed into earnings revision and multiple change where applicable.
+
+Mechanisms that fail this test:
+
+- "The stock will re-rate." A re-rating is the result; the mechanism is what causes it.
+- "Eventually the market will recognize the value." Eventually is not a mechanism.
+
+State the mechanism plainly. If the mechanism cannot be stated plainly, the thesis may not be ready for a memo.
+
+### Step 4 — Build the falsifiers table
+
+Falsifiers are what would have to be true in the world over the holding period for the thesis to be wrong. The exercise is uncomfortable; that is the point.
+
+For each falsifier:
+
+- **Statement.** A short sentence describing the condition that, if true, would invalidate the thesis.
+- **Monitoring metric.** The observable signal that would be tracking toward this falsifier becoming true.
+- **Threshold.** The value or change of the metric that constitutes the falsifier being confirmed.
+- **Window.** The time over which the threshold is measured.
+
+Three to seven falsifiers is the right number. Two suggests the analyst has not stressed the thesis; ten suggests the thesis is so contingent that conviction is hard to justify.
+
+Examples of well-formed falsifiers:
+
+- Statement: "The margin recovery does not materialize because the input cost dynamic is structural rather than transient." Metric: "Input cost index for [category]." Threshold: "Above [level] for two consecutive quarters." Window: "By end of Q4."
+- Statement: "The acquired business is impaired rather than performing in line." Metric: "Reported acquired-segment revenue and margin disclosure." Threshold: "Reported acquired-segment EBITDA margin below [level]." Window: "First two reporting periods after close."
+- Statement: "The competitor's product cycle outpaces the company's." Metric: "Channel checks on competitor's launch traction and the company's renewal rate." Threshold: "Either two checks signaling competitor outperformance or the company's renewal rate dropping below [level]." Window: "Next 90 days."
+
+Vague falsifiers ("if the thesis stops working") are not falsifiers; they are escape clauses.
+
+### Step 5 — Sizing rationale
+
+Sizing is where the conviction expressed in the memo meets the constraints of the portfolio. The memo should make the sizing rationale explicit.
+
+The rationale considers:
+
+- **Conviction.** How strong is the analyst's belief in the thesis, after writing the falsifiers. A thesis whose falsifiers are tight is more sizable than a thesis whose falsifiers are loose.
+- **Asymmetry.** What is the expected return in the bull case, the base case, and the bear case. A position with +40% / +20% / -15% asymmetry is sized differently from a position with +25% / +10% / -25% asymmetry.
+- **Portfolio constraints.** Sector tilt, correlation to existing positions, factor exposure, single-stock limits. The position sits inside a portfolio, not in isolation.
+- **Liquidity.** The size relative to the security's average daily volume and the time required to enter and exit at acceptable cost.
+
+A sizing rationale shape:
+
+- "Initial position: X% of portfolio. Conviction: medium-high; the named falsifiers are observable inside the holding period and the asymmetry is +35% / +15% / -12%. Builds permitted on a Y% retracement up to a maximum of Z% of portfolio. Sector tilt: this position takes our sector exposure from N% to N+X%, within the policy cap."
+
+For a portfolio manager, the memo writes the rationale once and the PM applies the constraints. For an analyst pitching to a PM, the rationale invites the PM's overlay of portfolio constraints and lets the conversation focus on conviction and asymmetry rather than rehearsing the basics.
+
+### Step 6 — Exit trigger grid
+
+A position without pre-decided exit triggers tends to get held too long when it is wrong and trimmed too early when it is right. The exit trigger grid forces the decision before it has to be made under pressure.
+
+The grid includes:
+
+- **Thesis-confirmation trigger.** The condition that confirms the thesis is working. Action: hold or build.
+- **Thesis-violation trigger.** The named falsifier becoming true. Action: reduce or exit.
+- **Time-based trigger.** The thesis has not played out in the expected window. Action: re-evaluate and either commit to a longer horizon with explicit rationale or exit.
+- **Price-based trigger.** The position has reached the base-case price target. Action: trim or exit.
+- **Stop-loss trigger.** Optional. The position has moved adversely by a stated amount. Action: trim or exit. (Stop-losses are controversial in fundamental investing and should be calibrated to the thesis horizon and the security's typical volatility.)
+
+For each trigger, state the action with as little ambiguity as possible. "Reduce by half on confirmation of falsifier #2" is actionable; "consider reducing if the thesis weakens" is not.
+
+### Step 7 — Place the appendices
+
+The core memo is two to four pages. The appendices hold the supporting detail:
+
+- **Model summary.** The forward forecast with the named driver assumptions.
+- **Peer comp.** The peer set, the metrics, the position of the target in the cross-section.
+- **Scenario detail.** Bull, base, and bear cases with the assumption deltas.
+- **Channel-check or primary research synthesis.** The notes, dated, with attribution where appropriate and with confidentiality preserved where required.
+- **Research log.** A short list of the calls taken, documents read, and references consulted. The audit trail.
+
+Appendices should be navigable in five seconds — clear section headers, no walls of unbroken text. A reader who jumps to the model summary should land on it in one scroll.
+
+### Cross-cutting practices
+
+- **Pre-commit before publishing.** Before the memo is sent, the analyst commits to the size, the exit triggers, and the falsifiers. The commitment is the point of the exercise.
+- **Schedule the post-mortem.** Six months after publication, the analyst returns to the memo. Were the falsifiers right? Did the mechanism play out as described? Did the sizing and exit triggers fire correctly? The post-mortem is what compounds skill across many memos.
+- **Track the cumulative record.** Across many memos, the analyst builds a track record of base rates — hit rate, average return, time to thesis completion, falsifier accuracy. The track record is the analyst's most useful self-feedback signal.
+- **Resist the urge to lengthen.** Long memos are not stronger memos. The discipline of two to four pages forces the analyst to choose the strongest evidence and to leave out the rest. Memos that exceed the length budget should be cut, not appended to.
+
+### Calibrating the memo to side and horizon
+
+The structure is the same across long, short, and pair memos, but the emphasis shifts.
+
+- **Long memos.** Mechanism and catalysts get more emphasis. Falsifiers tilt toward thesis-killers; the bear case lays out where the value floor is.
+- **Short memos.** Risk management gets more emphasis. Borrow availability, squeeze risk, and the cost of being early are first-class concerns. Falsifiers tilt toward the conditions under which the company stops being a short. Exit triggers tilt toward asymmetric covering — covering on confirmation rather than waiting for the full move.
+- **Pair memos.** The common factors of the pair are named and addressed explicitly; the differential view that the pair isolates is named in two sentences. Falsifiers address both legs.
+- **Hold-with-trim memos.** The thesis is partially right or the asymmetry has narrowed. The memo explains why the position is being held smaller and what would have to change for it to be either rebuilt or fully exited.
+
+### Calibrating the memo to audience
+
+- **For self.** Notes-style is acceptable; the discipline is the discipline, not the polish. The post-mortem cadence matters more than the prose quality.
+- **For PM.** Compressed, pre-commitment language. The PM is making a sizing decision; the memo should make that decision easy with conviction and asymmetry explicit.
+- **For investment committee.** More structured prose, more anticipation of objections, clearer enumeration of falsifiers and exit triggers. Committees vote; memos written for committees should make the vote crisp.
+- **For client.** Translated language. Less internal jargon, more attention to risk disclosure and the boundaries of the recommendation. Compliance overlay is heavy in this audience.
+
+## Inputs
+
+- **thesis_summary** (required) — the working thesis in one or two sentences.
+- **side** (required) — long, short, pair, sell, hold-with-trim.
+- **holding_period** (required) — intraquarter through three-plus years.
+- **supporting_material** (required) — the research and notes the memo is built from.
+- **portfolio_context** (optional) — where the position fits in the portfolio.
+- **audience** (optional) — self, PM, IC, client.
+
+## Outputs
+
+- A short-form research memo with claim, evidence, mechanism, risks, sizing, and exit triggers.
+- A falsifiers table with monitoring metrics, thresholds, and windows.
+- A sizing rationale tied to conviction, asymmetry, and portfolio constraints.
+- An exit trigger grid with named conditions and pre-decided actions.
+
+## Examples
+
+### Worked example — Long thesis memo on a hypothetical industrial mid-cap
+
+**Inputs given to the skill:**
+
+- thesis_summary: "Margin compression in the last three quarters is a transient consequence of input cost and product mix, not a structural change. As inputs normalize and the legacy product cycle ends in Q3, gross margin recovers 250–350 bps within four quarters."
+- side: "long."
+- holding_period: "six-to-twelve-months."
+- supporting_material: "Ten-year financial reconstruction; unit-economics view per machine; quality-of-earnings reconciliation; five-peer comp; three channel checks with distributors; raw-material price tracking from public indices; competitor product-cycle calendar."
+- portfolio_context: "Sector tilt is one position underweight relative to policy; this position would bring sector to neutral. Modest correlation to two existing names; not redundant."
+- audience: "PM."
+
+**Output (abridged memo):**
+
+> **Long [Name], 9-month horizon, +28% expected (base) / +42% (bull) / -12% (bear).**
+>
+> **Thesis.** The margin compression of the last three quarters is transient. Input costs are normalizing per the public indices; the legacy product cycle ends in Q3, after which the mix shifts back to the higher-margin successor product. Gross margin recovers 250–350 bps within four quarters; EBITDA margin follows; the stock re-rates as the recovery becomes visible in the next two reporting periods.
+>
+> **Evidence.** [Three to five paragraphs of specific, dated, and sourced evidence — the input-cost trajectory from named public indices, the historical pattern of margin recovery on prior product transitions, channel-check synthesis on customer pull on the successor product, quality-of-earnings reconciliation showing no aggressive accounting in the compressed periods, peer-comp positioning showing the target as currently the worst-cross-section on margin and the best on capital efficiency.]
+>
+> **Mechanism.** Input cost indices roll off through Q2; legacy product cycle ends in Q3 with the planned phase-out; successor product mix becomes the majority of sales in Q4. Q3 print shows initial margin recovery; sell-side estimates revise upward in Q4; consensus catches up by the following year. Total return: 60% earnings revision, 40% multiple re-rating from current trough multiple back toward historical median.
+>
+> **Key risks (falsifiers, abridged):**
+> | Risk | Metric | Threshold | Window |
+> |---|---|---|---|
+> | Input costs structurally elevated | Public index for [category] | Above [level] for two consecutive quarters | By end of Q4 |
+> | Successor product fails to take share | Channel-check synthesis and unit sell-through | Two checks signaling weak adoption OR unit growth below [level] | Q3 print and 60 days after |
+> | Competitor accelerates pricing pressure | Competitor pricing actions and target's renewal rate | Renewal rate below [level] OR price decline above [level] | Q3 print |
+> | Macro demand weakens broadly | Industry shipment statistics | Year-over-year decline beyond [level] | Quarterly |
+>
+> **Sizing rationale.** Initial X% of portfolio. Conviction medium-high; falsifiers observable inside the holding period. Asymmetry: +28% / +42% / -12%, giving roughly 2.5:1 base-to-bear and 3.5:1 bull-to-bear. Builds permitted on a 5–7% retracement up to a maximum of Z% of portfolio. Sector exposure moves to neutral after this addition.
+>
+> **Exit triggers.**
+> - Thesis confirmation: Q3 print shows gross margin recovery of at least [level] basis points sequential AND input cost index has rolled off as expected. Action: hold; consider build on retracement.
+> - Falsifier #1 confirmed: input cost above threshold for two consecutive quarters. Action: reduce by half; re-underwrite if mechanism extends.
+> - Falsifier #2 confirmed: successor product fails to take share. Action: full exit; thesis is broken.
+> - Time-based: thesis has not produced gross-margin recovery by end of holding period. Action: re-evaluate; require explicit rationale for extension.
+> - Price-based: stock has reached base-case price target. Action: trim by half; reassess.
+
+The corresponding falsifiers table, sizing rationale section, and exit trigger grid would each be expanded into their own sections with the structure shown above filled out.
+
+## Limitations
+
+This skill produces a memo, not the research that the memo rests on. The memo cannot be better than the work behind it. An analyst with a weak thesis and good prose produces a polished bad memo; the structure does not rescue the thesis.
+
+The skill produces short-form memos. Long-form research reports (sell-side initiation reports, deep-dive thematic reports, multi-name sector reports) follow a different structure and have different conventions; this skill is calibrated to internal investment memos and short pitches, not to those formats.
+
+The falsifiers and exit triggers the memo names are only as useful as the analyst's discipline in monitoring them and acting on them. A memo with pre-committed exits that the analyst does not enforce when the trigger fires is not better than a memo with no exits; it may be worse, because the false sense of discipline made the position larger.
+
+The skill cannot perform compliance review. Internal memos may require disclosures, restricted-list checks, and conflict-of-interest reviews that vary by firm and jurisdiction. The user is responsible for ensuring the memo meets the relevant requirements before circulation.
+
+The skill is generic across geographies, sectors, and security types. A memo on a US mid-cap industrial uses the same structure as one on a Japanese small-cap consumer name or an emerging-market financial; the specific evidence, metrics, and risks vary substantially with context, and the user must supply that context.
+
+Outputs are educational. Memos drafted with this skill are research artifacts and not investment advice. Any position taken in response to a memo drafted with this skill should be reviewed by the appropriate functions in the user's firm — portfolio manager, risk, compliance — and is the responsibility of the user, not the skill.
+
+## Sources reviewed
+
+- https://github.com/microsoft/qlib (MIT)
+- https://github.com/JerBouma/FinanceToolkit (MIT)
+- https://github.com/ranaroussi/yfinance (Apache-2.0)
+- https://github.com/AI4Finance-Foundation/FinRobot (Apache-2.0)
+- https://github.com/quantopian/alphalens (Apache-2.0)
+- https://github.com/jerryxyx/AlphaTrading (no LICENSE file — methodology pointer only)
+- https://github.com/OpenBB-finance/OpenBB (AGPL-3) — referenced for methodology of open financial data terminals; no code or prose reused

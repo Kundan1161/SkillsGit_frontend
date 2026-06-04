@@ -1,0 +1,239 @@
+---
+id: skillsgit-curated/ops-postmortem-writer
+version: 1.0.0
+name: Postmortem Writer
+description: Turns raw incident artifacts — chat logs, timeline notes, the decision log, the customer impact data — into a blameless postmortem with a coherent narrative, a contributing-factors analysis, and action items that have real owners and real deadlines.
+authors:
+  - name: skillsgit Curated
+    handle: skillsgit-curated
+    role: author
+category: operations
+tags: [postmortem, incident-response, sre, retrospective, root-cause-analysis, blameless, reliability]
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6, gpt-4o]
+  tools_required: []
+  min_context_tokens: 32000
+  estimated_tokens_per_invocation: 8000
+trigger_keywords:
+  - postmortem
+  - post-mortem
+  - incident review
+  - retrospective
+  - rca
+  - root cause analysis
+  - blameless
+  - learning review
+  - incident report
+  - after-action review
+  - five whys
+  - contributing factors
+  - action items
+example_invocations:
+  - "Write a postmortem for yesterday's payments outage. Here are the timeline, chat logs, and customer impact numbers."
+  - "Turn these incident channel messages into a blameless retro doc with action items."
+  - "I have the raw decision log from a sev2 last week. Draft the postmortem."
+inputs:
+  - name: incident_summary
+    type: text
+    required: true
+    description: Short description of what happened, including service affected, severity, start and end times in a clear timezone.
+  - name: timeline
+    type: text
+    required: true
+    description: A chronological list of observations and actions, ideally timestamped. Can be raw chat logs, a Scribe's notes, or a paste of the incident channel.
+  - name: customer_impact
+    type: text
+    required: false
+    description: Measured impact — error counts, dollars affected, customers paged in, duration of degraded experience, SLA penalties.
+  - name: decision_log
+    type: text
+    required: false
+    description: Structured record of decisions made during the incident, including who decided what and what the expected effect was.
+  - name: responder_reflections
+    type: text
+    required: false
+    description: Quotes or notes from the responders themselves about what was confusing, what surprised them, what they wish they had known earlier.
+outputs:
+  - name: postmortem_document
+    type: markdown
+    description: A complete blameless postmortem ready for review — executive summary, timeline, contributing factors, impact, what went well, what went poorly, action items, lessons.
+  - name: action_items_table
+    type: markdown
+    description: A separate, copyable table of action items with owner, deadline, and category, suitable for pasting into an issue tracker.
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Initial release.
+---
+
+## When to use
+
+Use this skill when an incident is over (or contained) and the team needs to convert the noise of the response into a durable artifact that an outside reader can learn from. The skill is designed to be invoked once per incident, typically one to three business days after resolution, after responders have had a night of sleep and have begun to forget — that is precisely when writing is hardest and most necessary.
+
+The skill targets the kind of postmortem that earns its place: a document that a new engineer joining the team a year from now will read, understand, and act on. That requires three things this skill insists on: chronological honesty about what happened, structural humility about why it happened, and action items specific enough that someone could refuse them.
+
+Avoid this skill for: (a) routine incident logs that aren't worth a postmortem (use a lightweight ticket instead), (b) security incidents where the writeup will be reviewed by counsel and has different framing rules, (c) live incident response (use the Incident Commander Sidekick), or (d) a single-paragraph "what happened" status update for an exec audience (those are different artifacts).
+
+## How to apply
+
+The skill follows a ten-step composition process that prioritizes evidence over story, structure over prose, and specificity over completeness. The order matters: writers who skip steps end up with a narrative that looks clean but hides decisions.
+
+1. **Read every input completely before writing anything.** This sounds obvious and is the most-skipped step. Read the timeline end-to-end. Read the chat log end-to-end. Read the responder reflections last, because they will color your interpretation if you read them first. Note any places where the inputs contradict each other — those contradictions are usually where the most learning lives.
+
+2. **Construct a single, normalized timeline before writing the narrative.** Merge the timeline input and chat-log input into one chronological list with consistent timestamps in a single timezone (UTC strongly recommended). De-duplicate observations that were noted multiple times. Mark each entry as either an observation ("error rate spiked to 18%"), an action ("rolled back v7.4.1"), a decision ("decided to fail traffic to us-west"), or a communication ("status page updated"). This taxonomy is invisible in the final document but essential for accurate writing.
+
+3. **Establish T-zero unambiguously.** T-zero is when the incident *started affecting customers*, not when the first responder was paged and not when it was declared. Page time and declare time are typically minutes-to-hours after T-zero, and the gap between T-zero and detection is itself a learning. State all three times in the executive summary: customer impact began, first detection (page, alert, customer report), and declaration. Compute and call out the time-to-detect and time-to-declare numbers explicitly.
+
+4. **Write the executive summary last, but place it first.** Compose it after the rest of the document exists. It is three to five sentences and must answer: what happened from the customer's perspective, when, for how long, what the proximate trigger was, and what we are doing about it. No jargon. No blame. No speculation. If you find yourself writing "due to human error," delete and rewrite — "human error" is never a contributing factor in this skill's output; it is a sign that the analysis stopped too early.
+
+5. **Draft the timeline section using only the normalized data.** Each entry is one line: timestamp, actor (system or role, not personal name unless the person volunteered it), event. Use roles ("the on-call engineer," "the database team") rather than names by default; some teams prefer names for accountability, but the default is roles to keep the focus on the system. Annotate critical entries with a one-line "[significance: …]" tag — for example, "[significance: this is when we first realized the deploy was the cause]."
+
+6. **Write the contributing factors section using a structured cause analysis, not a five-whys list.** A naive five-whys produces a single causal chain that obscures parallel and contributing causes. Instead, produce three to seven contributing factors organized by category: **triggering change** (what specific thing happened immediately before the incident — usually a deploy, config change, traffic shift, or external event), **vulnerabilities** (latent weaknesses in the system that made the trigger consequential — missing limit, missing alert, fragile dependency), **detection delays** (why we didn't see it sooner — alert threshold too loose, dashboard not viewed, signal masked by retries), and **response frictions** (what slowed down the response once it started — missing access, unclear ownership, runbook out of date). Each factor is one paragraph: what it is, evidence from the timeline that supports it, and a sentence on why it mattered.
+
+7. **For each contributing factor, ask "why didn't this get caught?" — and write down the answer.** This is the actual generative move that produces useful action items. A factor like "the new endpoint had no timeout configured" leads to "why didn't this get caught?" — answers might be: code review didn't have a checklist for timeout settings; the linter doesn't catch missing timeouts; we don't have an integration test that fails when a downstream is slow. Each answer becomes a candidate action item.
+
+8. **Apply blameless framing as a discipline, not a slogan.** Replace person-attributed verbs with system-attributed ones. "Engineer X deployed a change without running the canary test" becomes "the deploy pipeline did not require the canary test to complete before allowing the rollout." This is not about being polite; it is about generating action items that change the system rather than tell humans to be more careful. As a rule, any sentence that asks a human to "be more careful," "remember to," or "pay attention" is not an action item — it is a wish, and the document is allowed to contain none of them.
+
+9. **Generate action items in three buckets, each with strict shape.** **Prevent** (stops this class of incident from recurring), **mitigate** (makes the next incident in this class less severe), **respond** (makes the next response faster or smoother). Every action item must have: a concrete deliverable verb ("add," "change," "remove," "document," "alert on"), a named owner role (a team or a person), a deadline (a date, not "soon"), and a category from the three above. Reject any item that lacks any of these four. Aim for three to eight total action items; more than that means the team is taking on too much and will deliver none.
+
+10. **Close with two short sections that are easy to skip and matter the most.** **What went well** — three specific things the response did right, named concretely so the team can keep doing them ("the IC role was assigned within 4 minutes," not "the team responded well"). **What we would do differently next time** — a maximum of three honest observations that don't become action items but inform future judgment ("we should have rolled back sooner," "we waited too long to escalate to engineering leadership"). Resist the urge to make these long; honesty is what gives them their weight.
+
+### Composition rules across all sections
+
+- **Tense and voice.** Past tense for events, present tense for the system as it exists today. Active voice — "the deploy pipeline allowed an untested change" — not passive "the change was allowed."
+- **Numbers over adjectives.** Replace "many users were affected" with "approximately 12,400 customers received an error" if the input supports it. If the input doesn't support a number, say "exact count unknown — estimate based on \<source\>" rather than vagueing it.
+- **No prediction theater.** Do not write "this will never happen again" or "we are confident this is fully resolved" unless the input contains evidence supporting the claim. The honest version is "the trigger has been removed and a regression test added; we have not yet seen the recurrence pattern, but cannot prove a negative."
+- **No quoted personal apologies.** Apologies belong in customer-facing communications, not in the internal postmortem. If a responder wrote "I'm so sorry I didn't catch this," summarize the operational reflection ("the responder noted that the dashboard they watched did not include the affected percentile") without the affect.
+- **Sectional length budget.** Executive summary: 5 sentences max. Timeline: as long as it needs to be. Contributing factors: 200–600 words. Impact: a small table or short prose. Action items: a table. Reflection sections: 100–250 words each.
+
+### Standard postmortem layout
+
+The output document uses these exact section headers in this order:
+
+1. `# <Service> Incident — <YYYY-MM-DD>` (title)
+2. `## Executive summary`
+3. `## Impact`
+4. `## Timeline (UTC)`
+5. `## Contributing factors`
+6. `## What went well`
+7. `## What we would do differently`
+8. `## Action items`
+9. `## Open questions` (if any input remains unresolved)
+
+The skill never invents content for the executive summary or impact section from thin air; if the input does not contain the number, the skill writes "exact figure unknown — to be filled in" and lists it under Open questions.
+
+## Inputs
+
+- **Incident summary (required, text).** A short description: service, severity, start, end. The skill uses this to construct the title and the executive summary scaffold.
+- **Timeline (required, text).** A chronological list of events. Raw chat logs are acceptable — the skill will normalize them. Timestamps in any consistent format work, but UTC is preferred.
+- **Customer impact (optional, text).** Numbers, dollars, SLA tier breaches. If absent, the skill marks the impact section as needing a fill-in.
+- **Decision log (optional, text).** If the responders used the Incident Commander Sidekick or any structured decision-logging practice, paste the log here. It dramatically improves the contributing-factors analysis because expected-versus-actual outcomes are recorded.
+- **Responder reflections (optional, text).** Honest after-the-fact reflections from the people who were on the call. Treat these as load-bearing evidence, especially for the response-frictions category and the "what we would do differently" section.
+
+## Outputs
+
+A single markdown document following the layout above. Plus, separately, a standalone action items table that can be pasted into Jira, Linear, or GitHub Issues without further editing — same content as the in-document table, but stripped of surrounding narrative.
+
+## Examples
+
+### Worked example: payments outage of 2026-05-13
+
+**Input incident summary:** "Payments service sev1 on 2026-05-13. Started 15:42 UTC, contained 16:09, fully resolved 16:34. Deploy v7.4.1 changed retry behavior."
+
+**Input timeline (excerpts):**
+- 15:30 — v7.4.1 deployed to payments service
+- 15:42 — error rate alert fires; on-call paged
+- 15:54 — sev1 declared; flag `payments.retry_v2` disabled
+- 16:03 — flag disable had no effect; rollback to v7.4.0 initiated
+- 16:09 — rollback complete; error rate drops below 2%
+- 16:34 — sustained recovery confirmed; status page resolved
+
+**Input customer impact:** "Approximately 11,200 customers experienced at least one failed payment attempt. 380 unique customers contacted support. No data loss. Estimated $94,000 in delayed revenue (recovered via retry queue)."
+
+**Input responder reflections:** "Priya: 'I didn't realize the retry change affected the upstream connection pool; the code review focused on correctness, not capacity.' Alex (IC): 'I waited too long to call for help — solo for the first 12 minutes.'"
+
+**Expected output (excerpted):**
+
+> # Payments Service Incident — 2026-05-13
+>
+> ## Executive summary
+>
+> On 2026-05-13 between 15:42 and 16:09 UTC, the payments service returned errors on approximately one third of requests. About 11,200 customers experienced a failed payment attempt and 380 contacted support. The trigger was a deploy made 12 minutes before customer impact began, which changed retry behavior in a way that exhausted upstream connection pools. The deploy was rolled back and the service recovered. Action items focus on preventing connection-pool-affecting changes from shipping without a load test, and on shortening the time from page to assistance.
+>
+> ## Impact
+>
+> | Metric | Value |
+> |---|---|
+> | Duration of customer impact | 27 minutes (15:42–16:09 UTC) |
+> | Customers with at least one failed payment | ~11,200 |
+> | Support contacts generated | 380 |
+> | Delayed revenue (recovered via retry queue) | ~$94,000 |
+> | Data integrity | No data loss observed |
+>
+> ## Timeline (UTC)
+>
+> | Time | Event |
+> |---|---|
+> | 15:30 | Deploy v7.4.1 to payments service completed. [significance: trigger] |
+> | 15:42 | Error-rate alert fired; on-call engineer paged. [significance: T-zero for customer impact; 12 min after trigger] |
+> | 15:54 | Sev1 declared. Feature flag `payments.retry_v2` disabled as first mitigation attempt. |
+> | 16:03 | Flag disable had no measurable effect on error rate. Rollback to v7.4.0 initiated. [significance: first hypothesis falsified] |
+> | 16:09 | Rollback complete. Error rate dropped below 2%. Containment achieved. |
+> | 16:34 | Sustained recovery confirmed; status page marked resolved. |
+>
+> ## Contributing factors
+>
+> **Triggering change.** Deploy v7.4.1 introduced a more aggressive retry loop for upstream risk-engine calls. Under normal traffic this completed quickly enough to be invisible, but it doubled the number of concurrent connections held during transient upstream latency, which exhausted the connection pool and caused the 502 returns observed from 15:42 onward.
+>
+> **Vulnerability: implicit connection-pool sizing.** The connection pool for the risk-engine client had a fixed size that was sufficient for the previous retry pattern with no margin. A change to retry behavior anywhere in the call path was effectively a capacity change, but capacity was not modeled or tested.
+>
+> **Vulnerability: code review focus.** The change was reviewed for correctness ("does it retry the right things") but not for resource implications ("does it change how many connections we hold"). The review checklist does not currently include a capacity-effects section.
+>
+> **Detection delay: alert latency.** The error-rate alert is configured to fire on a 5-minute window crossing 5%. Impact began at 15:30 (deploy time) but only became visible to the alert at 15:42, a 12-minute detection gap. The alert window is appropriate for noise rejection but contributes to a baseline detection floor.
+>
+> **Response friction: solo first 12 minutes.** The on-call engineer was alone from declaration at 15:54 to the arrival of the secondary at 16:06. This forced the engineer to both investigate and communicate, which delayed the falsification of the first hypothesis.
+>
+> ## What went well
+>
+> - The sev1 was declared within 12 minutes of customer impact and the status page updated within 17, both inside our targets.
+> - The first mitigation attempt (feature flag) was reversible and quick to test, so the team could move to rollback within 3 minutes of seeing no improvement.
+> - The retry queue caught and replayed the failed payment attempts, recovering the revenue impact and reducing customer harm.
+>
+> ## What we would do differently
+>
+> - Page the secondary on-call at declaration, not when overwhelm becomes obvious. Solo IC plus solo investigator is unsafe past 10 minutes.
+> - Treat any change to retry behavior as a capacity-affecting change requiring a load test, not a correctness change requiring a unit test.
+> - Recognize the value of a "rollback first, understand second" stance for changes younger than the incident.
+>
+> ## Action items
+>
+> | # | Action | Owner | Deadline | Category |
+> |---|---|---|---|---|
+> | 1 | Add a load-test gate to the payments deploy pipeline that exercises the upstream call path under 2x baseline concurrency | Payments team | 2026-05-30 | Prevent |
+> | 2 | Add a "capacity effects" line item to the code review checklist for any change touching retry, timeout, or pool configuration | Engineering process owner | 2026-05-21 | Prevent |
+> | 3 | Change the on-call paging rule so that sev1 declaration auto-pages the secondary; no opt-in | Reliability team | 2026-05-23 | Respond |
+> | 4 | Add an alert on connection-pool saturation for the risk-engine client (warn at 70%, page at 90%) | Payments team | 2026-06-06 | Mitigate |
+> | 5 | Document the rollback-first heuristic in the on-call runbook and reference it from the incident commander training | Reliability team | 2026-06-06 | Respond |
+
+The skill should also emit the action items table standalone, with a leading line such as: "Action items for tracker import — copy from below."
+
+## Limitations
+
+- The skill cannot generate facts that are not in the input. If the timeline does not say when the alert fired, the output will note that the alert time is unknown rather than fabricate one.
+- The skill assumes the responders practiced reasonable hygiene (timestamps in the channel, decision moments visible). If the input is a vague after-the-fact reconstruction, the output will be similarly vague — garbage in, careful garbage out.
+- The blameless framing is enforced by replacing personal verbs with system verbs. A team that wants names attached to actions for accountability reasons should add them in a manual edit after the skill produces the draft.
+- The skill produces a draft, not a finished document. The team should still run a 30-minute review of the draft together, especially of the contributing factors section, before publishing. The skill is designed to make the first 80% fast, not to remove the human review.
+- Action item deadlines are heuristic (typically 1–4 weeks out depending on category). Real-world calibration of "what does this team realistically deliver in two weeks" is human judgment the skill cannot replicate.
+
+## Sources reviewed
+
+- https://github.com/PagerDuty/incident-response-docs
+- https://github.com/counteractive/incident-response-plan-template
+- https://github.com/aws-samples/aws-incident-response-playbooks
+- https://github.com/meirwah/awesome-incident-response
+- https://github.com/austinsonger/Incident-Playbook

@@ -1,0 +1,148 @@
+<mxfile host="app.diagrams.net" agent="skillsgit-arch" version="24.7.17" type="device">
+  <diagram name="buyer-journey" id="skg-buyer-journey">
+    <mxGraphModel dx="2400" dy="1600" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2800" pageHeight="1400" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <mxCell id="title" value="End-to-end buyer journey — web-marketplace + backend (solid = primary path; dashed = side branches / async)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=none;fontSize=18;fontStyle=1;align=left;" vertex="1" parent="1">
+          <mxGeometry x="40" y="20" width="1800" height="40" as="geometry"/>
+        </mxCell>
+
+        <!-- Discovery -->
+        <mxCell id="g-Discovery" value="Discovery" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;verticalAlign=top;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="80" width="500" height="540" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-Home" value="/&#10;(home — HeroBento +&#10;featured + trending + newest)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="80" y="130" width="380" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-SearchPg" value="/search?q=…&#10;(SearchBar query)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="80" y="260" width="380" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-Browse" value="/browse&#10;(FilterSidebar + sort)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="80" y="370" width="380" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-Category" value="/c/[slug]&#10;(category landing)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="80" y="480" width="380" height="80" as="geometry"/>
+        </mxCell>
+
+        <!-- Decision -->
+        <mxCell id="g-Detail" value="Decision page" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;verticalAlign=top;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="600" y="80" width="500" height="540" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-Detail" value="/s/[handle]/[slug]&#10;(SkillHero, PriceCard,&#10;WhatsInsidePreview,&#10;AiRequirementsCard, Reviews,&#10;VersionTimeline, InspiredBy)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="640" y="130" width="420" height="160" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-Preview" value="WhatsInsidePreview&#10;(modal — first 200 lines)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="640" y="320" width="420" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-CheckoutSub" value="POST /v1/checkout/sessions&#10;{pricing_model: subscription}" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="640" y="420" width="420" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-LibraryFree" value="POST /v1/licenses&#10;(server-issues free license)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="640" y="520" width="420" height="70" as="geometry"/>
+        </mxCell>
+
+        <!-- Checkout -->
+        <mxCell id="g-Checkout" value="Checkout + Stripe" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;verticalAlign=top;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1160" y="80" width="540" height="540" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-Checkout" value="/checkout&#10;(CheckoutSummary + PriceTag)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="1200" y="130" width="460" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-StripeRedirect" value="StripeRedirectButton&#10;→ Stripe Hosted Checkout" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#9673a6;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1200" y="230" width="460" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-StripeWebhook" value="Stripe&#10;checkout.session.completed" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#9673a6;fontStyle=1;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="1200" y="330" width="460" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-LicenseIssued" value="billing.service:&#10;License issued +&#10;delivery.send_license_email" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="1200" y="430" width="460" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-Success" value="/checkout/success&#10;(thank-you page)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="1200" y="530" width="460" height="70" as="geometry"/>
+        </mxCell>
+
+        <!-- Library + downloads -->
+        <mxCell id="g-Library" value="Library + downloads" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;verticalAlign=top;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1760" y="80" width="540" height="700" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-Library" value="/library&#10;(LicenseCard list)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="1800" y="130" width="460" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-LicenseDetail" value="/library/[license-id]&#10;(VersionPicker)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="1800" y="230" width="460" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-Resolve" value="POST /v1/delivery/resolve&#10;+ GET /v1/licenses/{id}/vault" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="1800" y="330" width="460" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-Compose" value="vault.composer.compose_for_license&#10;(cached + per-buyer watermark)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="1800" y="430" width="460" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-Presigned" value="S3 presigned URL&#10;(60s TTL)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="1800" y="530" width="460" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-Bundle" value="composed-vault.zip&#10;(downloaded by buyer)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="1800" y="630" width="460" height="70" as="geometry"/>
+        </mxCell>
+
+        <!-- Agent loop -->
+        <mxCell id="g-Agent" value="Agent loop" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;verticalAlign=top;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="2360" y="80" width="400" height="700" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-Obsidian" value="Obsidian vault on disk&#10;(opens in editor)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="2400" y="130" width="320" height="90" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-Agent" value="AI Agent&#10;(Claude Code / ChatGPT)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="2400" y="250" width="320" height="90" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-Buyer" value="Buyer&#10;(receives answer)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="2400" y="370" width="320" height="80" as="geometry"/>
+        </mxCell>
+
+        <!-- Side branches -->
+        <mxCell id="n-Refund" value="POST /v1/refunds&#10;+ Stripe charge.refund" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="1160" y="700" width="500" height="80" as="geometry"/>
+        </mxCell>
+
+        <!-- Discovery edges -->
+        <mxCell id="e-d1" value="click skill card" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-Home" target="n-Detail"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-d2" value="type in SearchBar" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-Home" target="n-SearchPg"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-d3" value="click CategoryRail tile" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-Home" target="n-Category"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-d4" value="facet click" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-Browse" target="n-Category"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-d5" value="result click" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-SearchPg" target="n-Detail"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-d6" value="result click" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-Category" target="n-Detail"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- Detail branches -->
+        <mxCell id="e-x1" value="preview README" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-Detail" target="n-Preview"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-x2" value="subscribe path" style="endArrow=classic;html=1;dashed=1;" edge="1" parent="1" source="n-Detail" target="n-CheckoutSub"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-x3" value="freemium path" style="endArrow=classic;html=1;dashed=1;" edge="1" parent="1" source="n-Detail" target="n-LibraryFree"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-x4" value="buy now" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-Detail" target="n-Checkout"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- Checkout chain -->
+        <mxCell id="e-c1" value="POST /v1/checkout/sessions" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-Checkout" target="n-StripeRedirect"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-c2" value="stripe.com&#10;card collected" style="endArrow=classic;html=1;dashed=1;" edge="1" parent="1" source="n-StripeRedirect" target="n-StripeWebhook"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-c3" value="POST /v1/webhooks/stripe&#10;(async)" style="endArrow=classic;html=1;dashed=1;" edge="1" parent="1" source="n-StripeWebhook" target="n-LicenseIssued"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-c4" value="redirect back" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-StripeRedirect" target="n-Success"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-c5" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-Success" target="n-Library"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- Library chain -->
+        <mxCell id="e-l1" value="click license" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-Library" target="n-LicenseDetail"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-l2" value="DownloadButton" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-LicenseDetail" target="n-Resolve"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-l3" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-Resolve" target="n-Compose"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-l4" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-Compose" target="n-Presigned"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-l5" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-Presigned" target="n-Bundle"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- Agent loop edges -->
+        <mxCell id="e-a1" value="extract" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-Bundle" target="n-Obsidian"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-a2" value="feed vault.json +&#10;neuron .md files" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-Bundle" target="n-Agent"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-a3" value="answers with consulted-by-&#10;attribution comments" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-Agent" target="n-Buyer"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- Side branches -->
+        <mxCell id="e-r1" value="refund window&#10;(7-day MVP)" style="endArrow=classic;html=1;dashed=1;" edge="1" parent="1" source="n-LicenseDetail" target="n-Refund"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-r2" value="license.status=refunded&#10;(async)" style="endArrow=classic;html=1;dashed=1;" edge="1" parent="1" source="n-Refund" target="n-Library"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

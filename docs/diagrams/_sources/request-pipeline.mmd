@@ -1,0 +1,54 @@
+%% End-to-end request pipeline.
+%% Example: GET /v1/catalog/skills?q=devops from the buyer's browser.
+%% Mirrors the middleware chain installed in apps/api/src/main.py.
+
+sequenceDiagram
+    autonumber
+    participant Browser as Buyer Browser
+    participant CORS as CORSMiddleware
+    participant Trace as TraceIdMiddleware
+    participant Rate as slowapi Limiter
+    participant Router as catalog.router
+    participant Service as catalog.service
+    participant ORM as SQLAlchemy 2.x async session
+    participant PG as Postgres 16
+    participant Log as structlog JSON
+    participant Err as install_exception_handlers
+
+    Note over Router: GET /v1/catalog/skills
+    Note over Service: list_skills(filters)
+    Note over PG: tables: skills, skill_versions, categories, reviews_agg
+    Note over Log: every log line carries trace_id (via contextvar)
+    Note over Err: handles AppError, HTTPException, RequestValidationError, Exception
+
+    Browser->>CORS: GET /v1/catalog/skills?q=devops
+    Note over Browser,CORS: Origin: http://localhost:3000
+    CORS->>Trace: pass (allow_origins from settings.CORS_ORIGINS)
+    Trace->>Trace: incoming X-Trace-Id or new uuid4().hex
+    Note over Trace: set _trace_id_var (contextvar)
+    Trace->>Rate: forward
+    Rate->>Rate: key = user.id if request.state.user else remote IP
+    Note over Rate: budget = LIMIT_DEFAULT = 120/min
+    alt over budget
+        Rate-->>Err: raise RateLimitExceeded
+        Err-->>Browser: 429 ErrorResponse
+        Note over Err,Browser: error.code = request.rate_limited, trace_id
+    else under budget
+        Rate->>Router: dispatch
+        Router->>Router: parse Query() params -> CatalogFilters
+        Note over Router: q, categories, sort, limit, cursor, ...
+        Router->>Service: list_skills(session, filters)
+        Service->>ORM: select(Skill).where(...).order_by(...).limit(N+1)
+        ORM->>PG: SELECT ... FROM skills JOIN ...
+        PG-->>ORM: rows[]
+        ORM-->>Service: list[Skill]
+        Service-->>Router: (items, PageInfo)
+        Router-->>Trace: SkillCardPage Pydantic model
+        Note over Router,Trace: FastAPI serialises to JSON
+        Trace-->>CORS: response + X-Trace-Id header
+        CORS-->>Browser: 200 application/json
+        Note over CORS,Browser: X-Trace-Id: hex
+    end
+
+    Note over Service,PG: async session committed only on mutations. List endpoints do not write.
+    Note over Err: AppError, HTTPException, RequestValidationError, and uncaught Exception all funnel through _render() and return ErrorResponse with fields error.code, error.message, error.details, error.trace_id, error.doc_url

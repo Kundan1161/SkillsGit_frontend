@@ -1,0 +1,327 @@
+---
+id: skillsgit-curated/service-decomposition-advisor
+version: 1.0.0
+name: Service Decomposition Advisor
+description: Analyze a monolith's modules, data, and access patterns to recommend bounded contexts, candidate service splits, data ownership, and a phased extraction plan.
+authors:
+  - name: skillsgit Curated
+    handle: skillsgit-curated
+    role: author
+category: engineering
+tags: [microservices, decomposition, ddd, bounded-context, architecture, data-ownership, strangler-fig, modular-monolith]
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6, gpt-4o, gpt-4.1, gemini-1.5-pro]
+  tools_required: [file_io]
+  tools_optional: [web_search, code_execution]
+  min_context_tokens: 32000
+  estimated_tokens_per_invocation: 8000
+trigger_keywords:
+  - decompose this monolith
+  - service boundaries
+  - microservice split
+  - bounded contexts
+  - extract a service
+  - service decomposition
+  - find the seams in my codebase
+  - strangler fig plan
+  - split into services
+  - which modules should i extract first
+  - data ownership for microservices
+  - modularization plan
+  - identify subdomains
+  - propose service boundaries
+  - context mapping
+example_invocations:
+  - "Look at this list of modules and SQL tables and propose three to five candidate services."
+  - "We want to extract Billing from the monolith first — outline the strangler plan."
+  - "Help us find bounded contexts in the order management module; we keep arguing about ownership."
+inputs:
+  - name: system_overview
+    type: text
+    required: true
+    description: A description of the current monolith — modules, top-level packages, key SQL tables, queue topics, cron jobs, and external integrations.
+  - name: pain_points
+    type: text
+    required: false
+    description: What is actually painful today — deploy coupling, scaling hotspots, team coordination overhead, blast radius of outages, regulatory isolation needs.
+  - name: team_topology
+    type: text
+    required: false
+    description: How many teams own the monolith, how big they are, and roughly which modules each team works in.
+  - name: access_patterns
+    type: text
+    required: false
+    description: High-level read/write patterns — what's read-heavy, what's write-heavy, what cross-module joins exist, what runs in batch.
+  - name: constraints
+    type: text
+    required: false
+    description: Hard constraints (e.g. "must keep a single transactional boundary around order and payment", "data must stay in one region", "no new datastores this year").
+  - name: extraction_horizon
+    type: choice
+    required: false
+    description: Time pressure for the first extraction. Affects how aggressive the recommended first split is.
+    choices: [one-quarter, two-quarters, one-year, multi-year]
+outputs:
+  - name: decomposition_report
+    type: markdown
+    description: Bounded-context map, candidate service list, data-ownership table, dependency graph notes, and a phased extraction plan.
+  - name: candidate_services_json
+    type: json
+    description: Machine-readable list of proposed services with names, responsibilities, owned data, dependencies, and a risk score.
+  - name: extraction_plan
+    type: markdown
+    description: A phased plan with milestones, strangler-fig stages, rollback triggers, and an early-stop heuristic if the first phase struggles.
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Initial release.
+---
+
+# Service Decomposition Advisor
+
+## When to use
+
+Use this skill when a team has a working monolith — or a large modular service — and is considering splitting it into smaller services, modules, or bounded contexts. The skill is calibrated for teams in the awkward middle: large enough that coordination hurts, not so large that the path is obvious. It is also useful for teams who already decided to split and now need to pick where to cut first.
+
+Common triggers:
+
+- "Our deploys take an hour and one team's bad commit blocks five teams."
+- "Scaling the cart code requires us to scale everything because it all runs in one process."
+- "We can't put EU customer data in a separate region without separating the customer module."
+- "We want to spin up a new team and there's no clean slab of work to give them."
+- "Two services share a database; reviewing schema changes has become a committee."
+
+Do not use this skill for:
+
+- Greenfield microservice design with no existing code. Run a domain modeling exercise first; the skill's heuristics depend on observed dependency patterns.
+- Pure database sharding (horizontal scaling of one table). That is a different problem with different trade-offs.
+- Cosmetic reorganizations of a healthy monolith. If the monolith is not actually painful, decomposition is a cost without a benefit. The skill will say so when the input does not show pain.
+
+## Inputs
+
+- `system_overview` (required) — The more concrete, the better. Module names, package boundaries, table names, queue topics, the rough call graph between modules, and the external systems integrated.
+- `pain_points` — Drives the priority ordering. Decomposition without pain is risk without reward; the skill weights its recommendations toward pain relief.
+- `team_topology` — Conway's law cuts both ways. Knowing the team layout lets the skill propose service boundaries that a team can actually own.
+- `access_patterns` — Distinguishes shared kernels from coincidental coupling. A table that two modules read but only one writes is far less risky to split than a table both write.
+- `constraints` — Hard limits the skill must respect. Common constraints: transactional invariants the business cannot lose, regulatory isolation rules, datastore moratoriums, language/runtime constraints.
+- `extraction_horizon` — Affects ambition. A one-quarter horizon biases toward a single small extraction; a multi-year horizon allows a multi-service map with sequencing.
+
+## How to apply
+
+This skill is a reasoning pipeline. Apply the steps in order. Each step adds material to a working document that becomes the final report.
+
+### 1. Build a model of the current system
+
+1.1. From the `system_overview`, extract a list of modules or packages. For each, capture: what it does in one sentence, the tables or topics it owns or reads, and the modules it calls.
+
+1.2. Build a dependency adjacency matrix mentally: rows are modules that call, columns are modules that are called. Edge weights are qualitative (frequent, occasional, rare) since exact call counts are usually absent from the input.
+
+1.3. Mark each module with a **change frequency** signal if the input contains hints (active development, mostly stable, legacy). Modules with mismatched change frequencies are good candidates to split apart; modules that always change together belong in the same context.
+
+1.4. Note shared data. Tables read by many modules are coupling points; tables written by many modules are red flags. Distinguish "owned by module M" from "written by module M occasionally" — the latter is a leak.
+
+1.5. Note shared cross-cutting concerns (auth, audit logging, feature flags, billing). These almost never become standalone services in the first phase; they are usually shared kernels or libraries.
+
+### 2. Identify candidate bounded contexts
+
+2.1. Start from the language. If the team talks about "the order", "the cart", "the catalog", "the customer", "the invoice" as distinct things — even if they share a database today — each is a candidate context.
+
+2.2. For each candidate context, list the modules and tables that would belong to it. A context that has zero tables is suspect (it is a stateless concern, possibly a library, not a service). A context that has more than one transactional cluster is suspect (it is two contexts pretending to be one).
+
+2.3. Apply the **change-together** heuristic: code paths that always need to be changed together belong in the same context. If the test suite requires editing twelve files spread across modules every time a small feature lands, the modules are one context.
+
+2.4. Apply the **conversation-together** heuristic: subjects discussed by one team in one standup belong in one context. Contexts that require three teams to coordinate every release are misaligned.
+
+2.5. Apply the **fail-together** heuristic: if module A is down, can module B still serve traffic? If yes, they are good candidates to separate. If no, they share an availability fate and separating them just moves the failure mode.
+
+2.6. Tag each candidate context with a **strategic role**: core (the differentiator), supporting (necessary but not differentiating), generic (commodity, possibly outsourceable). Core contexts deserve the most design attention; generic contexts may be replaced by SaaS rather than extracted.
+
+### 3. Identify the natural seams
+
+3.1. A **seam** is a place where the existing code already mostly respects a boundary. Look for: interface boundaries between modules with few methods crossing, tables read across module lines but not written across, queue topics that already act as decoupling layers.
+
+3.2. **Anti-seams** are places where the boundary is heavily violated. Common anti-seams: shared mutable state, distributed transactions, modules that read each other's tables directly, foreign keys that cross context lines without indirection.
+
+3.3. Score each candidate context by the ratio of seams to anti-seams. A high seam-to-anti-seam ratio means the extraction is mostly mechanical; a low ratio means there is real design work to do first.
+
+3.4. The first extraction should aim at the candidate with the highest seam ratio and the strongest pain alignment. Do not pick the most exciting context to extract first; pick the one most likely to succeed.
+
+### 4. Map relationships between contexts
+
+4.1. For each pair of contexts, classify the relationship using a standard context-mapping vocabulary:
+
+- **Shared kernel** — both contexts depend on a small, jointly owned model. Tolerable for very stable concepts (Money, EmailAddress); risky elsewhere.
+- **Customer–supplier** — upstream provides what downstream needs; downstream has a voice in the upstream API.
+- **Conformist** — downstream accepts upstream's model without negotiation.
+- **Anti-corruption layer** — downstream translates upstream's model into its own; useful when the upstream is legacy or external.
+- **Open host service** — upstream publishes a stable open API for many downstreams.
+- **Published language** — both sides agree on a wire schema (events, messages).
+- **Partnership** — two contexts succeed or fail together; their schedules are joined.
+- **Separate ways** — the contexts do not interact; deliberate isolation.
+
+4.2. Mark each relationship with the direction of dependency (which is upstream, which is downstream) and whether the relationship will need to change post-extraction.
+
+4.3. Flag any **bidirectional dependencies** between contexts as a red flag for the extraction order — those cycles need to be broken first, usually by introducing an event or an anti-corruption layer.
+
+### 5. Decide data ownership
+
+5.1. The default rule: each table is owned by exactly one context. Other contexts may read it only via the owner's API, never via direct SQL after extraction.
+
+5.2. List tables that violate the default rule. Each violation is either a data-duplication candidate (small read-only data: copy it), an API call candidate (read-only but mutable: call the owner), or a schema split candidate (joint write: split the table).
+
+5.3. Identify reference data — country codes, currency lists, tax rules, feature flags. Reference data is best handled as a shared library or a low-traffic read-only service, not duplicated per context.
+
+5.4. Identify transactional boundaries that cross contexts. Each cross-context transaction must either move inside one context (consolidate ownership) or convert into a saga / process manager pattern with explicit compensations. Sagas are real work; budget for them.
+
+5.5. Plan the migration strategy for owned data. Options:
+
+- **Copy + cut-over** — duplicate the data into the new service, run both writes, verify, switch reads, retire old writes. Lowest risk, highest temporary cost.
+- **Schema split** — move tables into a new schema/database with a logical move. Faster, riskier; relies on accurate ownership analysis.
+- **Lazy migration** — new writes go to the new service; old data stays where it is and is read through the new service. Useful for very large tables.
+
+### 6. Pick the first extraction
+
+6.1. Score each candidate context on five axes (each 1–5):
+
+- **Pain relief** — how much of today's pain does extracting this context eliminate?
+- **Seam quality** — how clean is the boundary?
+- **Independent value** — can the extracted service ship value without a second extraction?
+- **Team ownership** — is there a team ready to own it?
+- **Reversibility** — if extraction fails, can the team revert without lasting damage?
+
+6.2. Rank contexts by total score. Filter out anything with reversibility under 3 — early failure must not destroy the system.
+
+6.3. Recommend the top one or two as Phase 1 extractions. Avoid recommending more than two simultaneous extractions; teams underestimate the operational tax of running new services.
+
+6.4. If no context scores above 12/25, recommend **modularize first** — improve internal boundaries within the monolith for one or two quarters, then re-run the analysis. A modular monolith is a respectable destination.
+
+### 7. Build the phased extraction plan
+
+7.1. Phase 1 — **prepare**. Inside the monolith, introduce a module boundary that matches the chosen context. No new process yet. Outcomes: a clean internal API, an owned database schema, no cross-module direct SQL.
+
+7.2. Phase 2 — **double-write or shadow-read**. Stand up the new service. Dual-write or shadow-read against the monolith. Compare results in production traffic. This is the strangler-fig facade phase.
+
+7.3. Phase 3 — **route reads**. Switch read traffic to the new service for a percentage that ramps from 1% to 100% over weeks. Watch error rates, latency, and consistency drift.
+
+7.4. Phase 4 — **route writes**. Move writes to the new service. The monolith becomes a consumer of events emitted by the new service if it still needs the data.
+
+7.5. Phase 5 — **retire**. Remove the duplicated paths from the monolith. The extraction is done when the monolith no longer reads or writes the moved tables.
+
+7.6. For each phase, list:
+
+- Acceptance criteria — what must be true to advance.
+- Rollback trigger — what observed condition reverts to the previous phase.
+- Owner — which team holds the phase.
+- Estimated calendar duration with a wide range (typical: 2–8 weeks per phase for a meaningful context).
+
+### 8. Plan the supporting infrastructure
+
+8.1. **Service discovery** — how the monolith finds the new service. Avoid hardcoded URLs; use the team's existing discovery mechanism.
+
+8.2. **Observability** — distributed tracing must be set up before the cut-over. Without traces, debugging across the new boundary is brutal.
+
+8.3. **Authentication and authorization** — the new service inherits the monolith's auth model on day one (service-to-service token or signed request); a cleaner model can come later.
+
+8.4. **Events** — if the extracted context will emit events, pick the event bus and schema format in Phase 1. Late event-schema fights derail extractions.
+
+8.5. **Schema evolution** — agree on backward-compatible schema rules for the new service's API and events before Phase 2.
+
+8.6. **CI/CD and runbooks** — the new service needs its own pipeline, alerting, and runbook before Phase 3. Otherwise on-call is unprepared at the worst moment.
+
+### 9. Plan the team and ownership
+
+9.1. The extracting team should own the new service end-to-end. Hand-off to a different team mid-extraction is a major risk.
+
+9.2. If the team is not ready (lacks production experience with the language, the runtime, or distributed systems), recommend a smaller first extraction or a sponsor team to pair.
+
+9.3. Define an explicit RACI for the new boundary: who is responsible, accountable, consulted, informed for changes in the new service and at the boundary.
+
+9.4. Update on-call expectations. The new service must have a primary and secondary on-call from Phase 2 onward.
+
+### 10. Surface the risks and the kill switches
+
+10.1. List the top five risks. For each, name the indicator that would surface it (a metric, a log signature, a customer complaint pattern) and the response.
+
+10.2. Define a kill switch per phase: a one-command revert that returns traffic to the monolith path. Kill switches must be exercised, not just designed.
+
+10.3. Name the conditions under which the extraction should be **abandoned**, not just rolled back. Abandoning is a respectable outcome; pretending the extraction is going well when it is not is the expensive failure mode.
+
+### 11. Write the report
+
+11.1. Lead with a one-paragraph executive summary: how many services are proposed, which one is recommended first, the rough horizon, and the top risk.
+
+11.2. Include a context map (in text form: contexts as a bulleted list with their relationship lines below). If the consumer can render diagrams, also emit a Mermaid or Structurizr-DSL block as a separate code fence.
+
+11.3. Include the data-ownership table: rows are tables, columns are (current owner, proposed owner, action).
+
+11.4. Include the phased plan with phase, acceptance criteria, rollback trigger, owner, duration.
+
+11.5. Close with the open questions the analysis could not answer — specific data the team should collect before committing.
+
+### Decision rules and heuristics
+
+- **Conway's law is non-negotiable.** Service boundaries that do not match team boundaries become political artifacts. If the team topology says no, redesign the topology before the architecture.
+- **Start small.** Extract one boring service first. The team learns deployment, observability, on-call, and rollback in low-stakes territory.
+- **Avoid the distributed monolith.** Two services that must deploy together, share a database, or have synchronous request chains longer than two hops are not real services; they are a monolith with extra latency.
+- **Prefer asynchronous over synchronous communication between contexts** when consistency requirements permit it. Async coupling tolerates failures better.
+- **Don't optimize for elegance.** A messy modular monolith that ships beats a beautiful microservice plan that does not.
+- **Pay the operational tax up front.** If the team cannot run two services well, it cannot run twenty. The first extraction is an investment in operational maturity.
+- **Resist the urge to "future-proof" by over-splitting.** Two services that should have been one are easier to fix by merging than two services that should have been four are by splitting again.
+
+### Edge cases
+
+- **The monolith is a successful business and not actually painful.** Recommend a modular-monolith path: strengthen internal boundaries, set up package-level ownership, defer extractions until pain is observed.
+- **The monolith has no tests.** Recommend a test-and-stabilization phase before any extraction. Strangler fig assumes you can verify equivalence; without tests, the verification is wishful thinking.
+- **The data is heavily denormalized for performance.** The denormalization probably encodes a real boundary already; surface the inferred boundary as a candidate context.
+- **The team wants to switch language or runtime as part of the extraction.** Recommend doing one or the other first, not both. Combined language-and-boundary moves quadruple risk.
+- **Compliance requires a hard isolation (e.g. PCI scope).** Treat that compliance boundary as the first decomposition line, even if other splits look more attractive technically.
+- **The monolith has cron jobs.** Jobs are easy to overlook in decomposition. Map each job to a context; jobs without a clear owner are technical-debt markers.
+- **There is a shared session store, cache, or feature-flag service used by every module.** That is fine; it is a platform capability, not a context. Do not try to extract platform capabilities as part of the first wave.
+
+## Outputs
+
+- `decomposition_report` — A markdown document of 2–5 pages with sections: Executive Summary, Current System Model, Candidate Bounded Contexts, Context Map, Data Ownership, Recommended First Extraction, Risks, Open Questions.
+- `candidate_services_json` — An array of `{ name, responsibility, owned_tables, owned_topics, upstream, downstream, score, risk_notes }` records suitable for storing in an architecture inventory.
+- `extraction_plan` — A separate markdown document focused on the phased plan, milestones, rollback triggers, and on-call readiness checklist. Often consumed by the team running the extraction independently from the analysis report.
+
+## Examples
+
+### Worked example
+
+Input excerpt:
+
+> Rails monolith, eight years old, 12 engineers, one deploy pipeline, one Postgres database with about 180 tables. Top-level modules: Catalog, Cart, Checkout, Payments, Orders, Fulfillment, Customers, Notifications, Admin. Pain: payments releases require a coordinated change with checkout 60% of the time; the catalog scaling story is a wreck because the same web tier serves catalog reads and order writes; an EU residency requirement is coming and the customer table is a hot mess. Teams: Customer Experience (Catalog, Cart, Checkout), Money (Payments, Orders, Fulfillment), Platform (everything else).
+
+Expected output sketch:
+
+- **Candidate contexts**: Catalog, Cart, Checkout, Payments, Order Lifecycle (merge Orders + Fulfillment), Customer Identity, Notifications, Admin.
+- **Strategic roles**: Catalog (core), Checkout + Payments + Order Lifecycle (core), Customer Identity (supporting with compliance weight), Notifications (generic), Admin (supporting).
+- **First extraction recommendation**: **Catalog**. High pain relief (scaling), excellent seam (mostly reads, well-bounded data), reversible, and aligns with the Customer Experience team's ownership.
+- **Alternative first extraction**: **Customer Identity**, driven by the EU residency requirement. Lower seam quality (customer joins many tables) but high strategic urgency.
+- **Phased plan**: Phase 1 — modularize Catalog inside the monolith (4–6 weeks), Phase 2 — stand up the Catalog read service with shadow reads (4–8 weeks), Phase 3 — switch reads (3 weeks), Phase 4 — move writes (4–6 weeks), Phase 5 — retire monolith catalog code (2 weeks).
+- **Risks**: cache invalidation drift between monolith writes and new service reads in Phase 2; observability gap during Phase 3 ramp; under-staffed on-call once the new service is live.
+- **Kill switches**: per-phase feature flag that routes 100% of catalog traffic back to the monolith path; verified weekly until Phase 5.
+- **Open questions**: Are there cron jobs in the Catalog module not mentioned in the input? Is there an existing event bus or will the team need to introduce one?
+
+## Limitations
+
+- The skill works from a description of the system, not from the code itself. Misremembered or omitted modules will skew recommendations; encourage the user to attach a recent module list or table list.
+- It cannot run static analysis or query the database. It cannot tell which tables are truly shared without that information, only infer from the user's description.
+- It is biased toward conservative, low-risk recommendations. Teams that want to extract many services in parallel will receive a counter-recommendation.
+- It does not generate the new service's source code. Its output is a plan and a context map; implementation is a separate step.
+- For very small systems (under twenty modules), the bounded-context vocabulary is heavier than needed. In those cases the skill will often recommend modularization rather than extraction.
+
+## Sources reviewed
+
+- https://github.com/ContextMapper/context-mapper-dsl
+- https://github.com/structurizr/structurizr
+- https://github.com/backstage/backstage
+- https://github.com/mingrammer/diagrams
+- https://github.com/simskij/awesome-software-architecture
+- https://github.com/thomvaill/log4brains
+- https://github.com/adr/madr

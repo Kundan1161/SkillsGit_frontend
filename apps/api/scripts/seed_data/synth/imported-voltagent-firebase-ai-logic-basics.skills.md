@@ -1,0 +1,93 @@
+---
+id: skillsgit-curated/imported-voltagent-firebase-ai-logic-basics
+version: 1.0.0
+name: Firebase AI Logic Basics
+description: Set up and use Firebase AI Logic across Web, iOS, Flutter, and Android — text generation, multimodal input, chat, streaming, structured JSON, and on-device hybrid inference.
+authors:
+  - name: Firebase
+    handle: firebase
+    role: author
+  - name: skillsgit Curated
+    handle: skillsgit-curated
+    role: maintainer
+category: engineering
+tags: [imported, source-voltagent, firebase, ai-logic, gemini, vertex-ai, multimodal]
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6, gpt-4o]
+  min_context_tokens: 32000
+  estimated_tokens_per_invocation: 6000
+trigger_keywords: [firebase ai, ai logic, gemini api, vertex ai gemini, app check ai]
+example_invocations:
+  - Add Gemini-powered chat to my Web app via Firebase AI Logic
+  - Use multimodal input (image + text) in my iOS app
+  - Enable App Check before deploying AI to production
+inputs: []
+outputs: []
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Imported from VoltAgent/awesome-agent-skills under Apache-2.0.
+---
+
+# Firebase AI Logic Basics
+
+## When to use
+
+Use this skill when adding generative AI capabilities (text generation, multimodal input, chat, streaming, structured JSON output, on-device hybrid inference) to Web, iOS, Flutter, or Android apps via Firebase AI Logic.
+
+## How to apply
+
+Pick the API provider (Gemini Developer API vs Vertex AI Gemini API) early — the choice affects pricing, regions, and feature availability. Always require App Check before production. Use Remote Config to gate AI features behind flags so you can disable them without redeploying.
+
+## Setup & Initialization
+
+Platform-specific paths:
+
+- **Web** (JavaScript / TypeScript)
+- **iOS** (Swift)
+- **Flutter** (Dart)
+- **Android** (Kotlin)
+
+Each provides a single client init that selects the API provider and authenticates via the Firebase config.
+
+## Core Capabilities
+
+- Text generation
+- Multimodal input (text + image / audio)
+- Chat sessions with history
+- Streaming responses
+- Structured JSON output
+- On-device hybrid inference (where supported)
+
+## Advanced Features
+
+- **Structured JSON output** — Pass a response schema; the model emits validated JSON.
+- **On-device hybrid** — Run small models locally; fall back to server inference when needed.
+
+## Security Requirements
+
+- **App Check** — Required for production to prevent abuse and quota theft.
+- **Remote Config** — Use feature flags to disable AI surfaces without redeploying.
+
+## API Provider Selection
+
+Two options:
+
+- **Gemini Developer API** — Faster start, simpler quotas.
+- **Vertex AI Gemini API** — Enterprise features, regional routing, IAM integration.
+
+Choose based on org compliance posture and required SLOs.
+
+## Attribution
+
+This skill was imported from `VoltAgent/awesome-agent-skills` under the MIT license, originating from the `firebase/skills` repository under the Apache-2.0 license. Original content authored by the listed contributor(s) at the source repository. Modifications by skillsgit: frontmatter normalization to fit marketplace spec; addition of attribution and sources sections.
+
+## Sources reviewed
+
+- https://github.com/VoltAgent/awesome-agent-skills (MIT)
+- https://github.com/firebase/skills/tree/main/skills/firebase-ai-logic-basics (Apache-2.0)

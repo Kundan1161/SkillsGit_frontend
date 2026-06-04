@@ -1,0 +1,327 @@
+---
+id: skillsgit-curated/db-query-optimizer
+version: 1.0.0
+name: Database Query Optimizer
+description: Diagnose a slow SQL query end-to-end — read the plan, fix the index, pick the join order, repair cardinality, and explain what changed.
+authors:
+  - name: skillsgit Curated
+    handle: skillsgit-curated
+    role: author
+category: engineering
+tags: [niche:performance, sql, database, postgres, mysql, indexing, query-plan, optimization]
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6, gpt-4o, gpt-4.1, gemini-1.5-pro]
+  tools_required: [file_io]
+  tools_optional: [code_execution, web_search]
+  min_context_tokens: 24000
+  estimated_tokens_per_invocation: 7000
+trigger_keywords:
+  - slow query
+  - sql is slow
+  - optimize this query
+  - explain analyze
+  - missing index
+  - query plan
+  - seq scan
+  - bad cardinality
+  - postgres slow
+  - mysql slow
+  - n+1 query
+  - lock wait
+  - join order
+  - index suggestion
+example_invocations:
+  - "This query takes 12 seconds. Tell me why and what to fix."
+  - "Read this EXPLAIN ANALYZE output and recommend the smallest change that makes it fast."
+  - "We added 200M rows and a report broke. Diagnose the regression."
+inputs:
+  - name: query
+    type: text
+    required: true
+    description: The SQL statement under investigation. Parameter placeholders are fine.
+  - name: plan
+    type: text
+    required: false
+    description: EXPLAIN, EXPLAIN ANALYZE, or EXPLAIN (ANALYZE, BUFFERS, FORMAT TEXT) output. Strongly recommended.
+  - name: schema
+    type: text
+    required: false
+    description: Relevant table DDL, including existing indexes and any partitioning. The skill will ask for it if absent and the plan is ambiguous.
+  - name: engine
+    type: choice
+    required: false
+    description: Target database engine; informs syntax and the optimizer model assumed.
+    choices: [postgres, mysql, sqlite, sqlserver, oracle, cockroach, mariadb, unknown]
+  - name: workload_context
+    type: text
+    required: false
+    description: How the query is called — frequency, OLTP vs analytical, transaction boundaries, concurrency, write contention.
+outputs:
+  - name: diagnosis
+    type: markdown
+    description: A line-by-line read of the plan, the offending operators named, and a ranked list of root causes with evidence.
+  - name: recommendations
+    type: markdown
+    description: Ordered remediations from cheapest to most invasive — index changes, query rewrites, schema changes, configuration changes — with expected impact and risks.
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Initial release.
+---
+
+# Database Query Optimizer
+
+## When to use
+
+Use this skill when a SQL query is slower than the team can tolerate and the path forward is not obvious from glancing at the query. It is built for the moment a developer has tried "add an index on the WHERE column" and the query is still slow, or has read EXPLAIN ANALYZE output and cannot tell which operator to be angry at. It is equally appropriate for a brand-new query that's slow on first execution, for a query that was always fast and just regressed, and for a query that's only slow under concurrent load.
+
+The skill is engine-aware but engine-agnostic in shape. It applies the same diagnostic procedure to Postgres, MySQL, SQL Server, Oracle, CockroachDB, and SQLite — only the vocabulary and the access-path types differ. It assumes the user can run an EXPLAIN against the database, or can paste an existing plan; without a plan the diagnosis is limited to syntactic and schematic concerns.
+
+Do not use this skill for ORM-level questions where the SQL is generated and the question is "what ORM call would produce a better query" — for that, prefer a dedicated ORM-tuning skill that knows the framework. Do not use it for "what database should we choose" questions; those belong in a system-design skill. And do not use it as a substitute for the engine's own query-tuning advisor when the engine has one (e.g., Postgres `auto_explain`) — instead, the skill consumes that advisor's output and reasons over it.
+
+The skill refuses to recommend an index without seeing the plan. Indexing on the wrong column is one of the more common ways to make a query slower. Reading the plan is non-negotiable.
+
+## Inputs
+
+| Input | Required | Purpose |
+| --- | --- | --- |
+| `query` | yes | The statement under investigation. |
+| `plan` | no, strongly recommended | EXPLAIN or EXPLAIN ANALYZE output; without it the skill's confidence is reduced. |
+| `schema` | no | Table DDL and index list; the skill will request it if the plan is ambiguous. |
+| `engine` | no | Engine identity; if absent the skill infers from plan syntax or asks. |
+| `workload_context` | no | How and how often the query is called; needed for write-skew, concurrency, and partitioning advice. |
+
+If `plan` is missing, the skill begins with a request for `EXPLAIN (ANALYZE, BUFFERS, FORMAT TEXT)` (or the engine equivalent) and the exact statement timing. It also asks for the plan from before the regression if one is available — comparing two plans is the fastest way to identify what changed.
+
+## Outputs
+
+The skill produces a `diagnosis` and a `recommendations` document. The diagnosis is a structured read of the plan with each suspicious operator called out by node id, its evidence quantified (actual rows vs estimated rows, buffer hits vs reads, loops). The recommendations are ordered from cheapest to most invasive, each with the expected impact, the way to verify the impact, and the risks the user should know about before applying it.
+
+## How to apply
+
+The agent runs the eight-stage diagnostic procedure. The procedure is the same across engines; the vocabulary differs.
+
+### Stage 1 — Restate the query and its job
+
+Before reading any plan the agent writes a one-sentence description of what the query is supposed to do, in plain English. Examples: "fetch the most recent 20 orders for a given customer with their line items" or "compute monthly active users for the last 90 days, grouped by plan tier." This step is not bureaucratic — it is the test against which the plan will be judged. A query whose plan does not match its job is almost always doing the wrong work.
+
+The agent identifies the result shape: how many rows the caller actually wants, with what selectivity. Many query problems are caused by code that asks for thousands of rows when it will use the first ten.
+
+The agent classifies the workload regime from `workload_context`: OLTP (latency-sensitive, small result, high concurrency), reporting (latency-tolerant, large scan, low concurrency), or batch (throughput-sensitive). The right plan shape differs across regimes.
+
+### Stage 2 — Read the plan top-down
+
+The agent reads the plan as a tree, root first. For each node it records four numbers: estimated rows, actual rows, loops, and time. These four numbers drive almost every diagnosis.
+
+The critical comparison is estimated vs actual. A node whose estimate is off by more than an order of magnitude is the optimizer flying blind. That mis-estimate cascades upward — the join order, the join algorithm, and the memory grant were all chosen on the basis of a bad number. Most "the optimizer chose the wrong plan" problems trace to a cardinality mis-estimate at a leaf.
+
+The agent records the buffer numbers when available. A node that hits buffers (in-memory pages) is cheap; a node that reads (from disk) is expensive. A plan that "feels" fast in a development environment because everything is cached can be ruinous in production.
+
+The agent records the loop counts. A node with `loops=1` did its work once; a node with `loops=10000` did its work ten thousand times. Per-row cost matters less than total work, and total work is `cost * loops`.
+
+### Stage 3 — Classify each access path
+
+For every leaf node the agent classifies the access path. The catalog differs by engine but the shape is universal:
+
+- Full table scan / sequential scan — reads every row of the table. Acceptable for small tables and for selecting most rows; ruinous for selecting a few rows from a large table.
+- Index-only scan — satisfies the query from the index alone. Often the fastest path; requires the index to cover all referenced columns.
+- Index scan — reads the index and then fetches matching rows from the heap. Cheap for selective predicates; degenerates toward a full scan when many rows match.
+- Bitmap index scan — combines multiple indexes via bitmap; useful when several non-selective predicates together are selective.
+- Index range scan — walks a range of an ordered index. Cheap for tight ranges; expensive for ranges that cover most of the index.
+- Index skip scan / loose index scan — skips leading-column values an index does not constrain. Available on some engines, sometimes faster than expected.
+
+The agent calls out the path used and the path that would have been ideal. The gap is the index or schema work to do.
+
+### Stage 4 — Find the cardinality lies
+
+Cardinality estimates depend on statistics, and statistics drift. The agent looks for:
+
+- Stale statistics — when the table was loaded recently or the data distribution has shifted, the optimizer's row estimates can be wrong by orders of magnitude. The fix is to update statistics (engine-specific: `ANALYZE` on Postgres, `ANALYZE TABLE` on MySQL, `UPDATE STATISTICS` on SQL Server).
+- Missing extended statistics — correlated predicates (e.g., `country = 'JP' AND city = 'Tokyo'`) need multi-column statistics. Without them the optimizer assumes independence and underestimates.
+- Skew the histogram cannot represent — a value that is 80% of the table will be hidden in the histogram for high-cardinality columns. The fix is engine-specific (Postgres MCV expansion, MySQL histogram on the column, SQL Server filtered statistics).
+- Predicates on expressions — `WHERE lower(email) = ?` defeats column statistics unless an expression index or expression statistic exists.
+- Implicit casts — `WHERE id = '42'` against an integer column may use string-statistics, an index may be skipped, and the row estimate can be wildly off.
+
+The agent flags each cardinality lie with its evidence: "node 7 estimated 100 rows, actual 1,200,000 rows, ratio 12000x; predicate is `country = 'US' AND state = 'CA'`."
+
+### Stage 5 — Examine the join strategy
+
+Joins are the second-largest source of slow plans. The agent reads each join in the plan and applies the following rules:
+
+A nested-loop join is good when its outer side is small and the inner side has a usable index on the join column. It is catastrophic when the outer side is large and the inner side requires a per-row scan. Loops at 1,000,000+ on a nested loop are almost always wrong.
+
+A hash join is good when one side is small enough to fit in a hash table in memory and the join is on equality. It is bad when the hash side spills to disk; the plan shows this as a `Disk` annotation or temporary file usage.
+
+A merge join is good when both inputs are already sorted on the join column or have an index that delivers them sorted. It is bad when a sort is required and does not fit in memory.
+
+Engine-specific join hints exist but the skill prefers fixing the underlying cause (statistics, indexes, predicate shape) over hinting. A hint pins the plan to the current data shape; a fix lets the optimizer adapt as the data evolves.
+
+The agent looks specifically for the "broadcast/replicate vs shuffle" choice on distributed engines (CockroachDB, distributed SQL Server, Snowflake, BigQuery) — picking the wrong side to broadcast is the distributed-query equivalent of a bad join order.
+
+### Stage 6 — Audit the indexes and the schema
+
+With access paths and joins understood, the agent revisits the indexes:
+
+For each predicate that could benefit from an index, the agent identifies the leading-column order. Index order matters: an index on `(a, b)` answers `WHERE a = ? AND b = ?` and `WHERE a = ?`, but not `WHERE b = ?` on its own. The agent recommends the leading column with the highest selectivity that still allows the query to use the index for ordering when the query has `ORDER BY`.
+
+For each ORDER BY / LIMIT pair the agent considers a covering index that delivers rows in order — this is often the difference between a millisecond and a second.
+
+For each GROUP BY the agent considers an index that delivers rows pre-grouped.
+
+The agent counts the existing indexes against write cost. A table with eight indexes pays an 8x write tax on every insert. If the workload is write-heavy, removing indexes can matter as much as adding them.
+
+The agent flags duplicate indexes (one is a prefix of another) and unused indexes (engine-specific telemetry catches these — Postgres `pg_stat_user_indexes`, MySQL `sys.schema_unused_indexes`).
+
+For very large tables the agent considers partitioning. Partitioning is not a free win — it costs planning time and is wrong for queries that don't filter on the partition key. The agent recommends partitioning only when the workload has a clear partition key (time, tenant, region) and most queries include that key in the predicate.
+
+### Stage 7 — Consider locking, write-skew, and concurrency
+
+A query can be slow not because the plan is bad but because it waits. The agent asks:
+
+- Is the slow time mostly execution or mostly wait? Engine instrumentation tells: Postgres `pg_stat_activity.wait_event`, MySQL `performance_schema.events_waits_*`, SQL Server `sys.dm_exec_requests.wait_type`.
+- Is the query taking row or page locks that conflict with concurrent writers? `SELECT ... FOR UPDATE` on a hot row is a classic source of latency spikes.
+- Is there lock escalation (engine-specific, mostly SQL Server) turning row locks into page or table locks?
+- Is the isolation level higher than needed? A repeatable-read or serializable transaction may be holding visibility ranges that block writers; if the application's correctness only needs read-committed, lowering isolation can remove waits.
+- Is the query inside a long-running transaction that holds locks unnecessarily?
+
+For write-heavy workloads the agent looks for write-skew patterns: two transactions reading the same set, deciding independently, and writing changes that violate an invariant. The fix is usually a stricter isolation level or an explicit lock; the skill names the trade-off rather than picking for the user.
+
+### Stage 8 — Compose the recommendations in cost order
+
+The agent now writes the recommendation list. It strictly orders by intrusiveness:
+
+1. **Zero-code, zero-schema changes** — run `ANALYZE`, refresh statistics, tweak a query parameter, set work memory for this session. These are reversible, cheap, and often sufficient.
+2. **Indexing changes** — add a single new index, extend an existing one to cover, drop an unused one, change column order. Each carries write cost; the recommendation includes the estimated cost.
+3. **Query rewrite** — restate the query without changing semantics. Replace correlated subqueries with joins or vice versa, use a CTE materialization hint or remove one, push a predicate down, split a big query into two cheap queries with an application-level join.
+4. **Schema changes** — denormalize a hot read, materialize a view, add a generated column with an index, partition a table. These are migrations; the recommendation includes the migration risk.
+5. **Architectural changes** — move the work to a read replica, change the consistency model, add a cache. The skill names these but does not design them — that belongs in a system-design skill.
+
+Each recommendation includes the expected impact ("p95 drops from 800ms to under 50ms"), a verification step ("re-run EXPLAIN ANALYZE; the seq scan on `orders` should become an Index Scan on `orders_customer_id_created_at_idx`"), and the risks ("the new index adds ~6% write overhead on `orders`; rebuild during low traffic").
+
+## Reading EXPLAIN output without getting fooled
+
+Plans are dense. The agent applies the following discipline.
+
+The plan reported by EXPLAIN (without ANALYZE) is the planner's prediction; the plan reported by EXPLAIN ANALYZE is what actually happened on this execution. They can disagree. The agent always asks for ANALYZE if the question is "why was this slow."
+
+The cost numbers are in arbitrary units, calibrated to the planner's configuration. They are not seconds. The agent does not say "this node costs 4500" — it compares the cost of two nodes or two plans.
+
+The "actual time" in ANALYZE is per-loop. To get total time multiply by the loop count. Many readers miss this and underestimate the cost of inner sides of nested loops.
+
+The "rows" in ANALYZE is also per-loop. A node reporting `rows=10 loops=10000` produced 100,000 rows total.
+
+The buffers section, when enabled, distinguishes shared hits (in-memory pages) from reads (off-disk). A plan with a small `rows` but large `read` count is doing wasteful IO — often the sign of a non-covering index.
+
+Sort and hash nodes may show `Disk` if they exceeded memory. Disk spills convert linear costs to multi-pass costs. The fix is either more memory for that operator or a different plan that doesn't need the sort/hash.
+
+On MySQL, prefer EXPLAIN ANALYZE (8.0+) or the optimizer trace; the legacy EXPLAIN is descriptive but lacks runtime numbers.
+
+On SQL Server, prefer the actual execution plan with statistics, and read it from right to left; the operator widths in the visual plan are proportional to row counts.
+
+## Examples
+
+**Input (placeholder):**
+
+```sql
+SELECT o.*, c.name
+FROM orders o
+JOIN customers c ON c.id = o.customer_id
+WHERE o.created_at >= now() - interval '7 days'
+  AND o.status = 'shipped'
+ORDER BY o.created_at DESC
+LIMIT 50;
+```
+
+Plan (abbreviated): Seq Scan on `orders` (estimated 200 rows, actual 1,400,000 rows), Filter on `status`, then a Sort on `created_at` that spills to disk, then a Nested Loop with `customers` PK index, Limit 50. Total time 4.2s.
+
+Engine: postgres. Schema: `orders` has 80M rows; existing indexes are `(id)` and `(customer_id)`.
+
+**Agent reasoning (abbreviated):**
+
+- Stage 1: query fetches 50 rows; should be milliseconds.
+- Stage 2: estimate 200, actual 1.4M, ratio 7000x. Cardinality lie.
+- Stage 3: Seq Scan when the query wants the most recent 50 — this is the wrong access path.
+- Stage 4: predicate is `created_at >= ... AND status = ...`. No index on either column. The estimator likely thinks the time predicate is more selective than it is because of a stale `pg_class.reltuples`.
+- Stage 5: Sort spills; nested loop with PK index is fine.
+- Stage 6: needed index — `(status, created_at DESC)` or `(created_at DESC) WHERE status = 'shipped'` (partial index). The partial index wins because `status` is low-cardinality and `shipped` is the dominant value.
+- Stage 7: no locking concerns.
+- Stage 8: recommend partial index; expect plan to switch to Index Scan with no Sort; expected p95 under 50ms.
+
+**Output (abbreviated):**
+
+```
+Diagnosis: a sequential scan of 80M rows for the 7-day shipped subset, with an
+in-memory sort that spills to disk. Cardinality estimate is 7000x off, which is
+why the planner chose Seq Scan over an Index Scan.
+
+Recommendation 1 (cheap, reversible): CREATE INDEX CONCURRENTLY orders_shipped_recent
+ON orders (created_at DESC) WHERE status = 'shipped';
+Expected impact: plan switches to Index Scan, Sort disappears, p95 < 50ms.
+Risk: small additional write cost on every status update to a row going to 'shipped'.
+```
+
+## Worked example two — a join order regression
+
+**Input:** a report query that joins `events`, `users`, and `accounts`. Was 800ms a quarter ago; now 18s. No code change. Plan now does a hash join with `events` on the build side (spills to disk).
+
+**Agent reasoning:**
+
+- Stage 1: report query, latency-tolerant but 18s is unacceptable.
+- Stage 2: estimate vs actual on `events` shows 50,000 estimated, 50M actual — ratio 1000x. The table grew, `ANALYZE` has not run.
+- Stage 4: stale statistics is the leading hypothesis.
+- Stage 5: with current (wrong) estimates the planner thought `events` was small and built the hash on it; with correct stats it would build on `accounts` (truly small).
+- Stage 6: indexes already exist on the join keys.
+- Stage 8: recommendation 1, run `ANALYZE events`; recommendation 2, schedule autovacuum to run more frequently on `events`; recommendation 3, set `default_statistics_target` higher for the `events.user_id` column.
+- Verification: after ANALYZE, EXPLAIN should show the smaller relation on the build side and total time should drop below 1s.
+
+## Common offender catalog
+
+The agent uses this catalog of recurring SQL offenders to assign priors.
+
+Predicate not sargable — `WHERE lower(email) = ?` or `WHERE created_at::date = ?` defeats the index unless an expression index exists. The fix is either an expression index or rewriting the predicate to be range-based.
+
+Leading wildcard LIKE — `WHERE name LIKE '%smith'` cannot use a btree index. Either accept the scan, switch to a trigram/GIN index where supported, or move to a search engine.
+
+OFFSET pagination on large offsets — `LIMIT 20 OFFSET 100000` scans 100,020 rows to return 20. Keyset (seek) pagination is the fix when the order key is monotonic.
+
+`SELECT *` on a wide table when the caller uses two columns — wastes IO, defeats covering indexes, slows serialization. The fix is to enumerate columns.
+
+OR across columns — `WHERE a = ? OR b = ?` often does not use either index. Either rewrite as a UNION of two index scans, or use a multi-column index strategy.
+
+Implicit type coercion — `WHERE bigint_col = '42'` may use a different index than `WHERE bigint_col = 42`. Engines vary; always quote the right way for the column type.
+
+Function on indexed column — `WHERE date_trunc('day', created_at) = ?`. Either build an expression index or restate as a range.
+
+Subquery that is not the optimizer's friend — correlated subqueries in SELECT lists or WHERE clauses can be evaluated per-row. Engines vary on which they can rewrite to joins; check the plan, do not assume.
+
+OR-equivalent IN-list explosion — `WHERE id IN (...)` with tens of thousands of items can defeat planning. Move the IN-list to a temporary table or a values list.
+
+DISTINCT used to mask a Cartesian product — DISTINCT is fixing a join that's joining wrong; remove DISTINCT and fix the join.
+
+NOT IN with a nullable column — semantics differ; the optimizer is more conservative. Prefer NOT EXISTS.
+
+## Limitations
+
+- Without a plan the skill's recommendations are based on the query and schema alone and carry lower confidence. The skill marks these recommendations as provisional.
+- The skill cannot execute queries; it cannot verify recommendations against your data. Verification is the caller's responsibility, and the skill includes a verification step with each recommendation.
+- Engine-specific behavior is best for Postgres, MySQL, and SQL Server; the skill is accurate but less detailed on Oracle, Snowflake, BigQuery, Spanner, CockroachDB.
+- For very-distributed engines (Spark SQL, Trino, BigQuery) the skill knows the general shape — partitioning, broadcast, shuffle — but defers detailed cost modeling to engine-native advisors.
+- The skill does not design indexes for write-heavy workloads end-to-end; it points out write costs and offers options but does not optimize for write throughput.
+- The skill cannot detect application-level patterns (N+1 in the ORM) from a single query; for those, run the perf-investigation-playbook skill alongside.
+- Materialized-view recommendations require knowledge of refresh windows and freshness tolerance the skill does not have without `workload_context`.
+- The skill is opinionated about not using hints when statistics fixes are possible. If the team's policy forbids ANALYZE changes in production, the skill will recommend hints but flag them as second-best.
+
+## Sources reviewed
+
+- https://github.com/google/pprof (Apache-2.0)
+- https://github.com/benfred/py-spy (MIT)
+- https://github.com/sharkdp/hyperfine (MIT / Apache-2.0)
+- https://github.com/locustio/locust (MIT)
+- https://github.com/tsenart/vegeta (MIT)
+- https://github.com/GoogleChrome/lighthouse (Apache-2.0)
+- https://github.com/codesenberg/bombardier (MIT)

@@ -1,0 +1,100 @@
+---
+id: skillsgit-curated/imported-sickn33-production-code-audit
+version: 1.0.0
+name: Production Code Audit
+description: Transform a codebase to production-grade quality through autonomous discovery, comprehensive scanning, automatic fixes, and verification across security, performance, and deployment.
+authors:
+  - name: sickn33 community
+    handle: sickn33
+    role: author
+  - name: skillsgit-curated
+    handle: skillsgit-curated
+    role: maintainer
+category: engineering
+tags: [imported, source-sickn33, code-audit, security, refactoring]
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6, gpt-4o]
+  min_context_tokens: 32000
+  estimated_tokens_per_invocation: 6000
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Imported from sickn33/antigravity-awesome-skills under MIT (code) / CC BY 4.0 (content).
+---
+
+# Production Code Audit
+
+## Overview
+
+Autonomous transformation of a codebase to production-grade quality through systematic discovery, scanning, fixes, and verification.
+
+## When to use
+
+Use this skill when preparing a project for production launch, inheriting an unfamiliar codebase, before a significant scaling event, or when a security audit has flagged the codebase as a whole.
+
+## How to apply
+
+Operate through four systematic phases.
+
+### Phase 1: Autonomous Discovery
+
+Recursively scan all files to understand:
+- Architecture and module boundaries
+- Tech stack (languages, frameworks, runtimes)
+- Data flow (entry points, persistence, external calls)
+- Build and deployment configuration
+
+Do this **without user prompts** for each file. Build a mental model first.
+
+### Phase 2: Comprehensive Scanning
+
+Identify issues across six dimensions:
+- **Security**: SQL injection, exposed secrets, weak cryptography, missing input validation
+- **Performance**: N+1 queries, missing indexes, unbounded loops, oversized bundles
+- **Architecture**: Coupling violations, circular dependencies, leaky abstractions
+- **Code quality**: Dead code, duplicated logic, missing error handling, untyped boundaries
+- **Testing**: Coverage gaps, missing integration tests, brittle assertions
+- **Deployment readiness**: Health checks, observability, configuration management
+
+### Phase 3: Automatic Fixes
+
+Don't just report - actually fix issues. Refactor code, patch vulnerabilities, optimize performance, and add missing infrastructure. Prioritize:
+1. Critical security issues first
+2. Production-blocking bugs second
+3. Medium/low priority improvements organized into manageable sprints
+
+### Phase 4: Verification
+
+Run existing tests after each batch of changes. Generate before/after metrics:
+- Issue counts by severity
+- Test coverage delta
+- Bundle size / build time delta
+- Lint and type-check results
+
+## Core Principle
+
+**Do, don't just report.** A finding without a fix is half the work.
+
+## Scope Considerations
+
+The skill addresses 127+ potential issue categories across multiple dimensions. Triage ruthlessly - not every flagged issue is worth fixing on this pass. Push lower-priority items into the followup queue rather than letting them bloat the audit PR.
+
+## Limitations
+
+- Use this skill only when the task clearly matches the scope described above.
+- Do not treat the output as a substitute for environment-specific validation, testing, or expert review.
+- Stop and ask for clarification if required inputs, permissions, safety boundaries, or success criteria are missing.
+- Always run on a feature branch; never push to main without human review.
+
+## Attribution
+
+This skill was imported from `sickn33/antigravity-awesome-skills` under the MIT license (code) and CC BY 4.0 license (content/documentation). Original community author. Modifications by skillsgit: frontmatter normalization; rewrote condensed prose into structured workflow sections; addition of attribution and sources sections.
+
+## Sources reviewed
+
+- https://github.com/sickn33/antigravity-awesome-skills/tree/main/skills/production-code-audit (MIT / CC BY 4.0)

@@ -1,0 +1,219 @@
+---
+id: skillsgit-curated/imported-voltagent-cloudflare-durable-objects
+version: 1.0.0
+name: Cloudflare Durable Objects
+description: Create and review Cloudflare Durable Objects — stateful coordination (chat rooms, multiplayer games, booking systems), RPC methods, SQLite storage, alarms, and WebSockets.
+authors:
+  - name: Cloudflare
+    handle: cloudflare
+    role: author
+  - name: skillsgit Curated
+    handle: skillsgit-curated
+    role: maintainer
+category: engineering
+tags: [imported, source-voltagent, cloudflare, durable-objects, workers, stateful, sqlite, websockets]
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6, gpt-4o]
+  min_context_tokens: 32000
+  estimated_tokens_per_invocation: 6000
+trigger_keywords: [durable objects, cloudflare DO, stateful workers, sqlite storage, alarms, websocket coordination]
+example_invocations:
+  - Build a chat room with Cloudflare Durable Objects
+  - Add SQLite storage and alarms to a Durable Object
+  - Review my DO code for best practices
+inputs: []
+outputs: []
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Imported from VoltAgent/awesome-agent-skills under Apache-2.0.
+---
+
+# Durable Objects
+
+Build stateful, coordinated applications on Cloudflare's edge using Durable Objects.
+
+## When to use
+
+- Creating new Durable Object classes for stateful coordination
+- Implementing RPC methods, alarms, or WebSocket handlers
+- Reviewing existing DO code for best practices
+- Configuring wrangler.jsonc/toml for DO bindings and migrations
+- Writing tests with `@cloudflare/vitest-pool-workers`
+- Designing sharding strategies and parent-child relationships
+
+## How to apply
+
+Always retrieve current Cloudflare docs before writing or reviewing code. Use the rules and patterns below as a fast reference, but trust the docs when there's a conflict.
+
+## Retrieval Sources
+
+Your knowledge of Durable Objects APIs and configuration may be outdated. **Prefer retrieval over pre-training** for any Durable Objects task.
+
+| Resource | URL |
+|----------|-----|
+| Docs | https://developers.cloudflare.com/durable-objects/ |
+| API Reference | https://developers.cloudflare.com/durable-objects/api/ |
+| Best Practices | https://developers.cloudflare.com/durable-objects/best-practices/ |
+| Examples | https://developers.cloudflare.com/durable-objects/examples/ |
+
+## Core Principles
+
+### Use Durable Objects For
+
+| Need | Example |
+|------|---------|
+| Coordination | Chat rooms, multiplayer games, collaborative docs |
+| Strong consistency | Inventory, booking systems, turn-based games |
+| Per-entity storage | Multi-tenant SaaS, per-user data |
+| Persistent connections | WebSockets, real-time notifications |
+| Scheduled work per entity | Subscription renewals, game timeouts |
+
+### Do NOT Use For
+
+- Stateless request handling (use plain Workers)
+- Maximum global distribution needs
+- High fan-out independent requests
+
+## Quick Reference
+
+### Wrangler Configuration
+
+```jsonc
+// wrangler.jsonc
+{
+  "durable_objects": {
+    "bindings": [{ "name": "MY_DO", "class_name": "MyDurableObject" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["MyDurableObject"] }]
+}
+```
+
+### Basic Durable Object Pattern
+
+```typescript
+import { DurableObject } from "cloudflare:workers";
+
+export interface Env {
+  MY_DO: DurableObjectNamespace<MyDurableObject>;
+}
+
+export class MyDurableObject extends DurableObject<Env> {
+  constructor(ctx: DurableObjectState, env: Env) {
+    super(ctx, env);
+    ctx.blockConcurrencyWhile(async () => {
+      this.ctx.storage.sql.exec(`
+        CREATE TABLE IF NOT EXISTS items (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          data TEXT NOT NULL
+        )
+      `);
+    });
+  }
+
+  async addItem(data: string): Promise<number> {
+    const result = this.ctx.storage.sql.exec<{ id: number }>(
+      "INSERT INTO items (data) VALUES (?) RETURNING id",
+      data
+    );
+    return result.one().id;
+  }
+}
+
+export default {
+  async fetch(request: Request, env: Env): Promise<Response> {
+    const stub = env.MY_DO.getByName("my-instance");
+    const id = await stub.addItem("hello");
+    return Response.json({ id });
+  },
+};
+```
+
+## Critical Rules
+
+1. **Model around coordination atoms** — One DO per chat room/game/user, not one global DO
+2. **Use `getByName()` for deterministic routing** — Same input = same DO instance
+3. **Use SQLite storage** — Configure `new_sqlite_classes` in migrations
+4. **Initialize in constructor** — Use `blockConcurrencyWhile()` for schema setup only
+5. **Use RPC methods** — Not fetch() handler (compatibility date >= 2024-04-03)
+6. **Persist first, cache second** — Always write to storage before updating in-memory state
+7. **One alarm per DO** — `setAlarm()` replaces any existing alarm
+
+## Anti-Patterns (NEVER)
+
+- Single global DO handling all requests (bottleneck)
+- Using `blockConcurrencyWhile()` on every request (kills throughput)
+- Storing critical state only in memory (lost on eviction/crash)
+- Using `await` between related storage writes (breaks atomicity)
+- Holding `blockConcurrencyWhile()` across `fetch()` or external I/O
+
+## Stub Creation
+
+```typescript
+// Deterministic - preferred for most cases
+const stub = env.MY_DO.getByName("room-123");
+
+// From existing ID string
+const id = env.MY_DO.idFromString(storedIdString);
+const stub = env.MY_DO.get(id);
+
+// New unique ID - store mapping externally
+const id = env.MY_DO.newUniqueId();
+const stub = env.MY_DO.get(id);
+```
+
+## Storage Operations
+
+```typescript
+// SQL (synchronous, recommended)
+this.ctx.storage.sql.exec("INSERT INTO t (c) VALUES (?)", value);
+const rows = this.ctx.storage.sql.exec<Row>("SELECT * FROM t").toArray();
+
+// KV (async)
+await this.ctx.storage.put("key", value);
+const val = await this.ctx.storage.get<Type>("key");
+```
+
+## Alarms
+
+```typescript
+// Schedule (replaces existing)
+await this.ctx.storage.setAlarm(Date.now() + 60_000);
+
+// Handler
+async alarm(): Promise<void> {
+  // Process scheduled work
+}
+
+// Cancel
+await this.ctx.storage.deleteAlarm();
+```
+
+## Testing Quick Start
+
+```typescript
+import { env } from "cloudflare:test";
+import { describe, it, expect } from "vitest";
+
+describe("MyDO", () => {
+  it("should work", async () => {
+    const stub = env.MY_DO.getByName("test");
+    const result = await stub.addItem("test");
+    expect(result).toBe(1);
+  });
+});
+```
+
+## Attribution
+
+This skill was imported from `VoltAgent/awesome-agent-skills` under the MIT license, originating from the `cloudflare/skills` repository under the Apache-2.0 license. Original content authored by the listed contributor(s) at the source repository. Modifications by skillsgit: frontmatter normalization to fit marketplace spec; addition of attribution and sources sections.
+
+## Sources reviewed
+
+- https://github.com/VoltAgent/awesome-agent-skills (MIT)
+- https://github.com/cloudflare/skills/tree/main/skills/durable-objects (Apache-2.0)

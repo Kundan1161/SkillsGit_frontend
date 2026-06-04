@@ -1,0 +1,116 @@
+%% Stripe Connect — buyer-pays-creator flow.
+%% Source: apps/api/src/billing/router.py:create_checkout_session
+%%         apps/api/src/billing/service.py
+%%         apps/api/src/webhooks/service.py:_on_checkout_session_completed
+%%         apps/api/src/personas/service.py:check_persona_checkout_entitlement
+%%
+%% Stripe Connect "Standard with destination charges":
+%%   - Platform creates the Checkout Session.
+%%   - payment_intent_data.transfer_data.destination = creator's
+%%     stripe_connect_account_id.
+%%   - payment_intent_data.application_fee_amount = platform fee in
+%%     cents (compute_fee from PLATFORM_FEE_PERCENT).
+
+sequenceDiagram
+    autonumber
+    actor Buyer
+    actor Creator
+    participant FE as web-marketplace (Next.js)
+    participant Router as billing/router.py
+    participant BService as billing/service.py
+    participant PService as personas/service.py
+    participant DB as Postgres
+    participant Stripe as Stripe API
+    participant Webhook as webhooks/router.py + service.py
+    participant Audit as core.db.write_audit
+
+    %% Pre-flight: creator must have completed Connect onboarding
+    rect rgb(240, 245, 255)
+        Note over Creator,Stripe: Creator onboarding (one-time, BEFORE first sale)
+        Creator->>Router: POST /v1/creator/onboarding/start (payout_country=US)
+        Router->>BService: start_connect_onboarding(user, payout_country)
+        BService->>Stripe: client.create_account (type=express, country=US, email=creator.email, capabilities=card_payments + transfers)
+        Stripe-->>BService: Account{id=acct_...}
+        BService->>DB: UPDATE users SET stripe_connect_account_id=acct_...
+        BService->>Stripe: client.create_account_link (account=acct_..., type=account_onboarding)
+        Stripe-->>BService: AccountLink{url=https://connect.stripe.com/...}
+        BService->>Audit: onboarding.started
+        Router-->>Creator: 302 redirect to Stripe-hosted onboarding
+        Creator->>Stripe: completes bank details / ID verification
+        Stripe-->>Webhook: account.updated event (payouts_enabled=true)
+        Webhook->>DB: UPDATE users SET payouts_enabled=true
+    end
+
+    %% Buyer initiates checkout
+    Buyer->>FE: clicks "Buy" on a skill page
+    FE->>Router: POST /v1/checkout/sessions — Headers Idempotency-Key, Authorization — Body skill_id, idempotency_key
+    Note over FE,Router: Body: skill_id, idempotency_key
+
+    %% Idempotency check
+    Router->>Router: get_cached_idempotent(redis, user_id, idem_key)
+    alt cached response exists
+        Router-->>FE: 201 cached CheckoutSessionResponse (re-invocation no-op)
+    end
+
+    %% Hydrate skill
+    Router->>DB: session.get(Skill, payload.skill_id)
+    Note over Router,DB: 404 resource.not_found if missing
+
+    %% 409 gate for kind=persona
+    alt skill.kind == PERSONA
+        Router->>PService: check_persona_checkout_entitlement(session, buyer=user, skill=persona)
+        PService->>DB: lookup parent_occupation_id + buyer's active licenses on it
+        PService-->>Router: gate{ok: bool, parent_occupation_slug}
+        alt gate.ok == False
+            Router-->>FE: 409 persona.requires_parent_occupation
+            Note over Router,FE: field=parent_occupation_id, code=missing_license, message="Buyer does not hold an active license on the parent occupation (slug=...)". Frontend routes the buyer to the occupation page so they can complete the parent purchase first.
+        end
+    end
+
+    %% Pre-flight: skill must be purchasable
+    Router->>BService: create_checkout_session(buyer, skill)
+    BService->>BService: assert_skill_purchasable
+    Note over BService: status=published, not yanked, has price, not already owned, creator has stripe_connect_account_id, payouts_enabled=true
+    Note over BService: 409 codes: skill_not_purchasable, already_owned, creator_not_payable, creator_payouts_disabled, latest_version_yanked, no_published_version. 422: unsupported_pricing_model, invalid_price.
+
+    %% Create Stripe Checkout Session
+    BService->>BService: application_fee = compute_fee(amount, PLATFORM_FEE_PERCENT)
+    BService->>BService: success/cancel URLs derived from CORS_ORIGINS[0]
+    BService->>Stripe: client.create_checkout_session
+    Note over BService,Stripe: mode=payment, line_items with price_data (currency=usd, unit_amount=amount, product_data{name, description}, qty=1), payment_intent_data{application_fee_amount=fee, transfer_data{destination=creator.stripe_connect_account_id}, metadata{skill_id, skill_version_id, buyer_id}}, metadata, customer_email, success_url, cancel_url
+    Stripe-->>BService: Session{id=cs_..., url=https://checkout.stripe.com/...}
+    BService->>Audit: checkout.session_created (session_id, amount_cents, platform_fee_cents)
+    BService-->>Router: session_id, checkout_url, amount, fee
+    Router->>Router: set_cached_idempotent(redis, user_id, idem_key, response) — 24h TTL
+    Router-->>FE: 201 CheckoutSessionResponse (session_id, checkout_url)
+
+    %% Buyer redirected to Stripe-hosted checkout
+    FE->>Buyer: redirect to checkout_url
+    Buyer->>Stripe: enters card details on checkout.stripe.com
+    Stripe->>Stripe: charge buyer's card — money flow
+    Note over Stripe: amount_total to Stripe, application_fee_amount to platform, amount_total minus fee to creator's connected account (auto-transfer via transfer_data.destination)
+    Stripe-->>Buyer: 302 redirect to success_url /checkout/success?session_id=cs_...
+
+    %% Asynchronous webhook (the source of truth)
+    Stripe-->>Webhook: POST /v1/webhooks/stripe — Headers Stripe-Signature: t=..., v1=...  — Body: checkout.session.completed event
+    Note over Webhook: See webhook-flow.mmd for signature verification + dispatch detail.
+
+    Webhook->>Webhook: process_event dispatches on event.type — case checkout.session.completed: _on_checkout_session_completed
+    Webhook->>DB: idempotency: SELECT orders WHERE stripe_payment_intent_id=PI (skip if already processed)
+    Webhook->>DB: INSERT orders (buyer_id, PI_id, subtotal, platform_fee, creator_payout, currency, status=PAID, placed_at)
+    Webhook->>DB: INSERT order_items (order_id, skill_id, skill_version_id, price, fee, creator_id)
+    Webhook->>DB: INSERT licenses via issue_one_time_license (source=ONE_TIME, source_id=order_item.id, max_version=major_version_cap, status=ACTIVE)
+    Webhook->>DB: UPDATE skills SET total_sales += 1
+    Webhook->>Audit: order.placed
+    Webhook->>Audit: license.granted
+    Webhook->>Webhook: best-effort notify creator webhook (creator.webhooks.notify_creator_webhook if available — never blocks)
+    Webhook-->>Stripe: 200 OK
+
+    %% Frontend polls for license issuance
+    FE->>Router: GET /v1/checkout/sessions/{session_id}/finalize (polled by /checkout/success page)
+    Router->>BService: get_order_by_session_id (round-trips Stripe API to get PI from session_id, then queries orders)
+    BService-->>Router: Order (or None if webhook hasn't fired yet)
+    Router-->>FE: FinalizeResponse (session_id, status=complete or open, order_id, license_id)
+    FE-->>Buyer: redirect to /library when license_id present
+
+    Note over Buyer,Stripe: Money settlement (Stripe-internal): application_fee_amount lands in platform's Stripe balance immediately on capture. creator_payout part is in the creator's connected account. Payout schedule per the creator's Stripe Express settings (default daily/weekly).

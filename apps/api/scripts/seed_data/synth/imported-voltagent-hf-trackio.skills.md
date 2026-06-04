@@ -1,0 +1,99 @@
+---
+id: skillsgit-curated/imported-voltagent-hf-trackio
+version: 1.0.0
+name: Trackio Experiment Tracking
+description: Track ML experiments with real-time dashboards synced to Hugging Face Spaces — log metrics, alerts, and query via CLI for autonomous agent loops.
+authors:
+  - name: Hugging Face
+    handle: huggingface
+    role: author
+  - name: skillsgit Curated
+    handle: skillsgit-curated
+    role: maintainer
+category: engineering
+tags: [imported, source-voltagent, huggingface, trackio, experiment-tracking, mlops]
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6, gpt-4o]
+  min_context_tokens: 32000
+  estimated_tokens_per_invocation: 6000
+trigger_keywords: [trackio, experiment tracking, training metrics, hf spaces dashboard]
+example_invocations:
+  - Log training metrics to a Trackio dashboard on HF Spaces
+  - Use Trackio alerts to monitor an autonomous training loop
+  - Query metrics via the Trackio CLI in JSON
+inputs: []
+outputs: []
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Imported from VoltAgent/awesome-agent-skills under MIT.
+---
+
+# Trackio — Experiment Tracking for ML Training
+
+Trackio is an experiment tracking library for logging and visualizing ML training metrics, with synchronization to Hugging Face Spaces for real-time dashboards.
+
+## When to use
+
+Use this skill when logging and monitoring ML training runs, especially in autonomous or remote settings where dashboards must persist after the training instance terminates.
+
+## How to apply
+
+Initialize with `trackio.init()`, log metrics with `trackio.log()`, finalize with `trackio.finish()`. For remote training, pass `space_id` so metrics persist on a Space dashboard. Use `trackio.alert()` with severity levels to drive autonomous iteration loops.
+
+## Core Capabilities
+
+### Python Logging API
+
+```python
+import trackio
+
+trackio.init(project="my-experiment", space_id="user/dashboard")
+trackio.log({"loss": 0.234, "accuracy": 0.91})
+trackio.finish()
+```
+
+### Alerts API
+
+Insert diagnostic alerts in training code with three severity levels: `INFO`, `WARN`, `ERROR`.
+
+```python
+trackio.alert(severity="WARN", message="Loss diverged at step 500", step=500)
+```
+
+> Alerts are the primary mechanism for autonomous experiment iteration.
+
+### CLI for Retrieval
+
+```bash
+trackio list projects
+trackio list runs --project my-experiment
+trackio list metrics --run abc123
+trackio get metric --run abc123 --name loss --json
+```
+
+`--json` flags enable programmatic automation.
+
+## Autonomous Workflow
+
+1. Set up training with alert conditions for diagnostic events.
+2. Launch training in the background.
+3. Poll for alerts via CLI with `--json` output.
+4. Read specific metrics to inform iteration decisions.
+5. Adjust hyperparameters and launch new runs based on findings.
+
+This approach treats alerts as observable signals that autonomous systems can monitor without constant polling, enabling real-time experiment adaptation.
+
+## Attribution
+
+This skill was imported from `VoltAgent/awesome-agent-skills` under the MIT license, originating from the `huggingface/skills` repository under the MIT license. Original content authored by the listed contributor(s) at the source repository. Modifications by skillsgit: frontmatter normalization to fit marketplace spec; addition of attribution and sources sections.
+
+## Sources reviewed
+
+- https://github.com/VoltAgent/awesome-agent-skills (MIT)
+- https://github.com/huggingface/skills/tree/main/skills/huggingface-trackio (MIT)

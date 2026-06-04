@@ -1,0 +1,217 @@
+---
+id: skillsgit-curated/tech-doc-drafter
+version: 1.0.0
+name: Tech Doc Drafter
+description: Turn a feature spec, code module, or API surface into complete, well-typed documentation matched to the right reader and the right purpose, with consistent voice and lint-clean prose.
+authors:
+  - name: skillsgit Curated
+    handle: skillsgit-curated
+    role: author
+category: productivity
+tags: [documentation, technical-writing, readme, api-docs, tutorial, style-guide, developer-experience]
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6, claude-haiku-4-5, gpt-4o]
+  tools_required: []
+  min_context_tokens: 32000
+  estimated_tokens_per_invocation: 4000
+trigger_keywords:
+  - write docs
+  - document this
+  - draft documentation
+  - readme
+  - api reference
+  - tutorial
+  - how-to guide
+  - quickstart
+  - getting started
+  - user guide
+  - changelog entry
+  - module docs
+  - rewrite documentation
+  - documentation review
+example_invocations:
+  - "Draft a README for this CLI tool given the help output and the source."
+  - "Write a getting-started tutorial for our new SDK aimed at backend developers."
+  - "Produce API reference pages for the endpoints in this OpenAPI fragment."
+  - "Turn this design doc into an architecture explanation page for new hires."
+  - "Rewrite this readme as a how-to guide for migrating from v1 to v2."
+inputs:
+  - name: source_material
+    type: text
+    required: true
+    description: The artifact being documented — source code, help text, an OpenAPI fragment, a design doc, a feature spec, or a transcript of a working session.
+  - name: doc_type
+    type: choice
+    required: false
+    description: The kind of document to produce. Leave blank and the skill will pick the right kind from intent signals in the request.
+    choices: [tutorial, how_to, reference, explanation, readme, quickstart, changelog_entry]
+  - name: audience
+    type: text
+    required: false
+    description: One or two sentences describing the intended reader — role, experience level, and what they already know.
+  - name: voice_profile
+    type: text
+    required: false
+    description: Optional voice constraints — house style notes, banned words, reading level, tone descriptors. If omitted, the skill applies neutral, plain, internationally readable defaults.
+  - name: existing_docs
+    type: text
+    required: false
+    description: Snippets of existing docs to match in vocabulary, structure, and tone.
+outputs:
+  - name: doc
+    type: markdown
+    description: The drafted document, ready to commit to a docs repo.
+  - name: front_matter
+    type: markdown
+    description: Optional YAML front matter for static-site generators (Hugo, Docusaurus, MkDocs, Jekyll) when the target system is indicated.
+  - name: review_notes
+    type: markdown
+    description: Inline review comments calling out assumptions, missing inputs, and places where the reader will likely need code that the source did not supply.
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Initial release.
+---
+
+# Tech Doc Drafter
+
+## When to use
+
+Reach for this skill when an engineer hands you raw material — a feature spec, a function signature, a help printout, a migration plan, a brain-dump in a chat — and asks for "the doc." The skill picks the right kind of document for the reader's job, drafts it in plain language, and returns something that will pass a normal docs review without a second pass on structure.
+
+It is **not** the right tool when:
+
+- The user wants marketing copy, a sales one-pager, or a press release. Those need a different voice and a different reviewer.
+- The user only wants a code comment or a docstring. Use a code-comment skill — the overhead here is too high.
+- The source material is a finished doc and the user wants editing, not drafting. Send it to a style-lint or copy-edit skill instead.
+- The user wants a translated version of an already-good doc. Translation needs a translator that owns terminology consistency.
+
+Engage the skill when at least two of these are true: the reader is named, the source material is the *artifact* being described (not another doc), and the asker uses verbs like *write*, *draft*, *produce*, *generate*, or names a doc type (*tutorial*, *readme*, *guide*, *reference*, *quickstart*).
+
+## How to apply
+
+The methodology runs in four phases. Do not skip phases — each one removes a class of common doc defects.
+
+### Phase 1 — Classify the request and pick the doc type
+
+1. **Read the prompt for intent verbs.** "Show me how to" implies a tutorial. "Help me do X" implies a how-to. "What does this return?" implies reference. "Why does it work this way?" implies explanation. If the asker named a doc type explicitly, accept it but still run the audience check in step 4 below — wrongly-typed docs are the single most common defect.
+2. **Restate the user's job in one sentence.** The reader will arrive with a job; everything that does not serve that job is noise. Write the sentence privately: "A *role* who already knows *prior knowledge* wants to *verb the object* so they can *outcome*."
+3. **Pick exactly one of these seven shapes.** Mixing shapes is the second-most-common defect; resist it.
+   - **Tutorial** — a lesson. The reader is a learner. Success = they finish, and have made the thing work once.
+   - **How-to** — a recipe. The reader is competent and goal-driven. Success = they finish their task.
+   - **Reference** — a lookup. The reader is auditing or scanning. Success = they get the exact fact they came for.
+   - **Explanation** — a discussion. The reader wants understanding. Success = they can argue the trade-offs.
+   - **README** — an entry door. The reader is deciding whether to use the thing. Success = they install it and run one example.
+   - **Quickstart** — a strictly time-boxed first-success path. Success = under N minutes to first output, with N stated up front.
+   - **Changelog entry** — a delta. The reader is upgrading. Success = they know whether to act and what to change.
+4. **Audience check.** Re-read the source. If the source is a CLI's help output, the audience is almost certainly an operator, not a learner — so a tutorial is the wrong shape. If the source is an OpenAPI fragment, the audience is an integrator and they want reference *plus* one canonical how-to per endpoint. Adjust.
+5. **Decline if you cannot tell.** If neither the user nor the source supplies an audience, ask one targeted question rather than guessing. A wrong-audience draft is worse than a five-minute pause.
+
+### Phase 2 — Extract the facts
+
+6. **Inventory the source.** List every public symbol, command, flag, endpoint, parameter, error code, environment variable, return shape, and exit code that appears in the source. Number them. This is your fact base.
+7. **Tag each fact as *load-bearing* or *incidental*.** Load-bearing = the reader fails without it. Incidental = a curiosity. A README that lists every flag in equal weight is hard to read; a README that surfaces the three load-bearing ones is not.
+8. **Flag every missing input.** When the source mentions a parameter without a type, a function without an example, an endpoint without an error response — record the gap in `review_notes`. Do *not* invent. Inventing is the defect this skill exists to prevent.
+9. **Build a small terminology table.** Two columns: the term as it appears in the source, the term you will use in the doc. Choose one form per concept and use it everywhere. Mixed terminology ("user" vs "account" vs "customer" for the same thing) is the single biggest source of reader confusion.
+10. **Note the prerequisites.** Anything the reader must have installed, configured, or true about their environment before step one. List them; the doc will state them up front.
+
+### Phase 3 — Draft against a shape-specific template
+
+11. **Tutorial template.** Title states the outcome ("Build your first X"). Opening paragraph: reader, prerequisites, time estimate, what they will have at the end. Then a strict numbered sequence: each step is one action, one expected output, and one short check ("you should see…"). End with a "what next" section pointing to the next learning step, *not* to reference material.
+12. **How-to template.** Title is verb-first ("Migrate from v1 to v2", "Add a custom validator"). Opening paragraph: who this is for, what state they should be in before starting. Then a numbered sequence as in a tutorial — but tighter, no teaching asides. End with a verification step and a "see also" pointing to reference.
+13. **Reference template.** No narrative. One stable structure per entry: signature, parameters (table), return shape (table), errors (table), at least one example, links to related entries. Reference is read in pieces; assume the reader landed via search.
+14. **Explanation template.** Opening: the problem this thing solves. Middle: alternatives considered and why this approach won. Late: the trade-offs the reader is now living with. Optional: history, if it explains a non-obvious decision. No procedural steps — if a reader needs to *do* something, link to a how-to.
+15. **README template.** One-line description (matches your `description` frontmatter). Badges (build, version, license) optional. *What it is* in three sentences. *Install* — one command. *Run an example* — one command and the expected output. *Where to read more* — links to a quickstart, the reference, and a changelog. Keep it under one screenful where possible.
+16. **Quickstart template.** Header states the time budget. List prerequisites bluntly ("you need: node 20, a free port on 3000"). One numbered path, no branches, no choices. End with one success check and a single link to "now build something real."
+17. **Changelog entry template.** Lead with the *who it affects* and *what they must do*. Then *what changed* in one sentence. Then *why*. Then *how to migrate*, if breaking. No flowery prose.
+18. **Apply the prose rules at draft time, not after.** Write short sentences. Lead with the verb. Prefer the active voice. Use second person ("you") for instructions; reserve first person plural ("we") for explanations of design. Define acronyms on first use; never use a TLA that the reader has not seen before in this doc. Numbers under ten in words, ten and above as digits, except in code. Code voice for commands, filenames, identifiers; product voice for descriptions.
+19. **Be specific about commands.** Every command is in a code block, on its own line, with no leading shell prompt unless multiple commands run together and the prompt clarifies a host change. Show output where it is non-obvious or where the reader needs to verify. Use placeholder syntax the reader will not confuse with literals (`<your-token>`, not `YOUR_TOKEN` which may look like an environment variable).
+20. **Use examples that work.** Examples must be copy-pastable and self-contained. If the example needs a setup step, put the setup step in the example. If a value is invented, mark it as invented. A broken example is worse than no example because it costs the reader trust.
+21. **Mind the global reader.** Avoid idioms ("piece of cake", "low-hanging fruit"), regional metric assumptions, dates in ambiguous formats (use ISO 8601), and humor that does not translate. The reader may be reading in their second language at 11 p.m. local time after a failed deploy.
+
+### Phase 4 — Self-review against a checklist
+
+22. **Verify the doc answers the reader's one job.** Re-read the sentence from step 2. If a paragraph does not serve that job, cut it.
+23. **Verify every load-bearing fact appears.** Walk the numbered inventory from step 6; cross off each fact as you find it in the draft. A missing load-bearing fact is a release blocker.
+24. **Verify no invented facts.** Walk the draft sentence by sentence and ask of each factual claim: was this in the source? If not, it goes in `review_notes` as an assumption to confirm — not in the doc.
+25. **Lint the prose.** Apply these checks: passive voice in instructional sentences (rewrite active), sentences over 25 words (try to split), "very/really/just/simply" (cut), "obviously/clearly/of course" (cut, the reader is at this doc because it is not obvious), TODOs ("TODO: …" — convert to a review note or resolve), un-defined acronyms (define).
+26. **Lint the structure.** Heading levels strictly nested (no H4 under H2). Every code block has a language tag. Every link is HTTPS. No headings with the same text. Tables have headers. Lists are parallel in form (all start with a verb, or all start with a noun, never mixed).
+27. **Front-load the answer.** For each section, the first sentence should state the section's claim. A reader scanning the page should be able to read only the first sentence of each section and learn the gist.
+28. **Surface the review notes.** Produce a `## Review notes` block at the bottom that lists: assumptions you made, gaps in the source, decisions a reviewer should double-check, and anything you would test before publishing. This is delivered in the `review_notes` output, not the `doc` output.
+29. **Set the metadata.** If the target system uses YAML front matter, produce it. Default fields: `title`, `description` (one sentence, under 160 chars for SEO), `audience`, `last_reviewed` (today's date), and tags. Do not invent SEO fields the project does not use; check `existing_docs` for the in-use shape.
+30. **Stop when good enough is good enough.** A perfect doc that ships next quarter is worse than a 90% doc that ships today and gets corrected in the next PR. Hand back the draft.
+
+## Inputs
+
+- **`source_material`** — required. The thing being documented. Code is best when accompanied by usage examples; specs are best when accompanied by an audience description; help text is best when accompanied by a working invocation.
+- **`doc_type`** — optional. Set this when you know what shape the reader needs; leave blank to let the skill classify from intent signals.
+- **`audience`** — optional but strongly recommended. One or two sentences. Without it the skill applies a "developer using this for the first time, comfortable with the language" default that is wrong for at least one in five jobs.
+- **`voice_profile`** — optional. Pass in a house style guide URL or a paragraph of constraints. Without it the skill applies plain-international defaults: short sentences, second person, neutral tone, no idioms.
+- **`existing_docs`** — optional. Pass in two or three pages of in-use docs and the skill will match their vocabulary and structural patterns where they do not conflict with the templates above.
+
+## Outputs
+
+- **`doc`** — the drafted document in markdown, ready to commit. Section headings match the template selected in Phase 3.
+- **`front_matter`** — YAML front matter when the target static-site generator is identified. Skipped silently when not applicable.
+- **`review_notes`** — a separate markdown block listing assumptions, gaps, and reviewer decisions. Never inlined into `doc`. Treat it as the PR description companion to the doc.
+
+## Examples
+
+### Example 1 — README from a CLI's help output
+
+**Input.** A `--help` printout for a small CLI named `pin` that pins a file to an IPFS gateway. The asker says: "Write a README for this."
+
+**Classification.** The intent verb is "write a README." The audience is implicit — anyone landing on the repo. The source is help text. The shape is **README**, *not* a tutorial — the reader needs to decide if `pin` is the thing they want.
+
+**Inventory.** Two commands (`pin add`, `pin ls`), three flags (`--gateway`, `--name`, `--quiet`), one environment variable (`PIN_TOKEN`), one exit code documented (`2` on auth failure).
+
+**Draft.** A 25-line README: one-sentence description, install (one `go install` line), an example showing `pin add ./photo.jpg` and the resulting URL, a four-row flag table, a one-line note about `PIN_TOKEN`, and links to a "quickstart" page and a "reference" page that the asker may or may not have. Both links are emitted, and both appear in `review_notes` as "confirm these target URLs exist or remove."
+
+**Review notes.** No license stated in source — flagged. No tested OS list — flagged. Example uses an invented filename `photo.jpg` — flagged as invented.
+
+### Example 2 — How-to from a migration design doc
+
+**Input.** A 6-page internal design doc covering the move from v1 of an SDK to v2. The asker says: "Turn this into a migration guide for our customers."
+
+**Classification.** Verb is "migrate." Audience is "customers running v1 in production." Shape is **how-to**, not tutorial — these readers are competent and goal-driven.
+
+**Draft.** Title: "Migrate from v1 to v2". Opening paragraph: who, prerequisites (a v1 install at known version, ability to bump dependencies, ten minutes), and the verification step. Then numbered steps in the order a real migration runs: update the dependency, swap the renamed `Client` constructor signature, replace deprecated `legacyAuth` with the new token flow, run the included codemod, run the test suite, verify against a smoke endpoint. Each step has a single command or code change and an expected outcome. End: a verification checklist and a link to the v2 reference.
+
+**Review notes.** The design doc mentions a codemod that is not yet released — flagged as a release dependency. Two breaking changes in the design doc are *not* covered in the guide because they only affect an internal API — confirmed with reviewer note.
+
+### Example 3 — API reference from an OpenAPI fragment
+
+**Input.** An OpenAPI YAML fragment for three new endpoints under `/v2/invoices`. The asker says: "Write the reference pages."
+
+**Classification.** Shape is **reference**, three pages, one per endpoint. Plus one how-to is recommended for the canonical "create-then-finalize" flow, but that is a separate deliverable; flag in `review_notes`.
+
+**Draft.** For each endpoint: signature in HTTP verb + path form, a one-paragraph purpose statement, a parameters table (in / name / type / required / description), a request body schema, a response shape with one populated example, an errors table (status / code / when), and a curl example. No narrative ties between endpoints — reference is for lookup.
+
+**Review notes.** The error model in the source lists `validation_error` without an example payload — flagged. The `amount` field's currency handling is unclear in the source — flagged with a draft question for the API owner.
+
+## Limitations
+
+- The skill can only document what is in the source. If the source omits error codes, types, or behaviors, the skill records the gap in `review_notes`; it will not invent details.
+- The skill assumes English-language source material and produces English-language output. Translation is out of scope.
+- The skill does not check that examples actually run. A human or a CI step must validate code samples before publishing.
+- For very large source corpora (a whole repository, an entire spec) the skill produces a single document — typically the most-needed one. To produce a doc *set*, run the skill once per planned page with a focused scope each time.
+- The skill follows the seven shapes above. If your house style mandates a different doc taxonomy, supply it via `voice_profile` and the skill will adapt the headings — but the underlying categorization remains in force.
+- The skill prefers conservative phrasing. If your brand voice requires playful or marketing-adjacent language, pass that constraint in `voice_profile`; without it, the output will read as plain and neutral.
+
+## Sources reviewed
+
+The methodology in this skill was synthesized after reviewing the following permissively-licensed open-source projects. None of their prose, structure, or assets was copied. Each contributed a pattern or a constraint that informed the steps above; the synthesis is original.
+
+- https://github.com/MicrosoftDocs/microsoft-style-guide
+- https://github.com/vale-cli/Microsoft
+- https://github.com/openai/openai-cookbook
+- https://github.com/btford/write-good
+- https://github.com/amperser/proselint
+- https://github.com/othneildrew/Best-README-Template
+- https://github.com/elangosundar/awesome-README-templates
+- https://github.com/github/rest-api-description

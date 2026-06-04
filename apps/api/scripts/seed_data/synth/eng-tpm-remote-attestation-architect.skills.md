@@ -1,0 +1,184 @@
+---
+id: skillsgit-curated/tpm-remote-attestation-architect
+version: 1.0.0
+name: TPM Remote Attestation Architect
+description: Design TPM-based remote attestation for a device or server fleet — measured boot, quote verification, policy evaluation, enrollment, and lifecycle.
+authors:
+  - name: skillsgit Curated
+    handle: skillsgit-curated
+    role: author
+category: engineering
+tags: [niche:identity-and-secrets, tpm, remote-attestation, measured-boot, hardware-root-of-trust, device-identity, fleet-trust]
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6, gpt-4o, gpt-4.1]
+  tools_required: [file_io]
+  tools_optional: [web_search]
+  min_context_tokens: 32000
+  estimated_tokens_per_invocation: 10000
+trigger_keywords:
+  - tpm attestation
+  - remote attestation
+  - measured boot
+  - hardware root of trust
+  - device attestation
+  - quote verification
+  - pcr policy
+  - fleet attestation
+  - confidential compute attestation
+example_invocations:
+  - "Design TPM-based remote attestation for our edge fleet."
+  - "Set up measured-boot attestation gating before secrets are released to a node."
+  - "We need a fleet trust plane backed by TPM quotes — write the architecture."
+inputs:
+  - name: fleet_profile
+    type: text
+    required: true
+    description: The devices or servers in scope — hardware models, TPM versions, OSes, and where they physically live.
+  - name: gating_use_case
+    type: text
+    required: false
+    description: What attestation gates — secret release, network admission, workload identity issuance, software update authorization.
+  - name: lifecycle_events
+    type: text
+    required: false
+    description: How devices are enrolled, re-imaged, transferred between owners, decommissioned.
+  - name: scale
+    type: text
+    required: false
+    description: Expected device count, attestation rate per device, geographic distribution.
+  - name: compliance_drivers
+    type: text
+    required: false
+    description: Standards or regulations that constrain attestation evidence handling, certificate authorities, or retention.
+outputs:
+  - name: attestation_design
+    type: markdown
+    description: An architecture covering measured boot, identity provisioning, quote verification, policy, lifecycle, and ops.
+  - name: policy_inventory_json
+    type: json
+    description: "Structured policies: pcr_set, expected_values, deviation_action, owner, refresh_cadence."
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Initial release.
+---
+
+# TPM Remote Attestation Architect
+
+## When to use
+
+Use this skill when an organization needs cryptographic evidence that a remote device is running expected software on expected hardware before some action is allowed. The skill produces the architecture for a remote-attestation plane built on the Trusted Platform Module — the device-side TPM measures the boot chain into platform configuration registers, the verifier requests a signed quote over those registers, and a policy engine decides whether the device satisfies the expected state.
+
+Concrete moments to invoke:
+
+- A fleet of edge devices in customer premises must prove their software stack to the cloud before being granted any sensitive credential.
+- A confidential computing environment requires attestation as the prerequisite to releasing a workload key.
+- A server fleet's compromise scenario must be detected by measured-boot drift rather than by host-agent self-reporting.
+- A regulatory or contractual obligation requires hardware-rooted evidence of platform integrity at provisioning time, at every secret release, or on a recurring cadence.
+- A workload-identity issuer needs a stronger trust anchor than the cloud's instance metadata, and TPM attestation is the candidate.
+
+The skill produces an architecture covering the device-side measured boot, the identity provisioning that gives each device a stable cryptographic identity rooted in its TPM, the verifier topology, the policy evaluation, the lifecycle events the platform must handle, and the operational model. It assumes the reader is comfortable with TPM concepts — endorsement key, attestation key, PCRs, quotes — and focuses on the architecture rather than the primitives.
+
+This skill complements `workload-identity-architect`: TPM attestation can be the foundational attestation method that the identity issuer accepts for high-trust substrates, particularly edge devices and bare-metal servers where cloud-metadata attestation does not exist.
+
+## Inputs
+
+| Input | Required | Purpose |
+| --- | --- | --- |
+| `fleet_profile` | yes | Determines TPM versions, firmware variability, and the measured-boot landscape. |
+| `gating_use_case` | no | Drives the attestation cadence and the policy strictness. |
+| `lifecycle_events` | no | Anchors enrollment, re-imaging, ownership transfer, and decommissioning flows. |
+| `scale` | no | Calibrates verifier capacity and the choice between synchronous and asynchronous verification. |
+| `compliance_drivers` | no | Forces evidence retention, CA choices, and audit. |
+
+## How to apply
+
+The plane is built bottom-up: hardware, measured boot, identity, quote, policy, lifecycle, ops.
+
+### Stage 1 — Survey the hardware and boot stack
+
+1. Enumerate the device models in scope. For each, capture the TPM version, the firmware variability (whether all devices in the fleet run identical firmware or whether vendor updates introduce expected variation), and whether the device supports remote firmware update with a measured rollback path.
+2. Map the boot chain to PCRs. The standard division is firmware code in early PCRs, firmware configuration in slightly later PCRs, bootloader and boot configuration in the middle, and operating-system kernel and initramfs at the top of the measured chain. The chain stops where the design's trust boundary ends; anything measured beyond that point is informational, not gating.
+3. Decide which measured chain matters per device class. A server fleet running a homogenous immutable image has a simpler chain than an edge device running a vendor-supplied OS with field-installable updates; the chain must reflect what actually changes in deployment.
+4. Note the threats the chain cannot detect. Userspace tampering that happens after the measured boot completes is invisible to a quote; the design must call out the residual reliance on runtime integrity mechanisms (kernel module signing, system-call filters, integrity-measurement frameworks) and how those are layered on top.
+
+### Stage 2 — Provision device identity
+
+5. Each device has an endorsement key burned at manufacture — the EK proves the TPM is genuine but is unique and privacy-sensitive. The design must specify whether the EK is used directly (acceptable for closed fleets) or whether an attestation key is derived and certified by an internal certificate authority that translates EK identity into a fleet-internal identifier (the standard pattern for any fleet beyond a single operator).
+6. Define the enrollment flow. At first boot or first network contact, the device proves possession of its EK to the platform's enrollment service, the service validates the EK certificate against the TPM vendor's chain (cached locally to avoid runtime dependence), and the service issues an attestation-key certificate the device can use thereafter.
+7. The enrollment service must be enrolled itself — its signing key has the same custody concerns as a certificate-authority key. Specify the custody (HSM-backed) and the rotation policy. Compromise of the enrollment service is compromise of the entire fleet's identity layer.
+8. For privacy-sensitive deployments, specify how EK reuse is bounded. A device that joins the fleet, leaves it, and re-joins under a new owner should be issued a fresh attestation identifier; the EK linkage is held only by the enrollment service and is audited separately.
+
+### Stage 3 — Design the quote flow
+
+9. Define when a quote is requested. Options: at every network admission, at every secret release, on a periodic cadence, on demand from the verifier, in response to a remote trigger (a suspicion of compromise). The agent should pick per gating use case and explain.
+10. Specify the quote contents: the PCR set included (named explicitly, not "all"), the nonce mechanism (a fresh nonce from the verifier prevents replay; the design must define how nonces are generated and bound to the quote signing), and any additional data (firmware version, system serial, time) that the verifier expects.
+11. Define the channel. Quotes flow inside an authenticated channel — typically a TLS connection where the device presents its attestation-key certificate as the client identity. The channel itself does not replace quote freshness, but it does prevent eavesdropping on the device's measured state.
+12. Specify the verifier topology. A single central verifier is simplest but introduces a hard dependency; verifier replicas with synchronised policy bundles is the common production pattern. For very large fleets, regional verifiers feed a global aggregate. Document the operational implications of the chosen topology.
+
+### Stage 4 — Build the policy engine
+
+13. The policy engine accepts a quote and decides allow, deny, or quarantine. Inputs: the verified PCR values, the device identity, the expected state, the gating context (what secret is being requested, what network is being entered). Outputs: an authorization decision and an audit record.
+14. Define the expected-state representation. The two patterns: explicit allow-listed PCR values (the verifier compares the quote against a curated list of known-good values) and computed expected values (the verifier rebuilds the expected PCR sequence from a known reference manifest of measured components). The first is operationally simpler; the second supports many software variations without explosion of allow-list entries.
+15. Define what happens on deviation. Strict policy: deny and quarantine the device. Permissive policy: allow but mark the device as untrusted, restrict its scope, and alert. The choice depends on the gating use case — a secret-release gate must be strict; a fleet-health observability stream may be permissive.
+16. Specify the policy lifecycle: policies are versioned, signed, and distributed to verifiers through an audited pipeline. A verifier running an unsigned or unknown-source policy is itself a vulnerability. Define the policy distribution mechanism and the cadence at which it refreshes.
+17. Define the policy authoring flow. Policies are authored by a named role, reviewed by another, and approved by a third. Auto-generation of expected values from a reference build is acceptable and recommended, but the auto-generated artefact still flows through the human review gates.
+
+### Stage 5 — Bind attestation to gated operations
+
+18. For each gating use case, define the binding. Secret release: the secrets plane accepts a fresh quote bound to the secret request and verifies through the policy engine before unsealing the secret to the device. Network admission: the admission system accepts a fresh quote bound to the connection attempt before issuing a network policy that allows the device. Identity issuance: the workload-identity issuer accepts a fresh quote bound to the issuance request before signing a workload SVID.
+19. Specify the freshness budget per gating use case. A quote valid for a millisecond after capture is impractical; a quote valid for a day is meaningless. Common choices: minutes for secret release, hours for long-lived sessions, on every request for highest-trust operations.
+20. The binding must be cryptographic. The nonce, the request, and the quote are linked such that a quote captured for one operation cannot be replayed for another. Document the binding mechanism and verify it survives the chosen verifier topology.
+21. Define the fallback. When a device cannot produce a fresh quote (TPM transient error, network blip, verifier outage), the gating system must have a defined response: degrade to a previous successful quote with a shorter validity window, deny entirely, or fall through to a secondary attestation method. The choice is per-use-case and must be explicit.
+
+### Stage 6 — Handle lifecycle events
+
+22. Enrollment was covered in stage 2. Document the remaining events: re-imaging (the device's measured chain changes legitimately and the policy must accept the new state), firmware update (the same), ownership transfer (the device is decommissioned from one fleet and enrolled into another, requiring the enrollment service to revoke the old identity and issue a new one), permanent decommissioning (the device's EK is recorded as retired and any future quote it produces is rejected).
+23. For each lifecycle event, define the operational steps and the policy implication. Re-imaging should be a routine flow with automated policy updates; ownership transfer must involve dual approval and an audited record.
+24. Specify the loss-and-found procedure. A device that goes silent for a long period and then reappears may be legitimate (offline storage), compromised (forensic analysis required), or replaced (decommissioned but mistakenly online). The policy engine must have a category for such devices, distinct from healthy ones, with a defined human-driven path back to operational state.
+25. Define the response to TPM-side events: an indication that the device's TPM has been reset, that the EK has changed, that the attestation key has been recreated. Any such event invalidates prior identity bindings and triggers re-enrollment under elevated scrutiny.
+
+### Stage 7 — Audit, observability, and operations
+
+26. Every quote verified emits an audit record: device identity, verifier instance, quote inputs (PCR set and nonce, not the raw quote bytes), policy version, decision, gating context. Records flow to a sink the verifier operators cannot modify.
+27. Define the metric set: fleet-wide allow rate, deny rate, quarantine rate, count of policy versions in flight, quote latency distribution, devices with expired quotes, devices unseen for longer than threshold, ratio of devices on each policy version.
+28. Plan capacity. Quote verification involves signature checks and policy lookups, both of which can be benchmarked. Specify expected throughput per verifier instance and the scaling trigger.
+29. Plan operator response. When the fleet-wide deny rate spikes, an operator must be able to investigate quickly — fielding the right dashboards, the right log indexes, and the right query primitives. The design should outline the operator's incident-response loop and what information is available within it.
+
+### Stage 8 — Rollout and migration
+
+30. Translate the current state into phases. The first phase typically stands the verifier up in shadow mode — receiving quotes from a pilot subset, recording decisions, but not gating anything — so the policy can be validated against real-fleet variability before any production system depends on it.
+31. Onboard subsequent gating use cases one at a time. Secret release first if that is the strongest driver, network admission later, identity issuance later still. Bundle decisions create operational fragility; phased onboarding lets each gate prove itself.
+32. Capture residual risk. Devices that cannot run the attestation agent for a structural reason, models with TPM bugs that affect quote reliability, geographic regions where the verifier's availability is degraded — each is a register entry with an explicit trigger to revisit.
+
+## Outputs
+
+- A markdown architecture document with sections mapping to stages 1-8.
+- A JSON inventory of policy entries: PCR set, expected values (or reference), deviation action, owner, refresh cadence.
+- A list of operational procedures: enrollment, re-imaging, transfer, decommissioning, recovery, with named owners.
+
+## Examples
+
+Example skeleton invocation: a fleet of 10,000 edge devices deployed at customer premises running a vendor Linux image with quarterly firmware updates and monthly OS updates, with the attestation plane gating both workload-identity issuance and secret release. The skill produces: enrollment via an HSM-backed internal CA that issues attestation-key certificates after validating EK chains against vendor trust roots; PCR coverage of firmware code, firmware config, bootloader, and kernel-plus-initramfs with the userspace explicitly excluded and a runtime-integrity layer named as the complement; computed expected-values policy generated from each release's reference manifest, signed and distributed to regional verifiers with an hourly refresh; fresh-quote-per-operation binding for secret release, with a five-minute reuse window for workload-identity renewal to keep verifier load tractable; a policy-version dashboard, a fleet-wide deny-rate alert, and a per-device unseen-since alert; a re-imaging procedure that automatically widens the allow window during a planned roll-out and reverts to strict mode afterwards; and a residual-risk register that names the small set of legacy hardware models that cannot produce TPM 2.0 quotes and that the program will exclude from high-trust gates.
+
+## Limitations
+
+- The skill is not a TPM tutorial. It assumes the architect knows what an EK, AK, PCR, and quote are and what an unauthenticated quote signature looks like. If the team lacks this background, pair the skill with foundational reading on TPM 2.0 first.
+- The skill does not produce policy code or verifier configuration. It produces the architecture and the named policy contents; rendering those into a specific verifier's language is downstream.
+- The skill addresses TPM-based attestation specifically. Confidential-compute attestation primitives offered by cloud platforms (encrypted-VM attestation, enclave attestation) share many concepts but have their own protocols and trust roots that the skill does not enumerate.
+- The skill does not address userspace integrity monitoring beyond the boundary of the measured boot. Integrity at runtime is a complementary discipline.
+- The skill does not size the verifier deployment in absolute terms. Benchmarking against the chosen verifier implementation is a prerequisite to capacity planning.
+
+## Sources reviewed
+
+- https://github.com/keylime/keylime — Apache-2.0
+- https://github.com/google/go-tpm — Apache-2.0
+- https://github.com/spiffe/spire — Apache-2.0
+- https://github.com/sigstore/cosign — Apache-2.0
+- https://github.com/cert-manager/cert-manager — Apache-2.0
+- https://github.com/openbao/openbao — MPL-2.0

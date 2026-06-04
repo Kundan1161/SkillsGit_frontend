@@ -1,0 +1,323 @@
+---
+id: skillsgit-curated/ops-vendor-selection-scorecard
+version: 1.0.0
+name: Vendor Selection Scorecard Designer
+description: Designs a defensible weighted scorecard for evaluating vendors in a stated category — criteria, weights, scoring scale, anti-bias mechanics, demo-day rubric, and reference-call questions — so the winner is the one who actually best fits the need, not the loudest in the room.
+authors:
+  - name: skillsgit Curated
+    handle: skillsgit-curated
+    role: author
+category: operations
+tags: [niche:vendor-management, procurement, vendor-evaluation, scorecard, rfp, sourcing, decision-framework]
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6, gpt-4o]
+  tools_required: []
+  min_context_tokens: 32000
+  estimated_tokens_per_invocation: 7000
+trigger_keywords:
+  - vendor selection
+  - vendor scorecard
+  - supplier evaluation
+  - procurement scorecard
+  - weighted scoring
+  - vendor comparison
+  - shortlist
+  - rfp scoring
+  - demo evaluation
+  - vendor demo rubric
+  - reference call
+  - vendor shortlist
+example_invocations:
+  - "Design a scorecard for selecting an enterprise CDP vendor."
+  - "Help me build a weighted evaluation rubric for three shortlisted payroll providers."
+  - "Write a demo-day scoring sheet for a security tool bake-off."
+inputs:
+  - name: category
+    type: text
+    required: true
+    description: What is being purchased — a product category (CDP, payroll, MDM, observability) plus the rough scale (seats, volume, geography) and the buying entity (team, business unit, enterprise).
+  - name: must_haves
+    type: text
+    required: false
+    description: Non-negotiable requirements the team has already agreed to. These do not get scored — they gate the vendor in or out before scoring begins.
+  - name: known_constraints
+    type: text
+    required: false
+    description: Hard constraints — budget ceiling, regulatory residency, existing-stack integrations, security certifications, signing-authority limits.
+  - name: stakeholder_roles
+    type: text
+    required: false
+    description: Who will use the tool, who will administer it, who will pay for it, who has veto. Knowing the roles shapes the criteria weights.
+outputs:
+  - name: scorecard
+    type: markdown
+    description: A complete weighted scorecard with criteria, sub-criteria, weights summing to 100, a 1–5 scoring scale with descriptors, a must-haves gate, and a tie-break rule.
+  - name: demo_rubric
+    type: markdown
+    description: A demo-day scoring sheet tied to the same criteria with concrete observable behaviors evaluators look for.
+  - name: reference_call_script
+    type: markdown
+    description: A list of reference-check questions worded to surface honest answers rather than vendor talking points.
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Initial release.
+---
+
+## When to use
+
+Use this skill when the team is about to compare two or more vendors and the discussion is drifting toward whichever one demoed last week or whichever one the loudest executive already met at a conference. A weighted scorecard does not make the decision objective — nothing makes a vendor decision fully objective — but it makes the decision auditable. Three months later, when the chosen vendor under-delivers in some predictable way, the team can look back at the scorecard and answer "what did we know at the time, and what trade-off did we accept" rather than rationalizing in retrospect.
+
+The skill is intended for B2B vendor selection where the purchase is consequential enough to merit structure: a tool the team will live with for at least a year, a contract above a few thousand dollars per month, or anything that touches sensitive data. It is not for one-off purchases (don't scorecard a hotel booking) and not a substitute for a full RFP when the spend or risk merits one — use the `rfp-author` skill for that, then bring the responses back here for scoring.
+
+A scorecard produced by this skill is opinionated about what makes vendor evaluations go wrong. The dominant failure mode is not weak criteria; it is unstated bias and inconsistent scoring across evaluators. The structure below pushes back on both: criteria are defined with observable evidence, scoring descriptors are concrete (not "good / great / excellent"), and evaluators score independently before debating. If the team is unwilling to score independently, the scorecard is decoration and the skill cannot save the decision.
+
+## How to apply
+
+1. **Restate the buy in one sentence that names the decision and the deciders.** "We are choosing a customer data platform for the marketing org to consolidate identity and feed activation channels, with the head of marketing as decision-maker, the head of data as veto, and finance as budget owner." A scorecard built without a clearly named decider produces consensus theater — everyone scores, nobody decides. If the deciders are not nameable on day one, stop building the scorecard and resolve that first.
+
+2. **Separate must-haves from scored criteria.** Must-haves are pass/fail. They get evaluated first, before any vendor enters the scoring round. Typical must-haves: SOC 2 Type 2, data residency in a specific region, native connector to a specific system, named customers above a revenue floor, contractually-supported SLAs, the ability to sign a DPA without redlines on a closed list of clauses. A vendor that fails a must-have is out — they do not get scored. Putting must-haves into the scoring rubric is the most common mistake. When SOC 2 is a 10% weight, a vendor without one can still "win" by scoring high elsewhere, which means SOC 2 was not actually required.
+
+3. **Build the criteria tree from the job-to-be-done, not from the vendor's website.** Vendor websites organize features in ways that flatter the vendor. Criteria should be organized around what the team needs to do with the tool. For a CDP that becomes: "Can we resolve a customer identity across web, app, and offline within X minutes?" not "Does it have identity resolution?" Each criterion is phrased as a question whose answer is observable in a demo, a reference call, or a sandbox trial.
+
+4. **Group criteria into four to seven top-level categories.** Common categories: Fit-to-need (the core job), Implementation (time and effort to value), Operability (how it behaves once running), Total cost (license plus the cost to operate it — see the `vendor-tco-modeler` skill), Risk (security, compliance, vendor financial health), Strategic fit (roadmap alignment, partnership posture). Inside each category, three to five sub-criteria. More than seven top-level categories and evaluators stop reading. Fewer than four and the scorecard is too coarse to discriminate.
+
+5. **Assign weights that sum to 100 and force a hierarchy.** Weights are where political horse-trading happens — every stakeholder wants their criterion weighted highest. Force the team to allocate 100 points among the top-level categories first, then sub-divide. Avoid uniform weights (all categories at 20%) — uniformity means the team did not actually prioritize and the scorecard will not discriminate. A useful forcing function: tell the team they have to put at least 40 points on one category. That is usually fit-to-need; if it is not, the team should explain why.
+
+6. **Define a five-point scoring scale with concrete descriptors.** Avoid 1–10 — evaluators waste time arguing whether something is a 7 or an 8. Five is enough granularity to discriminate. For each criterion, write what a score of 1, 3, and 5 looks like in observable terms. Example for "ease of integration with our existing data warehouse":
+   - **5** — native connector exists, reference customer running it in production, documented in vendor's public docs.
+   - **3** — connector exists but is in beta or requires a partner-built piece.
+   - **1** — no native connector; would require custom integration via API or middleware.
+   Scores of 2 and 4 are interpolations evaluators can use; the anchors at 1, 3, 5 prevent drift. Where you cannot write a concrete descriptor, the criterion is probably too vague and should be rewritten.
+
+7. **Build the evidence-source matrix.** For each criterion, name where the evidence will come from: demo, sandbox trial, reference call, security questionnaire, vendor-provided documentation, third-party report (Gartner, G2, public earnings). Criteria that can only be evaluated from the vendor's own marketing materials are weak — either find another evidence source or down-weight the criterion. The matrix doubles as a planning tool: it tells the team how many demos, references, and trials they need to run.
+
+8. **Set the anti-bias rules before scoring begins.** Three rules that change outcomes:
+   - **Independent scoring.** Each evaluator scores on their own, in a shared document with their name on it, before any group discussion. The group convenes only after individual scores are submitted.
+   - **Score divergence triggers discussion, not averaging.** If two evaluators score the same criterion as 1 and 5, that is not a 3 — it is a disagreement to resolve. Either the criterion is ambiguous (rewrite it) or the evaluators saw different evidence (re-evaluate).
+   - **Decision-maker scores last.** The person who will make the call reads the others' scores and rationales before submitting their own, and writes a separate "what I think the team is missing" note. This separates information aggregation from authority.
+
+9. **Design the demo-day rubric to provoke the failure modes you fear.** A vendor demo is a sales exercise — the vendor controls the dataset, the user flow, and the timing. The demo rubric should ask the vendor to demonstrate things that go wrong, not just things that go right. Examples: "Show us a customer in your system who has duplicates across email and phone, and walk through how your team resolved them." "Pull up an alert that fired last week and show us how an admin triaged it." "Show us a failed sync — what does the operator see and what do they do?" If the vendor cannot or will not demo failure handling, score it down on operability.
+
+10. **Craft the reference-call script to extract honest answers.** A vendor's reference list is a curated friendly. Three techniques that work:
+    - **Ask for the deployment that did not go well.** "Tell us about a project with this vendor that took longer than you expected or where you adjusted scope mid-flight." Every reference has one — if they claim they don't, probe.
+    - **Ask about the renewal conversation.** "When you renewed, what changed in the relationship — pricing, terms, support tier, the named contact?" This surfaces commercial behavior that demos hide.
+    - **Ask for one thing they wish they had done differently in the implementation.** Past hindsight is the cheapest way to buy future foresight.
+    The script is three to five questions for a 30-minute call. More questions and the reference will give shallower answers; fewer and you lose the cross-check across calls.
+
+11. **Define the tie-break rule in advance.** Two vendors within 5 points of each other on a 100-point scale are not meaningfully different — the noise in the scoring is comparable to the gap. State up front what breaks a tie: lower total cost over three years (see the TCO modeler), shorter implementation timeline, stronger reference signal, the decision-maker's preference. Naming the tie-break before scoring removes the post-hoc rationalization where the tie-break is whichever rule favors the vendor someone already preferred.
+
+12. **Document the rejected criteria and explain why.** Every scorecard has criteria that someone suggested and the team decided not to include. Record them in an appendix with a one-line reason — "we considered weighting 'CEO LinkedIn engagement' and decided not to because it correlates with marketing budget, not product quality." This is procedural exhaust that pays off when the same suggestions come back next quarter from a new stakeholder.
+
+### Standard scorecard layout
+
+The output document uses these section headers in this order:
+
+1. `# Vendor Selection Scorecard: <category>`
+2. `## Decision context` — what is being bought, by whom, for what job-to-be-done, with what budget envelope and timeline.
+3. `## Deciders and evaluators` — named decision-maker, named veto-holders, named evaluators, named budget owner.
+4. `## Must-haves (pass/fail gate)` — checklist of non-negotiables. Vendors failing any are out, with no score.
+5. `## Weighted criteria`
+   - For each top-level category: weight, sub-criteria with sub-weights, scoring descriptors for 1, 3, 5, evidence source.
+6. `## Evidence-source matrix` — table mapping each criterion to the activity that will produce evidence.
+7. `## Scoring rules` — independent scoring, divergence handling, decision-maker timing, tie-break.
+8. `## Demo-day rubric` — separate scoring sheet tied to criteria, with concrete observable prompts.
+9. `## Reference-call script` — three to five questions designed to surface honest answers.
+10. `## Rejected criteria` — appendix.
+11. `## Sign-off line` — decider's name and the date the scorecard was approved before evaluation began.
+
+### Composition rules
+
+- **One criterion, one question.** "Ease of integration and operability" is two criteria. Split.
+- **Observable evidence only.** If the answer can only come from the vendor's pitch, the criterion is weak.
+- **No "innovation" or "thought leadership" criteria.** They cannot be scored consistently and they correlate with marketing spend.
+- **Penalize unverifiable claims.** A vendor claim with no documentation, reference customer, or sandbox proof scores at the unverifiable-claim floor (usually 2, never the top of the scale).
+- **The scorecard is frozen before evaluation starts.** Mid-evaluation criterion changes contaminate the comparison and almost always favor whichever vendor the team already prefers.
+- **Final tabulation is reproducible.** Anyone can re-run the math from the individual scorers' sheets and arrive at the same number.
+
+## Inputs
+
+- **Category (required, text).** What is being purchased, at what rough scale, by what entity. A purchase for a five-person team and an enterprise rollout produce different scorecards.
+- **Must-haves (optional, text).** Pre-agreed non-negotiables that gate vendors in or out before scoring.
+- **Known constraints (optional, text).** Budget ceilings, residency requirements, existing-stack integrations, certifications, redline limits.
+- **Stakeholder roles (optional, text).** Who uses, who administers, who pays, who has veto. The cleaner this list, the less politics shows up later as "criterion drift."
+
+## Outputs
+
+A scorecard document, a separate demo-day rubric tied to the same criteria, and a reference-call script. All three are designed to be used by humans, not just read — the scorecard is a working spreadsheet's worth of structure in markdown, ready to be copied into the team's tool of choice.
+
+## Examples
+
+### Worked example: enterprise customer data platform (CDP)
+
+**Input category:** "Enterprise CDP for the marketing org of a 1,200-person B2C company. ~$200k annual budget envelope. Replacing a homegrown identity-resolution stack. Decision in 90 days."
+
+**Input must-haves:** "SOC 2 Type 2 current. EU data residency option. Native Snowflake connector. Signs our DPA without redlining the sub-processor or audit clauses."
+
+**Input known constraints:** "Already on Snowflake and Salesforce. Engineering bandwidth is one half-time engineer for the integration. Marketing ops team has two FTEs for admin."
+
+**Input stakeholder roles:** "Decider: head of marketing. Veto: head of data on technical fit, head of security on risk. Budget owner: CFO. Users: marketing ops (admin), demand gen and lifecycle (campaign builders), analytics (downstream consumer)."
+
+**Expected output (excerpted):**
+
+> # Vendor Selection Scorecard: Enterprise CDP
+>
+> ## Decision context
+>
+> Replace homegrown identity-resolution stack with a vendor CDP for the marketing org. Job-to-be-done: resolve a customer across web, app, and offline within 5 minutes; expose unified profiles to Salesforce Marketing Cloud and a downstream warehouse. Annual budget envelope $200k. Decision in 90 days, implementation in the following 90.
+>
+> ## Deciders and evaluators
+>
+> - **Decision-maker:** Head of Marketing
+> - **Veto on technical fit:** Head of Data
+> - **Veto on risk:** Head of Security
+> - **Budget owner:** CFO (sign-off on contract)
+> - **Evaluators (score):** Marketing Ops Lead, Demand Gen Lead, Senior Data Engineer, Security Engineer (5 total including decider)
+>
+> ## Must-haves (pass/fail gate)
+>
+> - [ ] SOC 2 Type 2, current report dated within the last 12 months
+> - [ ] EU data residency option (Frankfurt or Dublin acceptable)
+> - [ ] Native Snowflake connector, GA (not beta)
+> - [ ] Will sign our DPA without redlining sub-processor or audit clauses (legal pre-screen)
+> - [ ] Pricing model that fits under $200k annual at projected volume
+>
+> A vendor failing any of the above is removed from the evaluation. No scoring.
+>
+> ## Weighted criteria
+>
+> ### Fit-to-need (45 points)
+>
+> - **Identity resolution accuracy** (15 pts) — How accurately does the system merge identities across known and anonymous touchpoints?
+>   - 5: vendor demonstrates in our sandbox a >95% merge accuracy on a 10k-record duplicate set we provide; documented in a public benchmark or reference customer
+>   - 3: vendor claims accuracy but demonstrates only on their dataset
+>   - 1: no demonstrable accuracy benchmark; claims only
+>   - Evidence: sandbox trial on supplied dataset
+> - **Time-to-first-segment** (10 pts) — From contract signing, how long until the marketing team can build a working segment that activates to Marketing Cloud?
+>   - 5: under 30 days, supported by reference customer of comparable scale
+>   - 3: 60–90 days
+>   - 1: over 90 days or contingent on professional services
+>   - Evidence: implementation timeline + reference call
+> - **Activation channel coverage** (10 pts) — Native connectors to our top 5 activation destinations
+>   - 5: all 5 native and GA
+>   - 3: 3–4 native, others via partner
+>   - 1: ≤2 native
+>   - Evidence: vendor docs + sandbox test
+> - **Schema flexibility** (10 pts) — Can a non-engineer add a new event type or trait without a vendor ticket?
+>   - 5: self-service via UI, demonstrated in the demo
+>   - 3: requires admin role but no vendor involvement
+>   - 1: requires a vendor support ticket or release
+>   - Evidence: demo + sandbox
+>
+> ### Implementation (15 points)
+>
+> - **Engineering effort to live** (10 pts) — How many engineer-weeks to GA, validated against our half-FTE budget?
+>   - 5: under 4 engineer-weeks per reference customer of comparable shape
+>   - 3: 4–10 engineer-weeks
+>   - 1: >10 engineer-weeks
+>   - Evidence: reference call
+> - **Change-management load on marketing ops** (5 pts) — Training, runbooks, admin overhead
+>   - 5: ≤2 days of training; admin documented and self-serve
+>   - 3: 3–5 days; some admin requires vendor support
+>   - 1: >5 days or routine vendor escalation
+>   - Evidence: demo + reference call
+>
+> ### Operability (15 points)
+>
+> - **Failure visibility** (8 pts) — When a sync fails, how does the operator find out and what do they do?
+>   - 5: alerts to our paging tool, named owner, documented retry/skip semantics shown in demo
+>   - 3: email alerts; partial documentation
+>   - 1: silent failures or operator must poll
+>   - Evidence: demo (failure handling walkthrough)
+> - **Observability** (7 pts) — Are job runs, latency, and identity-resolution outcomes observable in metrics we can export?
+>   - 5: native Prometheus/Datadog export or queryable API; demonstrated
+>   - 3: in-product dashboards only
+>   - 1: no externalized metrics
+>   - Evidence: vendor docs + demo
+>
+> ### Total cost (10 points)
+>
+> - **3-year TCO** (10 pts) — License + implementation + ongoing operability cost, modeled per the TCO skill
+>   - 5: lowest TCO among finalists by >15%
+>   - 3: within 15% of lowest
+>   - 1: more than 25% above lowest
+>   - Evidence: TCO model output
+>
+> ### Risk and strategic fit (15 points)
+>
+> - **Vendor financial health** (5 pts) — Public financials, runway, customer concentration
+>   - 5: public company or last raise within 18 months at growth-stage valuation
+>   - 3: private, no public concerns
+>   - 1: known layoffs, ownership change, or unclear runway
+>   - Evidence: third-party research (Pitchbook, public filings)
+> - **Roadmap alignment** (5 pts) — Vendor public roadmap matches our 12-month direction
+>   - 5: vendor's roadmap explicitly names 2+ items we have on our roadmap
+>   - 3: directionally aligned, nothing specific
+>   - 1: divergent direction
+>   - Evidence: vendor roadmap doc + decider judgment
+> - **Exit posture** (5 pts) — Data portability, export formats, contractual transition support
+>   - 5: documented export of all identity graph and event data; transition-services clause in MSA
+>   - 3: export of events; no contractual transition support
+>   - 1: limited export or proprietary format
+>   - Evidence: contract review + vendor docs
+>
+> Sum of weights: 100
+>
+> ## Scoring rules
+>
+> - Each evaluator scores independently in the shared sheet, with their name on each score row. Submission deadline is Tuesday 5pm local time before the calibration meeting on Wednesday.
+> - Any criterion where two evaluators differ by 2+ points triggers a discussion; the criterion is not averaged.
+> - The decision-maker reads other scores before submitting hers and writes a "what the team may be missing" note.
+> - Tie-break: among vendors within 5 points, lower 3-year TCO wins; if still tied, the decision-maker's preference, with rationale in writing.
+>
+> ## Demo-day rubric
+>
+> Each demo runs 60 minutes. Vendors are sent these prompts 5 business days ahead.
+>
+> 1. **Identity resolution failure mode** — "Show us a real customer in your platform who had duplicate identities across email and a hashed phone number, and walk through how your team resolved them. We want to see the dashboard, the operator action, and the data model before and after." (Scores: Identity resolution accuracy, Failure visibility)
+> 2. **Schema change live** — "Add a new event type called `subscription_paused` with three properties. Do it live during the demo." (Scores: Schema flexibility, Change-management load)
+> 3. **Failed sync walkthrough** — "Pull up a sync to a destination that failed in the last 30 days. Show us how the operator was alerted, how they diagnosed it, and the resolution timeline." (Scores: Failure visibility, Observability)
+> 4. **Reference architecture** — "Walk through a reference deployment in our shape — Snowflake source, Marketing Cloud destination, ~5M customers, ~50M events/month. What are the failure modes, what monitoring do you recommend, what does the integration with our half-time engineer look like?" (Scores: Engineering effort, Activation coverage)
+>
+> ## Reference-call script
+>
+> 30-minute calls with two vendor references plus, ideally, one off-list reference the team finds independently.
+>
+> 1. Walk us through your implementation timeline — when did you sign, when did you go live with your first segment, what changed in scope between those dates?
+> 2. Tell us about a project with this vendor that took longer than you expected or where you adjusted scope mid-flight.
+> 3. When you renewed (or when you've thought about renewing), what changed — price, term, support, named contacts?
+> 4. What is one thing you wish your team had done differently in the implementation?
+> 5. Who at the vendor do you escalate to when something is on fire, and how fast do they respond?
+>
+> ## Rejected criteria
+>
+> - "Innovation in AI features" — rejected because correlates with marketing spend, not operational fit; can be re-added when we have a concrete AI use case.
+> - "Sales process responsiveness" — rejected because it measures pre-sales behavior, which is the worst predictor of post-sales behavior.
+> - "Net Promoter Score from third-party reviews" — rejected as a primary criterion; folded into reference-call signal.
+>
+> ## Sign-off line
+>
+> Approved by: Head of Marketing, on 2026-05-14, before evaluator scoring begins.
+
+## Limitations
+
+- A scorecard is a forcing function for clear thinking, not an oracle. If the team has not actually agreed on what they are buying or who decides, the scorecard exposes the disagreement — it does not resolve it. Two evaluators scoring identical evidence at 1 and 5 are pointing at a missing alignment that no rubric will paper over.
+- Weights are political. The skill encourages a forcing function (at least 40 points on the core fit category), but the exact distribution is negotiated in the room. Document the negotiation; the rationale is more durable than the numbers.
+- Vendor demos are sales exercises. Even a demo rubric that asks for failure-mode handling will be answered by the vendor's best presenter showing a curated example. The skill mitigates this with sandbox trials and reference calls; it does not eliminate the bias entirely.
+- Reference customers are biased. They are alive, they are willing to take a call, and the vendor curated them. The off-list reference question — "do you know anyone else using this product we should talk to?" asked of every on-list reference — surfaces the off-list cohort more reliably than asking the vendor.
+- This skill does not produce the contract. After the winner is selected, run the `rfp-author` skill if you skipped it, the `vendor-tco-modeler` for the financial case, and a contract review with legal. The scorecard is the input to those steps, not a replacement.
+- The scorecard cannot detect strategic mismatch the team has not articulated. If marketing wants speed and security wants control and nobody surfaced the conflict, the scorecard will score both well and produce a vendor neither side actually wants. That is a leadership problem, not a rubric problem.
+
+## Sources reviewed
+
+- https://github.com/tractorjuice/arc-kit
+- https://github.com/delschlangen/vendor-risk-rubric
+- https://github.com/Funkmyster/awesome-supply-chain
+- https://github.com/mgifford/open-source-contracting
+- https://github.com/makegov/awesome-procurement-data
+- https://github.com/ankane/awesome-legal

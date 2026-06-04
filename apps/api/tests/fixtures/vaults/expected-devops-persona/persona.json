@@ -1,0 +1,87 @@
+{
+  "attribution_index": {
+    "<volatile-skill-id>": "personas/jane-devops-demo/incident-veteran/neurons/rollback-demo.md"
+  },
+  "build": {
+    "built_at": "<volatile>",
+    "composed_at": "<volatile>",
+    "composed_hash": "<volatile>",
+    "occupation_build_hash": "<volatile>",
+    "occupation_build_id": "<volatile>",
+    "persona_build_hashes": "<volatile>",
+    "persona_build_ids": "<volatile>"
+  },
+  "files": [
+    {
+      "content_hash": "<volatile>",
+      "creator_handle": "jane-devops-demo",
+      "kind": "memory_neuron",
+      "links": [
+        {
+          "relation": "applies",
+          "resolved": false,
+          "target": "base/ci-pipeline-architect",
+          "weight": null
+        }
+      ],
+      "links_resolved": false,
+      "neuron": null,
+      "skill_id": "<volatile>",
+      "tags": [
+        "flaky"
+      ],
+      "vault_path": "personas/jane-devops-demo/incident-veteran/neurons/flaky-tests-demo.md",
+      "version": "1.0.0"
+    },
+    {
+      "content_hash": "<volatile>",
+      "creator_handle": "jane-devops-demo",
+      "kind": "memory_neuron",
+      "links": [
+        {
+          "relation": "applies",
+          "resolved": false,
+          "target": "base/ops-runbook-generator",
+          "weight": null
+        }
+      ],
+      "links_resolved": false,
+      "neuron": null,
+      "skill_id": "<volatile>",
+      "tags": [
+        "rollback"
+      ],
+      "vault_path": "personas/jane-devops-demo/incident-veteran/neurons/rollback-demo.md",
+      "version": "1.0.0"
+    }
+  ],
+  "occupation": null,
+  "personas": [
+    {
+      "content_hash": "<volatile>",
+      "creator_handle": "jane-devops-demo",
+      "name": "Incident Veteran (demo)",
+      "neuron_count": 2,
+      "parent_occupation_id": "<volatile>",
+      "skill_id": "<volatile>",
+      "slug": "incident-veteran",
+      "version": "1.0.0"
+    }
+  ],
+  "schema_version": 1,
+  "vault_id": "<volatile>",
+  "warnings": [
+    {
+      "code": "vault.unresolved_link",
+      "file": "personas/jane-devops-demo/incident-veteran/neurons/flaky-tests-demo.md",
+      "message": "Link target 'base/ci-pipeline-architect' did not resolve to a file in this build.",
+      "unresolved_link": "base/ci-pipeline-architect"
+    },
+    {
+      "code": "vault.unresolved_link",
+      "file": "personas/jane-devops-demo/incident-veteran/neurons/rollback-demo.md",
+      "message": "Link target 'base/ops-runbook-generator' did not resolve to a file in this build.",
+      "unresolved_link": "base/ops-runbook-generator"
+    }
+  ]
+}

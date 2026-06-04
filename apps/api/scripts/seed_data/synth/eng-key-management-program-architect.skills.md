@@ -1,0 +1,193 @@
+---
+id: skillsgit-curated/key-management-program-architect
+version: 1.0.0
+name: Key Management Program Architect
+description: Design an end-to-end key management program covering HSM and cloud KMS, envelope encryption, key hierarchies, BYOK/HYOK, rotation, dual control, and key ceremonies.
+authors:
+  - name: skillsgit Curated
+    handle: skillsgit-curated
+    role: author
+category: engineering
+tags: [niche:identity-and-secrets, kms, hsm, envelope-encryption, key-rotation, byok, hyok, key-ceremony, cryptography]
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6, gpt-4o, gpt-4.1]
+  tools_required: [file_io]
+  tools_optional: [web_search]
+  min_context_tokens: 32000
+  estimated_tokens_per_invocation: 11000
+trigger_keywords:
+  - key management
+  - kms design
+  - hsm program
+  - envelope encryption
+  - key hierarchy
+  - byok
+  - hyok
+  - key rotation
+  - key ceremony
+  - cryptographic program
+  - root of trust
+example_invocations:
+  - "Design a KMS program for our SaaS that supports BYOK for enterprise customers."
+  - "Lay out a key hierarchy for envelope-encrypting a multi-region data store."
+  - "We need an HSM-backed root of trust with quarterly key ceremonies — write the program."
+inputs:
+  - name: data_classes
+    type: text
+    required: true
+    description: Categories of data to be protected and their sensitivity (customer content, internal config, regulated PHI/PCI, telemetry, etc.).
+  - name: deployment_topology
+    type: text
+    required: false
+    description: Where the data and the keys live — single cloud, multi-cloud, on-prem, hybrid — and across which regions.
+  - name: customer_obligations
+    type: text
+    required: false
+    description: BYOK, HYOK, customer-managed key, or any contractual obligation a customer has imposed on key custody.
+  - name: regulatory_drivers
+    type: text
+    required: false
+    description: FIPS validation level required, jurisdictional residency, separation-of-duties mandates, audit retention windows.
+  - name: ops_capacity
+    type: text
+    required: false
+    description: Team that will run the key ceremonies, rotations, recovery — informs how many manual ritual steps the design can afford.
+outputs:
+  - name: kms_program_document
+    type: markdown
+    description: A program design with key classes, hierarchy, custody, ceremonies, rotation, BYOK posture, and runbook scaffolding.
+  - name: key_inventory_json
+    type: json
+    description: "Structured key inventory: class, purpose, algorithm, custody, parent, ttl_or_rekey_cadence, owner, ceremony_required."
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Initial release.
+---
+
+# Key Management Program Architect
+
+## When to use
+
+Use this skill when a team needs a written, defensible cryptographic key management program — the set of choices that defines what is encrypted with what, where the keys are kept, who can touch them, how they rotate, how they recover, and what audit they produce. The output is a target-state program, not a one-off design decision.
+
+Concrete moments to invoke:
+
+- A new product line will store regulated data (payment, health, government) and a key management program is a precondition for compliance attestation.
+- A customer contract requires customer-managed key material (BYOK) and the team needs to design the program around an external root of trust.
+- An audit has flagged unmanaged keys, software-only key custody, or absent rotation evidence, and the team must produce a program of record.
+- A migration from a single-cloud KMS to a multi-cloud posture forces a redesign of the key hierarchy.
+- A new data store, message broker, or backup channel is being added and the encryption strategy must extend coherently rather than fork.
+
+The skill produces a program document, a structured inventory of every key class, and the scaffolding for the manual procedures (ceremonies, dual-control operations) that the program will demand. It deliberately treats cryptographic decisions as a program — with owners, cadences, and audit — rather than a one-time configuration.
+
+This skill is adjacent to `secrets-architecture-designer`, which handles the runtime distribution of credentials to workloads; this one handles the underlying cryptographic key material that secures everything else, including the secrets plane's own storage. Both skills are typically required in a mature platform.
+
+## Inputs
+
+| Input | Required | Purpose |
+| --- | --- | --- |
+| `data_classes` | yes | Drives the number of key classes and the strength of each. |
+| `deployment_topology` | no | Determines whether the program is single-region, multi-region, multi-cloud, or hybrid. |
+| `customer_obligations` | no | Forces BYOK / HYOK structure and the boundary between provider-controlled and customer-controlled keys. |
+| `regulatory_drivers` | no | Forces FIPS level, separation of duties, residency, and audit retention. |
+| `ops_capacity` | no | Calibrates ceremony frequency and manual ritual depth. |
+
+## How to apply
+
+Run the stages in order. The hierarchy is built top-down from roots; do not start with rotation policy.
+
+### Stage 1 — Classify what is being protected
+
+1. Enumerate every distinct data class in scope: customer content (per tenant), customer content (shared infrastructure), internal configuration, telemetry, backups, log archives, build artefacts, code-signing inputs, intra-system message bodies, cross-region replication streams.
+2. For each class, capture: sensitivity (the impact if disclosed in plaintext), volume (whether per-object data keys are tractable), access pattern (read-mostly, write-mostly, append-only, archival), residency constraints, and customer obligations.
+3. Decide which classes warrant their own key. The number of distinct keys is a knob: too few and a single compromise is catastrophic, too many and rotation, audit, and operations become a burden. The agent should aim for a small set of broad key classes with explicit reasons for each subdivision.
+4. Flag classes that should not be encrypted at this layer at all. Telemetry where every field is non-sensitive after redaction does not need its own key; reusing the surrounding infrastructure key is fine.
+
+### Stage 2 — Design the key hierarchy
+
+5. Specify the hierarchy from root downwards. The standard pattern: a root key (highest custody, lowest usage), one or more intermediate key encryption keys, and per-purpose data encryption keys generated frequently and discarded after use.
+6. The root key never encrypts data directly. Its only role is to wrap intermediates and, optionally, sign the issuer keys of downstream systems (the workload-identity issuer, the certificate authorities, the artefact signer).
+7. Intermediate KEKs are scoped: one per data class, one per environment, or one per region — whichever boundary the design intends to enforce. The intermediate is the unit of rotation; rotating an intermediate forces re-wrapping of the DEKs beneath it but does not touch ciphertext at rest.
+8. Data encryption keys are ephemeral. The agent should default to envelope encryption: every protected payload is encrypted with a freshly generated symmetric key, that key is wrapped by the appropriate intermediate KEK, and the wrapped key travels with the ciphertext. The KMS sees only key-wrap operations, not data plaintext.
+9. Specify the algorithms. Symmetric DEKs at AES-256-GCM or an equivalent authenticated mode; intermediate KEKs at AES-256 with KMS-native wrapping or at RSA-OAEP / ECDH for asymmetric envelopes; signature keys at ECDSA on a strong curve or Ed25519; transport keys at the chosen TLS profile. Avoid unauthenticated modes and avoid algorithms older than the surrounding stack.
+10. For each level of the hierarchy, record the custody primitive: hardware security module backing the cloud KMS, on-prem HSM, FIPS-validated software module, customer-controlled HSM (for HYOK). Custody is the most important attribute of a key class — most failures are custody failures, not algorithm failures.
+
+### Stage 3 — Place keys in custodians
+
+11. Pick custodians per key class. The roots almost always live in an HSM-backed primitive — a cloud KMS key whose material never leaves the HSM, or a physical HSM cluster the operator owns. Software-only roots are acceptable only for low-sensitivity classes or as a deliberate step in a migration.
+12. For multi-cloud, decide whether each cloud has its own root or whether one cloud's root wraps the others. A single root in one cloud is simpler but creates a cross-cloud dependency; per-cloud roots eliminate the dependency but require federated trust between the resulting keys. The agent should choose and explain.
+13. For BYOK, the customer's key (imported from their own HSM or wrapped under a key they hold) replaces the provider's root for that customer's data class. Specify how the imported key reaches the KMS — provider-supplied wrapping keypair the customer encrypts the material to — and how it is rotated when the customer requests it.
+14. For HYOK, the customer's HSM stays in the customer's environment and the provider never holds the key material at all. The data path must travel through a customer-operated cryptographic boundary for every operation. The agent should be explicit about which operations become slow or unavailable on customer-HSM outage and which fall back to a degraded mode.
+15. For each custodian, record: physical location (or cloud region), administrative authority, separation-of-duties model (how many humans are required to perform a sensitive operation), and the audit sink for the custodian's own operations.
+
+### Stage 4 — Define dual control and ceremonies
+
+16. List every operation that must require more than one authorized human. Standard set: generating the root, importing customer-supplied root material, exporting any wrapped root key for disaster recovery, rotating the root, permanently destroying any key at any level.
+17. For each dual-control operation, specify the ceremony: a written procedure executed in a defined location with defined participants and a defined record. The ceremony is not the same as a runbook; it is a formal artefact with witnesses, audited transcripts, and signed minutes.
+18. Define ceremony cadence. Some are scheduled (root rotation), some are event-driven (BYOK import on customer onboarding), some are emergency (recovery from a compromise event). For each, capture: trigger, prerequisites, participants, output artefacts, post-conditions.
+19. The agent should be explicit about which ceremonies require physical co-location of participants, which can be performed remotely with appropriate attestation of the participants' tools, and which can be performed asynchronously via signed approvals. The decision is operational, not cryptographic.
+20. Define the witnesses. Independent witnesses — internal audit, an external auditor, a customer representative for BYOK — sign off on the ceremony's outputs. Their attendance is recorded; their absence invalidates the ceremony.
+
+### Stage 5 — Rotation and rekeying
+
+21. Specify rotation cadence per key class. The agent should default to: DEKs implicitly rotated by being generated fresh per object; intermediate KEKs rotated on a calendar schedule of months to a year, depending on volume and risk; roots rotated annually or longer, with a documented procedure that can be invoked sooner if needed.
+22. Distinguish key rotation from rekeying. Rotating an intermediate KEK changes the wrapping key for new objects; existing ciphertexts continue to decrypt against the older KEK version. Rekeying re-encrypts existing ciphertexts under the new key. The two cost very different things; the design must declare which it does and when.
+23. For each key class, declare the retention of prior versions. A KMS that retains all versions of a key forever is operationally simple but accumulates an unbounded blast radius; a KMS that discards prior versions after a stated window forces rekeying on schedule. The agent should pick and justify.
+24. For BYOK and HYOK, rotation is initiated by the customer. Specify the protocol: the customer signals readiness, the provider acknowledges, the new key is imported or referenced, the cutover happens at a coordinated time, and prior ciphertexts are either rekeyed or remain decryptable under the old key for a stated window.
+25. Define the failure mode of rotation. A rotation that completes for some objects but not others, a rotation that completes but does not update consumers, a rotation that cannot be reversed — each is a known operational hazard with a defined alert and a defined response.
+
+### Stage 6 — Disaster recovery and geographic redundancy
+
+26. The roots and intermediates must survive a region or site loss. Specify the redundancy primitive: cloud-KMS multi-region keys, HSM clustering across data centres, sealed-envelope backups stored offline. Each has a different recovery time and a different blast radius.
+27. Define the recovery procedure. If the primary custodian is unavailable, what is the sequence: who triggers recovery, where is the sealed backup, how is it un-sealed, who participates in the un-sealing ceremony, how are downstream systems reconfigured to point at the recovered key.
+28. Practise the recovery. The agent should bake into the program a quarterly or annual exercise where the recovery procedure is run on a staging copy of the key material. Untested recovery is theoretical recovery.
+29. Capture the residual risk of the chosen redundancy. Multi-region cloud-KMS keys eliminate the recovery problem but introduce a cross-region dependency the design must accept; offline sealed backups eliminate the dependency but make recovery slow. State the trade-off.
+
+### Stage 7 — Audit and observability
+
+30. Every key operation emits an audit record: key creation, key rotation, every wrap and unwrap call (or a representative sample with explicit sampling policy), every administrative change, every ceremony output. Records must include the calling identity, the key reference, and the policy decision.
+31. Specify the audit sink and its retention. Cryptographic-program audit retention is typically longer than other systems — years rather than months — because the records may be needed to investigate or attest events long after they occurred.
+32. Define drift detection: a periodic reconciliation between the inventory of expected keys and the inventory the custodians report. A key that exists in a custodian but not in the inventory, or vice versa, is a high-signal finding.
+33. Define metrics: number of active keys per class, age distribution of keys, count of failed wraps or unwraps, rotation cadence adherence, count of ceremonies completed against schedule, count of recovery exercises completed.
+
+### Stage 8 — Operational model and migration
+
+34. Name the owners. The program must have a named role responsible for the schedule of ceremonies and rotations, a named role responsible for custodian operations, and a named role responsible for audit. Headcount on the named roles must exist; an unowned program decays.
+35. Translate the current state into a migration roadmap. The first phase is the establishment of the root and the first intermediate; existing data is gradually migrated by re-wrapping its current DEKs under the new intermediate. Subsequent phases extend the hierarchy class by class.
+36. For each migration phase, define entry, exit, owner, rollback, and the explicit period during which prior-key decryption remains active. Forced cut-overs are almost never appropriate at this layer.
+37. Carry a residual-risk register. Customer-class HYOK obligations not yet supported, regions without a credible HSM-backed primitive, algorithms slated for replacement (e.g., on the path to post-quantum) — each is an entry with a trigger to revisit.
+
+## Outputs
+
+- A markdown program document with sections mapping to stages 1-8.
+- A JSON key inventory with one entry per key class: class, purpose, algorithm, custody, parent, rotation cadence, owner, ceremony requirements.
+- A migration roadmap with phases and exit criteria.
+- A list of ceremonies with cadence, participants, prerequisites, and outputs that the team uses to schedule and run them.
+
+## Examples
+
+Example skeleton invocation: a multi-tenant SaaS storing customer content across two clouds in three regions, with a roadmap for BYOK on enterprise tiers and a regulatory driver requiring FIPS-validated hardware for the root. The skill produces: a root in the primary cloud's HSM-backed KMS, mirrored to the secondary cloud via that cloud's import-key mechanism; intermediate KEKs per data class (customer content, backups, telemetry, code-signing); per-object DEKs generated at write time and wrapped under the relevant KEK; BYOK design where an enterprise tenant's customer-supplied KEK replaces the shared customer-content KEK for that tenant only, with an explicit cutover ceremony; quarterly intermediate rotation with rekey for hot data and lazy rekey for archival; annual root rotation in a recorded ceremony with three named participants and an internal-audit witness; a recovery procedure exercised quarterly on staging; and a residual-risk register that names HYOK as an obligation the program will support in a defined later phase.
+
+## Limitations
+
+- The skill does not select a specific vendor product. It will name technology categories and call out the relevant primitives.
+- The skill assumes the organization has a credible custody story — the existence of an HSM-backed primitive somewhere, or the willingness to procure one. A program that must run on software-only keys is degraded by definition and the agent will say so.
+- The skill is not a cryptanalysis review. Algorithm choices are at the level of "what category and parameter range" rather than at the level of formal proof. Have a cryptographer sanity-check before going live with anything novel.
+- The skill does not produce ceremony minutes; it produces the scaffold the minutes will follow.
+- The skill does not estimate cost. HSM hardware, cloud KMS request volumes, and audit storage all have prices the operator must compute separately.
+
+## Sources reviewed
+
+- https://github.com/google/tink — Apache-2.0
+- https://github.com/aws/aws-encryption-sdk-java — Apache-2.0
+- https://github.com/openbao/openbao — MPL-2.0
+- https://github.com/getsops/sops — MPL-2.0
+- https://github.com/FiloSottile/age — BSD-3-Clause
+- https://github.com/sigstore/cosign — Apache-2.0
+- https://github.com/google/go-tpm — Apache-2.0

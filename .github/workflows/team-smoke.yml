@@ -1,0 +1,89 @@
+name: Team smoke (nightly)
+
+on:
+  schedule:
+    - cron: '17 3 * * *'   # 03:17 UTC nightly
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'apps/api/scripts/**'
+      - 'apps/api/src/occupations/**'
+      - 'apps/api/src/personas/**'
+      - 'apps/api/src/capture/**'
+      - 'apps/api/src/vault/**'
+      - 'apps/api/tests/integration/**'
+      - 'team/**'
+      - '.github/workflows/team-smoke.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    name: Integration + full demo snapshot
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: skillsgit
+          POSTGRES_PASSWORD: skillsgit
+          POSTGRES_DB: skillsgit
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      SKG_CAPTURE_LLM_STUB: "1"
+      SKG_LLM_STUB: "1"
+      # Snapshot-only mode: no live Claude calls in CI.
+      ANTHROPIC_API_KEY: ""
+      DATABASE_URL: postgresql+asyncpg://skillsgit:skillsgit@localhost:5432/skillsgit
+      REDIS_URL: redis://localhost:6379/0
+      JWT_SECRET: ci-jwt-secret-which-is-32-chars-ok-ok
+      PLATFORM_HMAC_KEY: ci-hmac-key-which-is-32-chars-ok-ok-ok
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+          cache-dependency-glob: |
+            apps/api/uv.lock
+            apps/api/pyproject.toml
+
+      - name: Install Python dependencies
+        working-directory: apps/api
+        run: uv sync --frozen || uv sync
+
+      - name: Run migrations
+        working-directory: apps/api
+        run: uv run alembic upgrade head
+
+      - name: Integration test fleet
+        working-directory: apps/api
+        run: uv run pytest tests/integration/ -v
+
+      - name: Full demo pipeline snapshot
+        working-directory: apps/api
+        run: uv run pytest tests/integration/test_full_demo_pipeline.py tests/integration/test_vault_snapshots.py -v

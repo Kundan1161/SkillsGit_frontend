@@ -1,0 +1,156 @@
+<mxfile host="app.diagrams.net" agent="skillsgit-arch" version="24.7.17" type="device">
+  <diagram name="marketplace-routes" id="skg-marketplace-routes">
+    <mxGraphModel dx="2400" dy="1600" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2400" pageHeight="1900" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <mxCell id="title" value="apps/web-marketplace/app/ — route tree (Cycle-1 complete)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=none;fontSize=18;fontStyle=1;align=left;" vertex="1" parent="1">
+          <mxGeometry x="40" y="20" width="1400" height="40" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="n-Layout" value="app/layout.tsx&#10;(ThemeProvider + QueryProvider +&#10;TooltipProvider + SiteHeader + SiteFooter)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="80" width="380" height="90" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="n-Root" value="/&#10;app/page.tsx&#10;(home — HeroBento + 4 SkillGrids:&#10;featured, trending, top-rated, newest)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="500" y="80" width="360" height="100" as="geometry"/>
+        </mxCell>
+
+        <!-- Discovery -->
+        <mxCell id="g-Discovery" value="Public discovery" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;verticalAlign=top;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="220" width="1280" height="320" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-Browse" value="/browse&#10;app/browse/page.tsx&#10;(full catalog grid + FilterSidebar)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="80" y="270" width="240" height="90" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-Search" value="/search&#10;app/search/page.tsx&#10;(query-string driven results)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="340" y="270" width="240" height="90" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-Category" value="/c/[slug]&#10;app/c/[slug]/page.tsx&#10;(category landing)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="600" y="270" width="240" height="90" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-SkillDetail" value="/s/[handle]/[slug]&#10;app/s/[handle]/[slug]/page.tsx&#10;(skill detail — hero, price, reviews,&#10;versions, AI-requirements, inspired-by)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="80" y="390" width="380" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-Creator" value="/u/[handle]&#10;app/u/[handle]/page.tsx&#10;(creator profile + skill grid)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="500" y="390" width="280" height="100" as="geometry"/>
+        </mxCell>
+
+        <!-- Checkout -->
+        <mxCell id="g-Checkout" value="Checkout" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;verticalAlign=top;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1360" y="220" width="640" height="180" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-CheckoutHome" value="/checkout&#10;app/checkout/page.tsx&#10;(cart summary → Stripe redirect)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="1400" y="270" width="280" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-CheckoutSuccess" value="/checkout/success&#10;app/checkout/success/page.tsx&#10;(Stripe return URL — license issued)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="1700" y="270" width="280" height="100" as="geometry"/>
+        </mxCell>
+
+        <!-- Library -->
+        <mxCell id="g-Library" value="Buyer library" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;verticalAlign=top;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1360" y="420" width="640" height="180" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-LibIndex" value="/library&#10;app/library/page.tsx&#10;(LicenseCard list + filter pills)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="1400" y="470" width="280" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-LibDetail" value="/library/[license-id]&#10;app/library/[license-id]/page.tsx&#10;(version picker + DownloadButton)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="1700" y="470" width="280" height="100" as="geometry"/>
+        </mxCell>
+
+        <!-- Settings -->
+        <mxCell id="g-Settings" value="Settings" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;verticalAlign=top;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="620" width="960" height="180" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-SettingsAccount" value="/settings/account&#10;app/settings/account/page.tsx" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="80" y="670" width="280" height="90" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-SettingsApi" value="/settings/api-tokens&#10;app/settings/api-tokens/page.tsx&#10;(skg_ token mgmt)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="380" y="670" width="280" height="90" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-SettingsBilling" value="/settings/billing&#10;app/settings/billing/page.tsx&#10;(subscriptions, invoices, payouts)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="680" y="670" width="280" height="90" as="geometry"/>
+        </mxCell>
+
+        <!-- Creator Dashboard -->
+        <mxCell id="g-Dashboard" value="Creator dashboard" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;verticalAlign=top;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1040" y="620" width="1320" height="320" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-DashHome" value="/dashboard&#10;app/dashboard/page.tsx&#10;(Placeholder — prompts/07-creator-dashboard.md)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="1080" y="670" width="380" height="90" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-DashSkills" value="/dashboard/skills&#10;app/dashboard/skills/page.tsx" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="1480" y="670" width="280" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-DashSkillNew" value="/dashboard/skills/new&#10;app/dashboard/skills/new/page.tsx" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="1780" y="670" width="280" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-DashSkillEdit" value="/dashboard/skills/[id]&#10;app/dashboard/skills/[id]/page.tsx" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="2080" y="670" width="260" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-DashEarnings" value="/dashboard/earnings&#10;app/dashboard/earnings/page.tsx" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="1080" y="800" width="280" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-DashReviews" value="/dashboard/reviews&#10;app/dashboard/reviews/page.tsx" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="1380" y="800" width="280" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-DashWebhooks" value="/dashboard/webhooks&#10;app/dashboard/webhooks/page.tsx" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="1680" y="800" width="280" height="60" as="geometry"/>
+        </mxCell>
+
+        <!-- Admin -->
+        <mxCell id="g-Admin" value="Admin / Moderator" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;verticalAlign=top;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="960" width="960" height="200" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-AdminHome" value="/admin&#10;app/admin/page.tsx&#10;(ModerationQueue + user tabs)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="80" y="1010" width="380" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-AdminSkillReview" value="/admin/skills/[id]/review&#10;app/admin/skills/[id]/review/page.tsx&#10;(SkillReviewPanel — approve/reject)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="500" y="1010" width="440" height="100" as="geometry"/>
+        </mxCell>
+
+        <!-- Auth -->
+        <mxCell id="g-Auth" value="Auth + onboarding" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;verticalAlign=top;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1040" y="960" width="1320" height="200" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-SignIn" value="/sign-in&#10;app/sign-in/page.tsx" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="1080" y="1010" width="280" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-SignUp" value="/sign-up&#10;app/sign-up/page.tsx" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="1380" y="1010" width="280" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-BecomeCreator" value="/become-a-creator&#10;app/become-a-creator/page.tsx&#10;(Stripe Connect onboarding entry)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="1680" y="1010" width="380" height="80" as="geometry"/>
+        </mxCell>
+
+        <!-- Design kit -->
+        <mxCell id="n-DesignKit" value="/_design&#10;app/_design/page.tsx&#10;(internal token/component preview;&#10;not linked from nav)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#999999;" vertex="1" parent="1">
+          <mxGeometry x="40" y="1200" width="380" height="110" as="geometry"/>
+        </mxCell>
+
+        <!-- Layout -> everything -->
+        <mxCell id="e-l1" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-Layout" target="n-Root"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-l2" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-Layout" target="g-Discovery"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-l3" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-Layout" target="g-Checkout"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-l4" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-Layout" target="g-Library"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-l5" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-Layout" target="g-Settings"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-l6" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-Layout" target="g-Dashboard"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-l7" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-Layout" target="g-Admin"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-l8" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-Layout" target="g-Auth"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-l9" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-Layout" target="n-DesignKit"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- Cross-route flows -->
+        <mxCell id="e-x1" value="click skill card" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-Root" target="n-SkillDetail"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-x2" value="facet click" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-Browse" target="n-Category"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-x3" value="result click" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-Search" target="n-SkillDetail"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-x4" value="buy now" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-SkillDetail" target="n-CheckoutHome"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-x5" value="Stripe redirect" style="endArrow=classic;html=1;dashed=1;" edge="1" parent="1" source="n-CheckoutHome" target="n-CheckoutSuccess"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-x6" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-CheckoutSuccess" target="n-LibIndex"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-x7" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-LibIndex" target="n-LibDetail"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-x8" value="view creator" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-SkillDetail" target="n-Creator"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

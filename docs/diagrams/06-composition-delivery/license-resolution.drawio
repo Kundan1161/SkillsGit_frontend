@@ -1,0 +1,136 @@
+<mxfile host="app.diagrams.net" agent="skillsgit-arch" version="24.7.17" type="device">
+  <diagram name="license-resolution" id="skg-license-res">
+    <mxGraphModel dx="2400" dy="1600" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2400" pageHeight="2400" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <mxCell id="title" value="License → SkillVersion resolution&#10;Source: apps/api/src/billing/service.py:resolve_version + apps/api/src/vault/composer.py:_latest_succeeded_build" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=none;fontSize=16;fontStyle=1;align=left;" vertex="1" parent="1">
+          <mxGeometry x="40" y="20" width="2000" height="50" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="n-Q" value="Question:&#10;buyer B has License L on skill S.&#10;What SkillVersion does B currently see?" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0EA5E9;strokeColor=#0369A1;fontColor=#FFFFFF;fontStyle=1;align=center;" vertex="1" parent="1">
+          <mxGeometry x="900" y="90" width="400" height="80" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== Gate: license active? ===== -->
+        <mxCell id="n-G1" value="G1: License.status == active?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="900" y="220" width="400" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-G1NO" value="return None&#10;(cancelled / expired licenses&#10;resolve to nothing)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="1400" y="230" width="320" height="80" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== Cap rule cluster ===== -->
+        <mxCell id="g-cap" value="Major-version cap (max_version)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;verticalAlign=top;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="380" width="1180" height="240" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-CAP1" value="CAP1: License.max_version is a&#10;'major.x' string (e.g. '1.x')&#10;OR null (unbounded)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="60" y="430" width="340" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-CAP2" value="CAP2: _parse_cap('1.x') → 1&#10;(one-time licenses cap at the&#10;major version of purchase)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="440" y="430" width="360" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-CAP3" value="CAP3: Subscriptions: max_version is&#10;typically null → no cap → always&#10;see the latest (major-bumps included)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="820" y="430" width="380" height="100" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== Yank filter ===== -->
+        <mxCell id="n-Y1" value="Y1: SELECT skill_versions&#10;WHERE skill_id = L.skill_id&#10;AND is_yanked = false&#10;AND released_at IS NOT NULL" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="430" y="660" width="500" height="100" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== Granted_at filter ===== -->
+        <mxCell id="g-grant" value="Granted_at filter (one-time vs subscription)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;verticalAlign=top;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="800" width="1180" height="280" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-GR1" value="GR1: License.source?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="500" y="840" width="240" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-GR1A" value="GR1A: SUBSCRIPTION:&#10;no released_at filter&#10;→ always latest non-yanked&#10;(within cap)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="60" y="960" width="500" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-GR1B" value="GR1B: ONE_TIME / FREE / GRANT / FREEMIUM:&#10;spec §2 reads 'released_at &gt;&#10;license.granted_at OR the version&#10;active at grant time'&#10;(buyer paid for that snapshot)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="600" y="960" width="600" height="110" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== Pick highest semver ===== -->
+        <mxCell id="g-pick" value="Apply cap → pick highest semver" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;verticalAlign=top;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="1110" width="1180" height="240" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-P1" value="P1: Filter candidates:&#10;keep v where _version_key(v)[0]&#10;&lt;= cap_major (or no cap)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="60" y="1160" width="360" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-P2" value="P2: Sort candidates by&#10;(major, minor, patch) DESC" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="450" y="1160" width="360" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-P3" value="P3: Return candidates[0]&#10;(highest qualifying semver)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="840" y="1160" width="360" height="100" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== Composition resolution ===== -->
+        <mxCell id="g-cmp" value="Composition resolution (vault/composer.py)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fce7f3;strokeColor=#be185d;verticalAlign=top;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="1390" width="2200" height="480" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-CMP1" value="CMP1: compose_for_license(&#10;buyer, occ_license_id, …)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#be185d;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="60" y="1440" width="380" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-CMP2" value="CMP2: For the OCCUPATION license:&#10;_latest_succeeded_build(&#10;skill_id=occ_license.skill_id)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#be185d;" vertex="1" parent="1">
+          <mxGeometry x="480" y="1440" width="400" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-CMP3" value="CMP3: Picks the most recent&#10;VaultBuild with status=SUCCEEDED&#10;(NOT bounded by max_version —&#10;the build is the artifact&#10;for the latest published version)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#be185d;" vertex="1" parent="1">
+          <mxGeometry x="920" y="1440" width="400" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-CMP4" value="CMP4: For EACH PERSONA license:&#10;filter to composition_role=persona&#10;AND target_occupation_skill_id&#10;== occ_license.skill_id&#10;AND status=active&#10;(see ix_licenses_buyer_target_occupation_status)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#be185d;" vertex="1" parent="1">
+          <mxGeometry x="60" y="1600" width="500" height="140" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-CMP5" value="CMP5: _latest_succeeded_build(&#10;skill_id=persona_license.skill_id)&#10;per persona — same rule" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#be185d;" vertex="1" parent="1">
+          <mxGeometry x="600" y="1610" width="440" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-CMP6" value="CMP6: Persona without succeeded build:&#10;silently skipped (logged&#10;vault.compose.persona_no_build).&#10;Composition continues with the&#10;remaining personas." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#be185d;" vertex="1" parent="1">
+          <mxGeometry x="1080" y="1610" width="440" height="140" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== Reparenting protection ===== -->
+        <mxCell id="g-rp" value="Persona reparenting protection" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;verticalAlign=top;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="1900" width="2200" height="260" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-RP1" value="RP1: License.target_occupation_skill_id&#10;is SNAPSHOT at purchase time&#10;(migration 0009)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="60" y="1950" width="500" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-RP2" value="RP2: If creator later changes&#10;persona.parent_occupation_id,&#10;the OLD buyers still see the&#10;persona under their ORIGINAL&#10;occupation license" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="620" y="1950" width="500" height="140" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-RP3" value="RP3: NEW buyers (post-reparent)&#10;get the new target snapshot&#10;at their purchase moment" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="1180" y="1950" width="500" height="120" as="geometry"/>
+        </mxCell>
+
+        <!-- Edges -->
+        <mxCell id="e-1" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-Q" target="n-G1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-2" value="no" style="endArrow=classic;html=1;fontStyle=1;" edge="1" parent="1" source="n-G1" target="n-G1NO"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-3" value="yes" style="endArrow=classic;html=1;fontStyle=1;" edge="1" parent="1" source="n-G1" target="n-CAP1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-4" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-CAP1" target="n-CAP2"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-5" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-CAP1" target="n-CAP3"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-6" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-CAP2" target="n-Y1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-7" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-CAP3" target="n-Y1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-8" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-Y1" target="n-GR1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-9" value="subscription" style="endArrow=classic;html=1;fontStyle=1;" edge="1" parent="1" source="n-GR1" target="n-GR1A"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-10" value="one_time / grant / free" style="endArrow=classic;html=1;fontStyle=1;" edge="1" parent="1" source="n-GR1" target="n-GR1B"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-11" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-GR1A" target="n-P1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-12" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-GR1B" target="n-P1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-13" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-P1" target="n-P2"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-14" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-P2" target="n-P3"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-15" value="feeds" style="endArrow=classic;html=1;dashed=1;" edge="1" parent="1" source="n-P3" target="n-CMP1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-16" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-CMP1" target="n-CMP2"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-17" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-CMP2" target="n-CMP3"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-18" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-CMP1" target="n-CMP4"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-19" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-CMP4" target="n-CMP5"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-20" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-CMP5" target="n-CMP6"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-21" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-CMP4" target="n-RP1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-22" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-RP1" target="n-RP2"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-23" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-RP1" target="n-RP3"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

@@ -1,0 +1,89 @@
+# Sample persona — Wave 4, T-12 seed.
+#
+# Cross-refs:
+#   - team/05-mvp-plan.md §T-12
+#   - team/decisions.md ADR-002 (composable persona), ADR-005 (memory_neuron),
+#                       ADR-016 Q-4 (seeded `@jane-devops-demo`)
+#   - team/03-vault-generation.md §Persona subtree
+#   - team/dev-diary-devops-vault-wave3.md §Open questions — recommendations
+#     applied: bare-slug link form (`base/{member-slug}`), build script
+#     resolves links against the parent occupation's members at script
+#     time (not at persona-build time, which deliberately leaves
+#     `base/...` unresolved for the composer per
+#     src/vault/builder.py:_build_target_resolver_for_persona).
+#
+# Owner: @jane-devops-demo  (created by scripts/build_devops_persona.py)
+# License: free (ADR-016 Q-1)
+# Parent occupation: skillsgit-curated/ai-devops-engineer
+
+id: jane-devops-demo/incident-veteran
+name: Incident Veteran (sample data)
+tagline: |
+  Sample DevOps practitioner persona — 7 hand-authored neurons covering
+  CI flakes, on-call handoffs, blue/green rollback, cost spikes, secret
+  rotation, dashboard cardinality, paging policy.
+description: |
+  A sample persona shipped alongside the AI DevOps Engineer occupation
+  to demonstrate the persona overlay mechanic for the Cycle-1 Layer-C
+  demo. NOT a real practitioner's record — every neuron in this
+  persona is synthesised sample data. Real personas on the Skills Git
+  platform are published by named DevOps engineers and carry their
+  actual recorded situations, decisions, and outcomes.
+
+  The 7 neurons in this persona overlay the AI DevOps Engineer
+  occupation and cover the demo scenarios QA uses in T-14:
+
+  - Flaky integration tests after a Redis minor upgrade.
+  - On-call handoff template (process change).
+  - Blue/green rollback at 3am that exposed a runbook bug.
+  - AWS cost spike traced to a typo'd backup bucket.
+  - Zero-downtime database password rotation across 14 services.
+  - Prometheus cardinality cleanup that cut memory 47%.
+  - Alert-policy rewrite that cut pages 62%.
+
+category: personas
+parent_occupation_id: skillsgit-curated/ai-devops-engineer
+license_type: free
+
+tags:
+  - demo
+  - sample-data
+  - devops
+  - incident
+  - on-call
+
+# Persona-side metadata surfaced on the persona detail page.
+specialization: |
+  Production DevOps incident response, on-call process design, cost
+  triage, observability cleanup.
+years_of_experience: 8
+creator_intro_md: |
+  Hi — I'm @jane-devops-demo, a SAMPLE persona shipped with the
+  Cycle-1 demo. Every neuron here is synthesised demonstration data,
+  not a real engineer's record. When the Skills Git platform ships
+  real practitioner personas, they replace this content.
+
+# Ordered list of neuron file slugs (without the `.skills.md` suffix).
+# The build script reads each from
+# `apps/api/scripts/seed_data/devops-persona/neurons/{slug}.skills.md`,
+# validates it, creates a kind=memory_neuron Skill row + SkillVersion,
+# and attaches it to the persona via `persona_neurons` with
+# sort_order=index+1.
+neurons:
+  - 2024-08-flaky-tests-after-redis-upgrade
+  - 2024-09-on-call-rotation-handoff-template
+  - 2024-10-blue-green-rollback-at-3am
+  - 2024-11-cost-spike-egress-debug
+  - 2025-01-secret-rotation-zero-downtime
+  - 2025-02-dashboard-cardinality-cleanup
+  - 2025-03-paging-policy-rewrite
+
+version: "1.0.0"
+
+changelog:
+  - version: "1.0.0"
+    date: "2026-05-26"
+    notes: |
+      Initial demo persona for the Cycle-1 Layer-C demo. 7 hand-authored
+      neurons covering CI, on-call, rollback, cost, security, dashboards,
+      paging. Sample data only — not a real practitioner's record.

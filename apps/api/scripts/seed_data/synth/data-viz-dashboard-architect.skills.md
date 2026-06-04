@@ -1,0 +1,256 @@
+---
+id: skillsgit-curated/data-viz-dashboard-architect
+version: 1.0.0
+name: Dashboard Architect
+description: Designs a multi-panel dashboard for a stated audience and decision intent — layout grid, panel hierarchy, default filters, interactivity, performance budget, and refresh cadence.
+authors:
+  - name: skillsgit Curated
+    handle: skillsgit-curated
+    role: author
+category: data
+tags: [niche:data-viz, dashboard-design, information-architecture, bi, layout, interactivity, performance]
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6, gpt-4o]
+  tools_required: []
+  tools_optional: []
+  min_context_tokens: 32000
+  estimated_tokens_per_invocation: 7000
+trigger_keywords:
+  - dashboard design
+  - dashboard architect
+  - BI dashboard
+  - dashboard layout
+  - panel hierarchy
+  - dashboard mockup
+  - dashboard wireframe
+  - operational dashboard
+  - executive dashboard
+  - dashboard interactivity
+  - dashboard filters
+  - superset dashboard
+  - grafana dashboard layout
+example_invocations:
+  - "Design an executive revenue dashboard for the CFO updated weekly."
+  - "We need an ops dashboard for on-call engineers to triage incidents."
+  - "Lay out a marketing funnel dashboard with five panels and shared filters."
+  - "Help me redesign a 30-panel dashboard nobody reads."
+inputs:
+  - name: audience
+    type: text
+    required: true
+    description: Who reads this dashboard — role, frequency, decisions they make from it, technical literacy.
+  - name: decision_intent
+    type: text
+    required: true
+    description: The specific decisions or actions the dashboard must enable. "See revenue" is not a decision; "decide whether to escalate a slipping quarter" is.
+  - name: data_sources
+    type: text
+    required: true
+    description: Available metrics, dimensions, freshness of each source, and known query costs or row volumes.
+  - name: platform
+    type: choice
+    required: false
+    description: Target BI / dashboarding platform.
+    choices: [superset, metabase, looker, tableau, power-bi, custom-web, observable, streamlit, dash, panel, other]
+  - name: refresh_requirement
+    type: choice
+    required: false
+    description: How fresh the data must be.
+    choices: [real-time, minutes, hourly, daily, weekly, on-demand]
+outputs:
+  - name: audience_and_intent_summary
+    type: markdown
+    description: A one-paragraph restatement of who the dashboard serves and the decisions it must support — the anchor for every layout choice.
+  - name: panel_inventory
+    type: markdown
+    description: An ordered list of panels with chart type, source query summary, and the question each panel answers.
+  - name: layout_grid
+    type: markdown
+    description: A grid-based layout sketch with hierarchy, grouping, and reading order annotated.
+  - name: interactivity_spec
+    type: markdown
+    description: Cross-filtering, drill-downs, default filter values, time-range controls, and what is intentionally non-interactive.
+  - name: performance_and_refresh
+    type: markdown
+    description: Per-panel refresh cadence, caching plan, expected query cost, and degradation strategy under load.
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Initial release.
+---
+
+## When to use
+
+Invoke this skill when the user needs to design a new dashboard from scratch, redesign one that has accreted into a wall of panels, or evaluate a draft dashboard before implementation. Typical situations:
+
+- A new metric or initiative requires a dedicated view and no one has decided what should be on it.
+- An existing dashboard has thirty-plus panels, slow load times, and nobody reads it; the user wants a clean redesign.
+- A team is switching BI platforms and wants to consolidate rather than port one-for-one.
+- A stakeholder requested "a dashboard" with no clear audience or intent and the user wants a framework to push back productively.
+
+Do not invoke this skill to pick a single chart (use the chart picker skill) or to debug rendering issues. Do not invoke it to build the dashboard in a specific platform; this skill produces a platform-agnostic design that the implementer then realizes.
+
+## How to apply
+
+The methodology treats a dashboard as a tool that serves a specific person making a specific decision at a specific cadence — not as a billboard for every available metric. Most failed dashboards fail in the first two steps; do not skip them.
+
+### 1. Pin down audience and decision intent
+
+1. **Name the primary reader.** One role, one persona. If the user says "for everyone," push back: a dashboard for everyone serves no one. Pick the primary reader and treat secondary readers as a derived view.
+2. **Name the decision.** Insist on a verb. "See revenue" is not a decision. "Decide whether to revise the Q4 forecast" is. "Decide which incident to triage first" is. If the user cannot state a decision, the dashboard probably should be a report, not a dashboard — flag this.
+3. **Pin the cadence.** A dashboard a CFO opens weekly is different from one an on-call engineer glances at every five minutes. Cadence drives refresh, density, and chart selection.
+4. **Identify the trigger that brings the reader to the dashboard.** Calendar event? Alert? Curiosity? Slack link? The trigger tells you what context the reader arrives with and what they need to see first.
+5. **Identify the action that follows reading.** Send a message, change a setting, escalate, do nothing. The dashboard must make that action easy or fast — and must show whether the action is needed at all.
+
+### 2. Enumerate the questions, then prioritize ruthlessly
+
+6. **List every question the reader might ask in this context.** Brainstorm wide. Group similar questions.
+7. **Rank by frequency × consequence.** A question asked weekly that drives a five-figure decision outranks a question asked daily that nobody acts on.
+8. **Cut the bottom half.** Most dashboards drown the top questions in dozens of secondary ones. Reserve the top tier of attention for the top tier of questions. Move secondary questions to a linked drill-down view rather than the primary canvas.
+9. **Map each surviving question to exactly one panel.** Two questions per panel almost always means one of them is under-served; split them.
+10. **Reject decorative panels.** A "company logo" panel, a "last updated 9:42 AM" timestamp, and a "welcome" banner are not panels. They are chrome; put them in a header strip if at all.
+
+### 3. Choose the panel types
+
+11. **Pick the chart type per panel using the chart-picker methodology.** Bar / line / scatter / table / single-number / heatmap / map / Sankey — let the data shape and question family decide.
+12. **Reserve "single-number" big-stat panels for the metrics the reader actually decides on.** Three to five at most, top of canvas. Pair each with a sparkline of recent trend and a percentage delta vs a clearly named comparison period.
+13. **Prefer tables for operational dashboards where the reader needs to act on rows.** A sortable, filterable table of incidents-needing-triage is more useful than a bar chart of incident counts. Charts are for trends and proportions; tables are for rows of records.
+14. **Avoid gauges and speedometers** outside of niche operational contexts (vehicle dashboards, literally). They consume area for low information density and are hard to compare across time.
+15. **Use small multiples when comparing the same chart across a categorical.** A grid of nine identical line charts (one per region) reveals patterns the equivalent single chart with nine lines hides.
+
+### 4. Lay out the grid
+
+16. **Pick a column count.** Most dashboards live on a 12-column grid (consistent with web design conventions). Mobile and small-screen versions collapse to 4 columns.
+17. **Establish a reading order.** Eyes go top-left → right, then down. Place the panel that answers the top question in the top-left. Place context and detail below.
+18. **Group panels by relationship, not by alphabetical or chronological order.** A revenue panel and a margin panel sit together; the customer-count panel sits with churn, not with revenue.
+19. **Limit the canvas to what fits above the fold for the primary use.** Scrolling is acceptable for secondary detail; the headline panels must be visible without scrolling on a typical monitor (1440 × 900 is a safe target).
+20. **Use whitespace, not borders, as the primary separator.** Borders multiply visual weight without adding meaning; consistent spacing groups and separates more cleanly.
+21. **Set a maximum of 9 panels on the primary canvas.** Beyond 9, the reader cannot hold them in working memory. If more is genuinely required, split into tabs or linked views.
+22. **Allocate panel size by importance, not data shape.** The most important panel gets the largest area. A small panel reads as "secondary".
+23. **Align elements aggressively.** Tops, lefts, baselines. Misaligned panels signal a noisy product and make scanning harder.
+
+### 5. Establish hierarchy and typography
+
+24. **Title each panel with the question it answers, not the metric name.** "How is monthly revenue trending?" beats "Revenue". Even more useful: state the answer in the title when it can be computed ("Revenue up 12% MoM, EMEA leading").
+25. **Use three type sizes maximum.** Dashboard title, panel title, body. Resist the urge to differentiate every label.
+26. **Reserve color for meaning.** A single accent hue for "good," a single hue for "bad," gray for neutral. Brand-soup palettes that color every category drown the alert signal.
+27. **Annotate the chart, do not just plot the chart.** A line with a label "+12% YoY" pointing at the latest point is more useful than the same line untouched.
+28. **Show the comparison.** Every key metric should display alongside its comparison period (vs last week, vs target, vs same month last year) — chosen once and consistent across the dashboard.
+
+### 6. Default filters and time range
+
+29. **Set defaults so the reader sees the right answer immediately.** The default time range is whatever matches the decision intent. A weekly CFO view defaults to the current quarter, not the last 24 hours.
+30. **Make the default filter visible.** The reader must see what slice they are looking at without hunting for it.
+31. **Promote one or two filters to the top of the canvas.** Time range and a primary segment (region, product line, channel) belong at the top, always visible. Other filters can hide in an expandable side panel.
+32. **Avoid required filters with no default.** A blank dashboard waiting for the user to "select a region" violates the principle of immediate value.
+33. **Persist filter state per user when the platform allows.** A reader's last-used filter is the most likely correct filter for their next visit.
+
+### 7. Interactivity and drill-downs
+
+34. **Enable cross-filtering between panels that share dimensions.** Clicking a region in the map filters the time-series and the leaderboard. Document which panels participate.
+35. **Define drill-down paths explicitly.** Clicking a bar opens a detail view at finer grain, not a different dashboard. Detail views inherit current filters.
+36. **Reserve hover tooltips for precise values.** Charts encode position; tooltips encode the exact number. Both are needed for executive and analyst audiences.
+37. **Make interaction discoverable.** A subtle cursor change is not enough; a hint ("click any bar to drill in") on first visit removes guessing.
+38. **State what is intentionally not interactive.** Static reference lines, period markers, and annotations are intentional — the reader should not expect to click them.
+39. **Provide an "as of" timestamp.** The reader must always know how fresh the data is. Place it adjacent to the dashboard title and to any panel that updates on a different cadence than the rest.
+
+### 8. Performance budget and caching
+
+40. **Target a first-paint budget.** Two seconds for executive dashboards, five seconds for analyst dashboards, sub-second for operational dashboards used during incidents. State the budget explicitly.
+41. **Account for query cost per panel.** Each panel has a cost (rows scanned, joins, aggregations). Total cost across all panels at default load is the dashboard's cost. Multiply by user count and refresh rate to estimate platform impact.
+42. **Use cached / materialized aggregates for the top panels.** The big-stat metrics at the top of the canvas should never run an interactive aggregation; pre-compute them.
+43. **Use lazy loading for secondary panels.** Panels below the fold render on scroll, not on initial load.
+44. **Set sensible time-range caps.** A dashboard that allows "all time" on a billion-row event table will eventually be opened with that filter and time out. Cap or warn.
+45. **Plan a degradation strategy.** When a panel exceeds its budget: show a loading state, fall back to a less precise version (lower granularity, smaller sample), and link to a slower detailed view rather than block the whole canvas.
+
+### 9. Refresh cadence per panel
+
+46. **Match refresh to decision cadence.** A weekly executive dashboard does not benefit from minute-level refresh; the noise is harmful.
+47. **Allow per-panel refresh when sources differ.** A revenue panel from the warehouse refreshes nightly; a pipeline-stage funnel from a streaming source refreshes hourly. Display each panel's freshness.
+48. **Avoid mixing real-time and historical on the same panel without explicit annotation.** A line that splices today's live count into yesterday's settled total will be wrong on at least one of those points; mark the boundary.
+
+### 10. Accessibility and resilience
+
+49. **Test the dashboard in grayscale.** Color-only encoding fails for ~8% of male readers and every projector. Add shape, position, or label as a redundant channel.
+50. **Provide text alternatives for the headline numbers.** Screen readers should announce "Revenue is $4.2M, up 12% month over month" without needing to read a chart.
+51. **Localize numbers and dates** when the audience spans regions: thousands separators, date order, currency symbol per user.
+52. **Handle the empty state.** A first-load empty dashboard (no data yet, fresh tenant) needs guidance, not a wall of "no data" boxes.
+53. **Handle the broken state.** A failed source must say what failed and what to do — not blank out the panel silently.
+
+### 11. Compose the output
+
+54. **Lead with the audience-and-intent summary.** One paragraph that, if removed, would invalidate every other choice.
+55. **List the panels in reading order.** Each entry: chart type, question answered, source summary, and brief encoding spec.
+56. **Sketch the layout grid as ASCII or a markdown table.** A 12-column grid annotated with which panel occupies which columns and rows. Include a small-screen variant if mobile use is in scope.
+57. **Specify interactivity in a single section.** Cross-filtering relationships, drill-down paths, defaults, and the non-interactive elements.
+58. **Specify performance and refresh in a single section.** Per-panel cadence, caching strategy, and the degradation plan.
+59. **Surface every assumption.** If the user did not specify audience literacy, refresh cadence, or platform, name the assumption.
+60. **Recommend a build sequence.** Headline panels first, then context panels, interactivity last, refresh tuning after observing real usage.
+
+### 12. Self-check before responding
+
+61. **Re-read the decision intent.** Does every panel contribute to it? Cut anything that does not.
+62. **Confirm the top-left panel answers the top question.** If not, rearrange.
+63. **Confirm the panel count is at most 9.** If more, move to tabs or drill-downs.
+64. **Confirm freshness is visible.** A reader who cannot see "as of" cannot trust the dashboard.
+65. **Confirm degradation behavior.** What happens when one source is down? Document it.
+
+## Inputs
+
+- Audience description, decision intent, cadence.
+- Data sources with freshness and known costs.
+- Optional: platform, refresh requirement, mobile considerations.
+
+## Outputs
+
+- Audience and intent summary.
+- Panel inventory (ordered).
+- Layout grid sketch.
+- Interactivity specification.
+- Performance and refresh plan.
+
+## Examples
+
+**Example invocation**
+
+> "Design a sales-pipeline dashboard for VPs of Sales. They check it Monday mornings and after the Friday forecast call. They decide which deals to push into the current quarter and which to slip. Sources: opportunities table refreshed hourly, win-rates table refreshed nightly, rep activity stream refreshed every 5 minutes."
+
+**Expected high-level output**
+
+Audience summary: VP Sales; reads weekly; decides slip-vs-push on at-risk deals; cadence is weekly with an off-cycle Friday peek.
+
+Panel inventory: (1) headline big-stat — committed pipeline vs quota, with delta vs last week; (2) waterfall of pipeline movement (created, won, lost, slipped, pushed); (3) table of top-25 at-risk deals sorted by amount × days-since-last-touch; (4) win-rate by stage (small multiple by region); (5) rep activity heatmap (rep × day, color = touches); (6) trend line of pipeline coverage ratio over the last 8 weeks.
+
+Layout: 12-column grid, panel 1 at columns 1–4 row 1, panel 2 at columns 5–12 row 1, panel 3 spanning row 2 (12 columns), panels 4–6 split across row 3. Mobile: linear stack in the same order.
+
+Interactivity: clicking a stage in panel 4 cross-filters panel 3 to that stage; region filter in the header drives all panels; default time range = current quarter. Tooltips show exact $ on every chart.
+
+Performance: panels 1, 2, 6 served from a nightly-materialized aggregate (sub-second). Panel 3 runs an indexed query on opportunities limited to current quarter. Panel 5 lazy-loads. First-paint budget: 2 seconds.
+
+Refresh: panels 1, 2, 4, 6 nightly; panel 3 hourly; panel 5 every 5 minutes.
+
+## Limitations
+
+- This skill produces a platform-agnostic design. Implementation choices specific to Superset, Looker, Tableau, Power BI, Metabase, or custom-web dashboards are downstream.
+- It does not select the underlying data model; it assumes the metrics and dimensions exist and are correct.
+- It cannot quantify performance precisely without warehouse and platform telemetry; the budgets it sets are targets, not guarantees.
+- For embedded analytics in a host product, additional product-design constraints (white-labeling, multi-tenancy, embedded SSO) apply that this skill does not enumerate exhaustively.
+- The methodology is biased toward analytical and operational dashboards. For monitoring / SRE dashboards with hundreds of time-series panels, conventions specific to that domain (USE / RED methods) take precedence.
+
+## Sources reviewed
+
+The methodology synthesized here draws on patterns observed across the following permissively licensed open-source repositories. None of the prose above is derived from any single source.
+
+- https://github.com/apache/superset
+- https://github.com/plotly/dash
+- https://github.com/streamlit/streamlit
+- https://github.com/holoviz/panel
+- https://github.com/vega/vega-lite
+- https://github.com/observablehq/plot
+- https://github.com/d3/d3
+- https://github.com/airbnb/visx

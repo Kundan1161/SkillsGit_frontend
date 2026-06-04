@@ -1,0 +1,350 @@
+---
+id: skillsgit-curated/orchestrator-migration-planner
+version: 0.1.0
+name: Orchestrator Migration Planner
+description: Plan a strangler-fig migration between Airflow, Dagster, or Prefect (or major-version upgrades within one) with dual-run, cutover, and rollback.
+authors:
+  - name: Synthwave Methodology Lab
+    handle: synthwave
+    role: author
+category: data
+tags:
+  - niche:workflow-orchestration
+  - migration
+  - airflow
+  - dagster
+  - prefect
+  - strangler-fig
+  - cutover
+  - dual-run
+license_type: free
+ai:
+  required_models:
+    - claude-opus-4-7
+    - claude-sonnet-4-6
+  compatible_models:
+    - gpt-4o
+    - gpt-4.1
+  min_context_tokens: 16000
+  tools_required: []
+  tools_optional:
+    - web_search
+  estimated_tokens_per_invocation: 8000
+trigger_keywords:
+  - airflow to dagster
+  - airflow to prefect
+  - dagster to airflow
+  - airflow 1 to 2
+  - airflow 2 to 3
+  - prefect 1 to 2
+  - prefect 2 to 3
+  - orchestrator migration
+  - dag migration
+  - strangler fig data
+example_invocations:
+  - Plan our migration from Airflow 2.7 to Dagster.
+  - We're moving from Prefect 2 to Prefect 3 — give me a rollout plan.
+  - Airflow → Dagster strangler-fig migration for ~180 DAGs.
+  - How do we cut over from Airflow on-prem to Astronomer-managed?
+inputs:
+  - name: from_orchestrator
+    type: choice
+    required: true
+    description: Current orchestrator and version.
+    choices:
+      - airflow-1
+      - airflow-2
+      - airflow-3
+      - dagster-1
+      - prefect-1
+      - prefect-2
+      - prefect-3
+      - other
+  - name: to_orchestrator
+    type: choice
+    required: true
+    description: Target orchestrator and version.
+    choices:
+      - airflow-2
+      - airflow-3
+      - dagster-1
+      - prefect-2
+      - prefect-3
+  - name: inventory
+    type: text
+    required: true
+    description: How many DAGs / flows / asset graphs, rough complexity bands, criticality tiers, owner teams.
+  - name: timeline
+    type: text
+    required: false
+    description: Hard deadlines (license expiry, infra deprecation, headcount), or "no deadline".
+  - name: constraints
+    type: text
+    required: false
+    description: Anything not negotiable — e.g. "no downtime on tier-1 pipelines", "must run on existing Kubernetes", "data residency in EU".
+outputs:
+  - name: migration_plan
+    type: markdown
+    description: A phased migration plan with batches, dual-run strategy, cutover criteria, rollback plan, comms plan, and risk register.
+changelog:
+  - version: 0.1.0
+    date: 2026-05-14
+    notes: Initial release. Strangler-fig framework with dual-run and tier-gated cutover.
+---
+
+# Orchestrator Migration Planner
+
+## When to use
+
+Use this skill when a team is moving from one orchestrator to another, or jumping a **major** version of the same orchestrator (Airflow 1→2, 2→3; Prefect 1→2, 2→3; Dagster pre-1.0 → 1.x). Migrations of this scale touch every pipeline and every downstream consumer; they need an explicit phased plan, not a "rewrite everything over the weekend" approach.
+
+Signals:
+- "We're moving from Airflow to Dagster."
+- "Plan our Prefect 2 to Prefect 3 cutover."
+- "We have N DAGs and want to migrate without breaking SLAs."
+
+Do **not** use this skill for:
+- Designing individual DAGs (use `dag-architect`).
+- Authoring data contracts (use `pipeline-data-contract-author`).
+- Routine point-release upgrades within a major (Airflow 2.7 → 2.8) — those are change-management, not migration.
+
+## Inputs
+
+| Input              | Required | Notes |
+|--------------------|----------|-------|
+| `from_orchestrator`| yes      | Current platform + major version. |
+| `to_orchestrator`  | yes      | Target platform + major version. |
+| `inventory`        | yes      | Pipeline count, complexity bands, criticality tiers (T0/T1/T2/T3), owners. The skill cannot plan without this. |
+| `timeline`         | no       | Hard deadlines drive batch sizing. |
+| `constraints`      | no       | E.g. zero-downtime tiers, infra constraints, compliance. |
+
+If the inventory does not include criticality tiers, the skill will demand them — migrations without tiering always hurt the wrong pipeline first.
+
+## Outputs
+
+A migration plan document with:
+
+1. **Executive summary** — one paragraph. What is moving, by when, in how many phases, with what risk.
+2. **Compatibility matrix** — feature-by-feature mapping from source to target.
+3. **Phased plan** — Phase 0 (foundation) through Phase N (decommission), with entrance and exit criteria for each.
+4. **Pipeline batching** — which pipelines move in which phase, ordered by risk-up criticality-down.
+5. **Dual-run protocol** — how both orchestrators run the same logic in parallel and how outputs are compared.
+6. **Cutover protocol** — the moment of truth: pre-flight checklist, go/no-go criteria, rollback procedure.
+7. **Decommission protocol** — when and how the old orchestrator is shut down.
+8. **Risk register** — top 8–15 risks with mitigations.
+9. **Comms plan** — who is told what, when.
+10. **Open questions** — anything the brief did not answer.
+
+## How to apply
+
+### Step 1 — Confirm the migration is justified
+
+Open by stating the **driver** for the migration in one sentence: license expiry, infra deprecation, capability gap, team direction, vendor consolidation. If no clear driver, push back — orchestrator migrations cost 6–18 person-months and rarely succeed without a forcing function.
+
+State the **alternatives considered**: stay put + patch; upgrade in place; partial migration of only T0 pipelines. The migration plan is the response *after* alternatives were rejected.
+
+### Step 2 — Build the compatibility matrix
+
+For each feature the source pipelines rely on, list the source mechanism, the target mechanism, and the migration shape. Cover at minimum:
+
+| Feature                  | Source                              | Target                              | Migration shape |
+|--------------------------|-------------------------------------|-------------------------------------|-----------------|
+| Task / unit              | Airflow Operator / Prefect task     | Dagster `@op` or `@asset`           | Code rewrite per task, or operator-wrap |
+| Schedule                 | cron in DAG / IntervalSchedule      | `ScheduleDefinition` / Deployment   | Mostly mechanical |
+| Sensor                   | Airflow Sensor (deferrable)         | Dagster `@sensor` / Prefect deploy  | Polling vs event differs — design choice |
+| XCom                     | Airflow XCom                        | Dagster IOManager outputs           | Replace with typed IOManagers |
+| Connections / secrets    | Airflow Connections                 | Dagster Resources / Prefect Blocks  | Migrate vault references; do not recreate secrets |
+| Variables                | Airflow Variables                   | Dagster Resources / Prefect Variables | Move to config layer |
+| SLA                      | Airflow `sla=` / SLAMiss            | Dagster `FreshnessPolicy`           | Map per pipeline |
+| Backfill                 | `airflow dags backfill`             | Dagster partition runs / Prefect retro runs | Rebuild backfill scripts |
+| RBAC                     | Airflow RBAC / FAB                  | Dagster Cloud / Prefect Cloud roles | Map teams to roles |
+| Lineage                  | OpenLineage provider                | Built-in / OpenLineage              | Confirm emitter parity |
+| Alerting                 | callbacks                           | sensors / hooks                     | Rebuild |
+
+Add a column "**risk**" with `L/M/H` per row. Anything `H` blocks until prototyped.
+
+### Step 3 — Tier and batch the inventory
+
+Tier pipelines by criticality:
+- **T0** — revenue-impacting or regulator-facing. Strict SLO. Outage = incident.
+- **T1** — business-critical analytics / ML features. SLO with grace period.
+- **T2** — internal analytics, dashboards. Best-effort SLO.
+- **T3** — exploratory, ad-hoc, deprecated-but-still-running.
+
+Batch the migration in this **reverse order**, weakest first:
+- **Wave 1**: T3 — these are practice runs; failure is acceptable; build the playbook here.
+- **Wave 2**: T2 — broader practice; teach the team; tune the dual-run framework.
+- **Wave 3**: T1 — apply the polished playbook. Require dual-run.
+- **Wave 4**: T0 — only after Waves 1–3 retire cleanly. Mandatory dual-run with strict comparison. Hard rollback path.
+
+Within each wave, batch by **owner team** so one team can context-switch fully into the migration for the batch's duration. Do not interleave teams.
+
+### Step 4 — Define phases
+
+A defensible migration has five phases. Each has entrance (E) and exit (X) criteria.
+
+**Phase 0 — Foundation (weeks 1–4)**
+- E: driver confirmed; budget approved; project lead named.
+- X: target orchestrator deployed to staging; CI/CD pipeline for target codebase ships; lineage and alerting parity proven on one pipeline.
+
+**Phase 1 — Pilot (weeks 4–8)**
+- E: Phase 0 X met.
+- X: 3–5 T3 pipelines fully migrated and running on target. Dual-run framework proven. Runbook drafted. Cost model validated.
+
+**Phase 2 — Wave migration (weeks 8–?)**
+- E: Phase 1 X met. Stakeholder sign-off.
+- X: each wave completes when 100% of its pipelines pass dual-run for ≥ 2 weeks and have been cutover.
+
+**Phase 3 — Cutover (rolling per pipeline)**
+- E: pipeline passes dual-run; tier-specific go/no-go criteria met.
+- X: target is the source of truth; old pipeline runs in **dark mode** for 30 days (T0/T1) or 7 days (T2/T3) for rollback insurance.
+
+**Phase 4 — Decommission (final 4 weeks)**
+- E: zero pipelines running productively on source; 30 days post-cutover for all T0.
+- X: source orchestrator shut down; licenses cancelled; infra reclaimed; postmortem published.
+
+### Step 5 — Specify the dual-run protocol
+
+Dual-run is the heart of safe migration. Spec:
+
+- **Identical inputs**: both orchestrators read from the same source-of-truth.
+- **Side-by-side outputs**: each writes to a distinct sink path/table (`prod.X` and `prod.X__shadow`).
+- **Comparator job**: runs after both complete; computes row-level diff (count, hash of sorted keys, mean of numerics, null counts). Stores the result in a `migration_diff` table.
+- **Tolerance**: define what "equivalent" means up-front. Examples:
+  - Row count diff ≤ 0 (must match exactly).
+  - Hash of `select * order by pk` matches.
+  - For numerics, abs difference per row ≤ 1e-9 (or business-acceptable epsilon).
+- **Time budget**: dual-run must not exceed source's SLA. If it does, run dual-run on a subset (10% sample) and validate the full set weekly.
+- **Duration**: 2 weeks of consecutive zero-diff runs before cutover for T1/T0; 3 runs for T2/T3.
+- **Failure mode**: any diff investigated within 24 hours; cutover clock resets on every divergence.
+
+### Step 6 — Specify the cutover protocol
+
+Per pipeline, on cutover day:
+
+Pre-flight (24h before):
+- [ ] Dual-run green for required window.
+- [ ] Comparator zero-diff for last N runs.
+- [ ] Downstream consumers notified, ack received from named consumer leads (per their data contract).
+- [ ] Rollback script tested in staging.
+- [ ] On-call notified; pager test passed.
+
+Go/no-go (cutover hour):
+- [ ] Source last-good run timestamp recorded.
+- [ ] Target promoted: writes flip from `prod.X__shadow` to `prod.X`. Source is set to write to `prod.X__legacy`.
+- [ ] Downstream consumers' read configuration changes (table name, asset key, topic) deployed.
+- [ ] First post-cutover run completes; comparator confirms output is equivalent to last source run.
+- [ ] Stakeholders pinged with success.
+
+Rollback (if go/no-go fails):
+- Source resumes as primary writer; target reverts to shadow.
+- Downstream consumers' read config rolls back (kept as a single feature flag for speed).
+- Postmortem opened the same day; cutover re-attempted no sooner than 7 days later.
+
+For T0, schedule cutover during a low-risk window and require a named on-call from both producer and primary consumer teams.
+
+### Step 7 — Specify decommission
+
+Decommission is where projects die. Force it:
+
+- A pipeline-by-pipeline shutdown ticket with the owner named.
+- A "freeze" date after which no new pipelines may be created on the source.
+- A grace window (30 days T0, 7 days T2/T3) where source runs **but writes nowhere consumers read** (its outputs go to `*__legacy`).
+- A final "shut down" date with a calendar invite for the team.
+- A post-decommission audit: source infra reclaimed, IAM roles deleted, secrets rotated, license cancelled.
+
+### Step 8 — Build the risk register
+
+Include at least these risks; add migration-specific ones from the brief:
+
+| # | Risk                                            | Likelihood | Impact | Mitigation |
+|---|-------------------------------------------------|------------|--------|------------|
+| 1 | Dual-run doubles cost during the migration      | High       | Medium | Budget for 1.6× orchestration cost for 3–6 months |
+| 2 | Hidden coupling — undocumented downstream reads | Medium     | High   | Lineage scan + 30-day notice + consumer ack |
+| 3 | Operator-by-operator behavioral diff            | High       | Medium | Per-operator regression suite; comparator catches |
+| 4 | Team burnout                                    | Medium     | High   | Wave team rotation; one squad per wave |
+| 5 | Time-zone / DST drift in cron expressions       | Medium     | Medium | Audit; convert all crons to UTC |
+| 6 | Backfill semantics differ                       | Medium     | High   | Treat backfill as a separate migration object |
+| 7 | Secrets rotation breaks downstream              | Low        | High   | Migrate secrets *references*, not values |
+| 8 | XCom payloads larger than target's limit        | Medium     | Medium | Switch to remote storage before migration starts |
+| 9 | RBAC mapping incomplete                         | Medium     | Medium | Mirror teams to target RBAC during Phase 0 |
+| 10| Migration deadline slips, vendor renewal forced | Medium     | High   | 8-week buffer in plan; renewal conversation Phase 1 |
+
+### Step 9 — Write the comms plan
+
+Who is told what, when:
+- **Project kickoff**: company-wide. The driver, the timeline, the contact.
+- **Per-wave start**: affected teams. The pipeline list, the dual-run period, the cutover date.
+- **Per-cutover D-7**: downstream consumers. Read-path changes. Required ack.
+- **Per-cutover D-1**: stakeholders + on-call.
+- **Per-cutover D+0**: stakeholders. Success or rollback.
+- **Phase complete**: company-wide. Wins, deltas, next phase.
+- **Decommission D-0**: company-wide. The platform is gone.
+- **Postmortem**: company-wide. What we learned.
+
+### Step 10 — Map source-target specifics
+
+Pull the right special notes for the chosen pair:
+
+**Airflow → Dagster**:
+- Replace the task graph with an asset graph wherever the pipeline is data-product-shaped; keep ops-shaped pipelines as `@graph_asset` or `@job`.
+- XCom → typed IOManagers backed by S3/GCS.
+- Sensors → Dagster `@sensor` (different programming model; rebuild, don't translate).
+- Connections → Dagster `Resources` with `ConfigurableResource`.
+- Backfill → Dagster partition `materialize` jobs; rewrite, don't translate.
+
+**Airflow 2 → Airflow 3**:
+- Audit deprecations (TaskFlow patterns, scheduler changes, executor configs).
+- DB migration is one-shot; test on a staging copy of the metadata DB first.
+- Provider packages: update all to versions compatible with target.
+
+**Prefect 2 → Prefect 3**:
+- Deployment model changed; rebuild deployments via `.deploy()` from flow code.
+- Block API: migrate Blocks, do not recreate.
+- Worker / Agent: pick worker type per work pool; phase out agents.
+
+**Airflow → Prefect**:
+- Operators map to tasks; XCom maps to task return values.
+- Sensors → Prefect's event-driven deployments where possible; sensor flows otherwise.
+- Connections → Blocks. Variables → Variables. RBAC differs significantly; plan for it.
+
+## Examples
+
+### Example A — Airflow 2.7 to Dagster 1.x, ~180 DAGs, 90 days
+
+Skill output (excerpt):
+- Phase 0: 3 weeks. Dagster Cloud deployed to staging; CI pipeline shipped; lineage parity proven on one DAG.
+- Phase 1: 4 weeks. 5 T3 DAGs ported as `@asset` graphs; dual-run framework live (`prod.X` vs `prod.X__shadow`); comparator job pattern proven.
+- Phase 2 waves:
+  - Wave A (weeks 7–9): 60 T3 DAGs — owner: data-platform.
+  - Wave B (weeks 9–12): 70 T2 DAGs — owners: analytics, growth.
+  - Wave C (weeks 12–16): 35 T1 DAGs — owners: marketing-ml, ops-bi.
+  - Wave D (weeks 16–22): 15 T0 DAGs — owner: revenue-ingestion. Strict dual-run.
+- Phase 3: rolling cutover throughout Phase 2; T0 cutover requires named on-call and 14-day green dual-run.
+- Phase 4: decommission Airflow by week 30 (8-week buffer beyond stated 90-day target).
+
+### Example B — Prefect 2 to Prefect 3, 40 flows, 8 weeks
+
+- Phase 0: 1 week. Prefect 3 worker pools stood up; Block migration script tested; staging cutover dry-run.
+- Phase 1: 2 weeks. 5 T3/T2 flows migrated; dual-run via separate work pool; comparator on output table parity.
+- Phase 2: 4 weeks. Remaining flows migrated in batches of 5 per week.
+- Phase 3: rolling cutover; 7-day dark-mode window for T0 (none in this inventory) and T1.
+- Phase 4: week 8. Prefect 2 server decommissioned; Blocks migrated to 3 schema; agents deleted.
+
+## Limitations
+
+- The skill produces a **plan**, not the migration code. It will reference the patterns and shape but will not write per-DAG translations.
+- The skill does not estimate cost in dollars — it identifies cost drivers (dual-run, infra overlap, team time) and recommends a buffer multiplier. Pair with a financial-planning skill for hard numbers.
+- The skill assumes you can deploy the target orchestrator alongside the source for the duration of the migration. If you cannot (e.g. legal blocker on parallel environments), the plan does not work; surface this immediately.
+- The skill does not handle migrations from non-orchestrator schedulers (cron + scripts, dbt Cloud only, Step Functions) — the patterns transfer but the inventory taxonomy assumes a real DAG/asset graph.
+- Cross-region migrations introduce data-residency complexity beyond this skill; pair with a compliance-planning skill.
+
+## Sources (verified)
+
+- https://github.com/apache/airflow — Apache-2.0
+- https://airflow.apache.org/docs/apache-airflow/stable/best-practices.html — Apache-2.0 (project docs)
+- https://github.com/dagster-io/dagster — Apache-2.0
+- https://docs.dagster.io/guides/build/assets/defining-assets — Apache-2.0 (project docs)
+- https://github.com/PrefectHQ/prefect — Apache-2.0
+- https://docs.prefect.io/v3/api-ref/python/prefect-tasks — Apache-2.0 (project docs)
+- https://github.com/apache/airflow/discussions/28905 — Apache-2.0 (idempotency reference)

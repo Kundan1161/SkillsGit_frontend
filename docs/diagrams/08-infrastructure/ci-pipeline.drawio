@@ -1,0 +1,215 @@
+<mxfile host="app.diagrams.net" agent="skillsgit-arch" version="24.7.17" type="device">
+  <diagram name="ci-pipeline" id="skg-ci-pipeline">
+    <mxGraphModel dx="2400" dy="1600" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="3000" pageHeight="2600" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <mxCell id="title" value="GitHub Actions workflows — .github/workflows/&#10;Two workflows in Cycle 1: ci.yml (per-PR lint + typecheck + test + build) and team-smoke.yml (nightly + path-filtered integration smoke)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=none;fontSize=16;fontStyle=1;align=left;" vertex="1" parent="1">
+          <mxGeometry x="40" y="20" width="2800" height="60" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== Triggers ===== -->
+        <mxCell id="g-triggers" value="Trigger sources" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;verticalAlign=top;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="100" width="2920" height="200" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-T1" value="T1: push to main" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="60" y="140" width="240" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-T2" value="T2: pull_request to main" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="320" y="140" width="240" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-T3" value="T3: schedule (cron)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="580" y="140" width="240" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-T4" value="T4: workflow_dispatch (manual)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="840" y="140" width="280" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-T5" value="T5: pull_request with paths-filter&#10;(apps/api/scripts/**, apps/api/src/{occupations,personas,capture,vault}/**,&#10;apps/api/tests/integration/**, team/**, .github/workflows/team-smoke.yml)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="1140" y="120" width="1800" height="100" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== ci.yml ===== -->
+        <mxCell id="g-ci" value="ci.yml — per-PR &lt;&lt;existing&gt;&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;verticalAlign=top;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="340" width="1420" height="1240" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-CITRIG" value="CI_TRIG: on:&#10;push: [main]&#10;pull_request: [main]" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="60" y="380" width="660" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-CIC" value="CI_C: concurrency:&#10;group: ci-{ref}&#10;cancel-in-progress: true" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="740" y="380" width="660" height="80" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="g-job1" value="job: lint-and-test (ubuntu-latest)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;verticalAlign=top;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="60" y="490" width="1380" height="660" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-J1-1" value="J1_1: actions/checkout@v4" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="80" y="530" width="430" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-J1-2" value="J1_2: pnpm/action-setup@v4 (v9)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="540" y="530" width="430" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-J1-3" value="J1_3: actions/setup-node@v4&#10;(v22, pnpm cache)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="1000" y="520" width="420" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-J1-4" value="J1_4: actions/setup-python@v5 (v3.12)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="80" y="610" width="430" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-J1-5" value="J1_5: astral-sh/setup-uv@v3 (uv cache)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="540" y="610" width="430" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-J1-6" value="J1_6: pnpm install --frozen-lockfile" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="1000" y="610" width="420" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-J1-7" value="J1_7: uv sync (apps/api)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="80" y="700" width="430" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-J1-8" value="J1_8: pnpm typecheck&#10;(TS across all workspaces)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="540" y="690" width="430" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-J1-9" value="J1_9: pnpm lint" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="1000" y="700" width="420" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-J1-10" value="J1_10: pnpm test&#10;(runs vitest in workspaces +&#10;pytest in apps/api via the workspace test script)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="80" y="800" width="1340" height="90" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="g-job2" value="job: build (needs lint-and-test)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;verticalAlign=top;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="80" y="930" width="1340" height="220" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-J2-1" value="J2_1: actions/checkout + pnpm + node setup" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="100" y="970" width="640" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-J2-2" value="J2_2: pnpm install --frozen-lockfile" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="760" y="970" width="640" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-J2-3" value="J2_3: pnpm --filter @skillsgit/web-marketplace build" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="100" y="1060" width="640" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-J2-4" value="J2_4: pnpm --filter @skillsgit/web-creator build" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="760" y="1060" width="640" height="70" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== team-smoke.yml ===== -->
+        <mxCell id="g-ts" value="team-smoke.yml — nightly + path-filtered &lt;&lt;new&gt;&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fce7f3;strokeColor=#be185d;verticalAlign=top;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1500" y="340" width="1460" height="1240" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-TSTRIG" value="TS_TRIG: on:&#10;schedule: '17 3 * * *' (03:17 UTC)&#10;workflow_dispatch:&#10;pull_request: paths-filter" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#be185d;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1520" y="380" width="700" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-TSC" value="TS_C: concurrency:&#10;group: team-smoke-{ref}&#10;cancel-in-progress: true" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#be185d;" vertex="1" parent="1">
+          <mxGeometry x="2240" y="380" width="700" height="100" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="g-svc" value="services (sidecar containers)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;verticalAlign=top;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1520" y="510" width="1420" height="180" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-SVPG" value="SV_PG: postgres:16-alpine&#10;POSTGRES_USER/PWD/DB = skillsgit&#10;5432:5432&#10;healthcheck: pg_isready" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="1540" y="550" width="680" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-SVRD" value="SV_RD: redis:7-alpine&#10;6379:6379&#10;healthcheck: redis-cli ping" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="2240" y="550" width="680" height="120" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="g-js" value="job: smoke (ubuntu-latest)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;verticalAlign=top;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1520" y="710" width="1420" height="850" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-JSENV" value="JS_ENV: env:&#10;SKG_CAPTURE_LLM_STUB=1&#10;SKG_LLM_STUB=1&#10;ANTHROPIC_API_KEY=''&#10;DATABASE_URL=postgresql+asyncpg://&#10;  skillsgit:skillsgit@localhost:5432/skillsgit&#10;REDIS_URL=redis://localhost:6379/0&#10;JWT_SECRET, PLATFORM_HMAC_KEY (≥32 chars)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1540" y="750" width="1380" height="180" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-JS1" value="JS_1: actions/checkout@v4" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="1540" y="950" width="660" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-JS2" value="JS_2: actions/setup-python@v5 (v3.12)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="2260" y="950" width="660" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-JS3" value="JS_3: astral-sh/setup-uv@v3 (uv cache:&#10;apps/api/uv.lock + pyproject.toml)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="1540" y="1020" width="660" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-JS4" value="JS_4: uv sync --frozen (apps/api)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="2260" y="1020" width="660" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-JS5" value="JS_5: uv run alembic upgrade head&#10;(run ALL migrations against&#10;the ephemeral Postgres service)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="1540" y="1120" width="1380" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-JS6" value="JS_6: uv run pytest tests/integration/ -v&#10;(test_occupation_flow, test_persona_flow, test_capture_flow,&#10;test_vault_compose, test_full_demo_pipeline, test_vault_snapshots)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="1540" y="1240" width="1380" height="130" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-JS7" value="JS_7: uv run pytest -v&#10;tests/integration/test_full_demo_pipeline.py&#10;tests/integration/test_vault_snapshots.py&#10;(re-run for the demo-snapshot subset so a failure is easy to spot in logs)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1540" y="1390" width="1380" height="150" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== Caching ===== -->
+        <mxCell id="g-cache" value="Caching" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;verticalAlign=top;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="1620" width="1420" height="200" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-CA1" value="CA1: pnpm store&#10;actions/cache@v4&#10;key: {os}-pnpm-store-{hash(pnpm-lock.yaml)}" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="60" y="1660" width="680" height="140" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-CA2" value="CA2: uv cache (enable-cache: true)&#10;cache-dependency-glob:&#10;apps/api/uv.lock + pyproject.toml" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="760" y="1660" width="680" height="140" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== Not in CI ===== -->
+        <mxCell id="g-nci" value="What's NOT in CI yet &lt;&lt;deferred&gt;&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;verticalAlign=top;fontSize=14;fontStyle=1;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="1500" y="1620" width="1460" height="380" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-NCI1" value="NCI1: No mypy --strict job&#10;(run locally + in dev diaries;&#10;Cycle-2 task to wire as a CI gate)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="1520" y="1660" width="700" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-NCI2" value="NCI2: No ruff job&#10;(same — local + dev-time only)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="2240" y="1660" width="700" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-NCI3" value="NCI3: No deploy step&#10;(prod targets not live yet —&#10;see deployment-target.mmd)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="1520" y="1780" width="700" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-NCI4" value="NCI4: No live Anthropic test&#10;(ANTHROPIC_API_KEY='' in CI;&#10;only snapshot-only paths run)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="2240" y="1780" width="700" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-NCI5" value="NCI5: No MinIO sidecar&#10;(integration tests use&#10;InMemoryStorage fallback)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="1520" y="1900" width="1420" height="80" as="geometry"/>
+        </mxCell>
+
+        <!-- Edges -->
+        <mxCell id="e-t1" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-T1" target="n-CITRIG"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-t2" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-T2" target="n-CITRIG"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-t3" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-T3" target="n-TSTRIG"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-t4" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-T4" target="n-TSTRIG"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-t5" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-T5" target="n-TSTRIG"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <mxCell id="e-cic" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-CITRIG" target="n-CIC"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-cij1" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-CIC" target="n-J1-1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-j1-12" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-J1-1" target="n-J1-2"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-j1-23" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-J1-2" target="n-J1-3"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-j1-34" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-J1-3" target="n-J1-4"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-j1-45" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-J1-4" target="n-J1-5"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-j1-56" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-J1-5" target="n-J1-6"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-j1-67" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-J1-6" target="n-J1-7"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-j1-78" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-J1-7" target="n-J1-8"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-j1-89" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-J1-8" target="n-J1-9"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-j1-910" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-J1-9" target="n-J1-10"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-j1-10j2-1" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-J1-10" target="n-J2-1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-j2-12" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-J2-1" target="n-J2-2"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-j2-23" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-J2-2" target="n-J2-3"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-j2-24" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-J2-2" target="n-J2-4"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <mxCell id="e-tsc" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-TSTRIG" target="n-TSC"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-tscpg" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-TSC" target="n-SVPG"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-tscrd" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-TSC" target="n-SVRD"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-tscjsenv" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-TSC" target="n-JSENV"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-jsenv1" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-JSENV" target="n-JS1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-js12" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-JS1" target="n-JS2"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-js23" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-JS2" target="n-JS3"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-js34" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-JS3" target="n-JS4"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-js45" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-JS4" target="n-JS5"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-js56" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-JS5" target="n-JS6"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-js67" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-JS6" target="n-JS7"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <mxCell id="e-cap-j1" value="uses" style="endArrow=classic;html=1;dashed=1;" edge="1" parent="1" source="n-J1-3" target="n-CA1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-cap-j1-5" value="uses" style="endArrow=classic;html=1;dashed=1;" edge="1" parent="1" source="n-J1-5" target="n-CA2"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-cap-js3" value="uses" style="endArrow=classic;html=1;dashed=1;" edge="1" parent="1" source="n-JS3" target="n-CA2"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

@@ -1,0 +1,15 @@
+{
+  "name": "happy",
+  "description": "Clean situation/decision/outcome/context. Stub LLM returns a valid memory_neuron draft.",
+  "title": "Flaky CI tests after Redis upgrade",
+  "situation_md": "Our checkout-service test suite started failing intermittently the morning after we upgraded shared Redis from 6 to 7. Pass rate dropped from 99 percent to about 80 percent overnight. The failures were not deterministic and not easily reproducible locally.",
+  "decision_md": "I assigned each test suite a dedicated Redis logical DB index, with FLUSHDB on the per-suite index between tests. We had previously been sharing the default index and trusting per-key prefixes; that turned out to be insufficient under Redis 7's tighter eviction semantics.",
+  "outcome_md": "Pass rate went 80 percent to 99.4 percent in 24 hours. Side note: a single shared FLUSHALL would have been faster to ship but worse for debuggability.",
+  "context_md": "Team of 8, about 200 backend tests, GitHub Actions matrix with 4 parallel jobs.",
+  "candidate_link_targets": [
+    "base/ci-cd/devops-ci-pipeline-architect",
+    "base/observability/observability-dashboard-architect",
+    "base/incident-response/ops-incident-commander"
+  ],
+  "expected_pii_severities": []
+}

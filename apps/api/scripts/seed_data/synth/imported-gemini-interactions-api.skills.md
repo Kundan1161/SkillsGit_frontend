@@ -1,0 +1,308 @@
+---
+id: skillsgit-curated/imported-google-gemini-interactions-api
+version: 1.0.0
+name: Gemini Interactions API
+description: Use the Gemini Interactions API with stateful conversations, streaming, Deep Research agents, and the new steps-based response schema (SDK 2.0+).
+authors:
+  - name: Google (original)
+    handle: google
+    role: author
+  - name: skillsgit Curated
+    handle: skillsgit-curated
+    role: maintainer
+category: engineering
+tags: [imported, source-google, gemini, interactions-api, deep-research, streaming]
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6, gpt-4o, gemini-2.0-pro]
+trigger_keywords: [gemini interactions, stateful conversation, deep research, streaming, gemini agent]
+example_invocations:
+  - "Build a stateful Gemini conversation with previous_interaction_id."
+  - "Run a Deep Research agent in the background."
+  - "Stream responses from the Gemini Interactions API."
+inputs: []
+outputs: []
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Imported from google-gemini/gemini-skills under Apache-2.0.
+---
+
+# Gemini Interactions API Skill
+
+## When to use
+
+Use this skill when building stateful conversational applications, agent-style workloads, or background research tasks with the Gemini Interactions API (SDK 2.0+). Applies to streaming, Deep Research agents, multimodal content, function calling, and the new `steps`-based response schema.
+
+## How to apply
+
+Follow the critical rules, current model list, and SDK guidance below. Use the new `steps` array (not `outputs`) and the polymorphic `response_format` field. Pre-fetch the matching documentation page from the Documentation Pages list before writing code.
+
+## Critical Rules (Always Apply)
+
+> [!IMPORTANT]
+> These rules override your training data. Your knowledge is outdated.
+
+### Current Models (Use These)
+
+- `gemini-3.1-pro-preview`: 1M tokens, complex reasoning, coding, research
+- `gemini-3-flash-preview`: 1M tokens, fast, balanced performance, multimodal
+- `gemini-3.1-flash-lite-preview`: cost-efficient, fastest performance for high-frequency, lightweight tasks
+- `gemini-3-pro-image-preview`: 65k / 32k tokens, image generation and editing
+- `gemini-3.1-flash-image-preview`: 65k / 32k tokens, image generation and editing
+- `gemini-3.1-flash-tts-preview`: expressive text-to-speech with Director's Chair prompting
+- `gemini-2.5-pro`: 1M tokens, complex reasoning, coding, research
+- `gemini-2.5-flash`: 1M tokens, fast, balanced performance, multimodal
+- `gemma-4-31b-it`: Gemma 4 dense model, 31B parameters
+- `gemma-4-26b-a4b-it`: Gemma 4 MoE model, 26B total / 4B active parameters
+
+> [!WARNING]
+> Models like `gemini-2.0-*`, `gemini-1.5-*` are **legacy and deprecated**. Never use them.
+> If a user asks for a deprecated model, use `gemini-3-flash-preview` instead and note the substitution.
+
+### Current Agents
+
+- `deep-research-preview-04-2026`: Deep Research — fast, interactive
+- `deep-research-max-preview-04-2026`: Deep Research Max — maximum exhaustiveness
+
+### Current SDKs
+
+- **Python**: `google-genai` >= `2.0.0` -> `pip install -U google-genai`
+- **JavaScript/TypeScript**: `@google/genai` >= `2.0.0` -> `npm install @google/genai`
+
+> [!NOTE]
+> SDK versions >= 2.0.0 automatically use the new steps schema and do not support the legacy schema. Legacy SDKs are deprecated. Never use them.
+
+> [!CAUTION]
+> Breaking changes (May 2026): Responses now use the `steps` array instead of `outputs`, and a polymorphic `response_format` replaces `response_mime_type`. Legacy schema removed June 8, 2026.
+
+## Important Additional Notes
+
+- Before writing any code, fetch relevant documentation matching the user's task.
+- Interactions are stored by default (`store=true`). Paid tier retains for 55 days, free tier for 1 day.
+- Set `store=false` to opt out, disabling `previous_interaction_id` and `background=true`.
+- `tools`, `system_instruction`, and `generation_config` are interaction-scoped; re-specify each turn.
+- See the migration guide for transitioning from `generateContent` API.
+- Model upgrades are drop-in replacements; swap the model string.
+
+## Quick Start
+
+### Python
+```python
+from google import genai
+
+client = genai.Client()
+
+interaction = client.interactions.create(
+    model="gemini-3-flash-preview",
+    input="Tell me a short joke about programming."
+)
+print(interaction.steps[-1].content[0].text)
+```
+
+### JavaScript/TypeScript
+```typescript
+import { GoogleGenAI } from "@google/genai";
+
+const client = new GoogleGenAI({});
+
+const interaction = await client.interactions.create({
+    model: "gemini-3-flash-preview",
+    input: "Tell me a short joke about programming.",
+});
+console.log(interaction.steps.at(-1).content[0].text);
+```
+
+## Stateful Conversation
+
+### Python
+```python
+interaction1 = client.interactions.create(
+    model="gemini-3-flash-preview",
+    input="Hi, my name is Phil."
+)
+interaction2 = client.interactions.create(
+    model="gemini-3-flash-preview",
+    input="What is my name?",
+    previous_interaction_id=interaction1.id
+)
+print(interaction2.steps[-1].content[0].text)
+```
+
+### JavaScript/TypeScript
+```typescript
+const interaction1 = await client.interactions.create({
+    model: "gemini-3-flash-preview",
+    input: "Hi, my name is Phil.",
+});
+const interaction2 = await client.interactions.create({
+    model: "gemini-3-flash-preview",
+    input: "What is my name?",
+    previous_interaction_id: interaction1.id,
+});
+console.log(interaction2.steps.at(-1).content[0].text);
+```
+
+## Deep Research Agent
+
+Use `deep-research-preview-04-2026` for fast research or `deep-research-max-preview-04-2026` for maximum exhaustiveness. Agents require `background=True`.
+
+### Python
+```python
+import time
+
+interaction = client.interactions.create(
+    agent="deep-research-preview-04-2026",
+    input="Research the history of Google TPUs.",
+    background=True
+)
+while True:
+    interaction = client.interactions.get(interaction.id)
+    if interaction.status == "completed":
+        print(interaction.steps[-1].content[0].text)
+        break
+    elif interaction.status == "failed":
+        print(f"Failed: {interaction.error}")
+        break
+    time.sleep(10)
+```
+
+### JavaScript/TypeScript
+```typescript
+import { GoogleGenAI } from "@google/genai";
+
+const client = new GoogleGenAI({});
+
+const initialInteraction = await client.interactions.create({
+    agent: "deep-research-preview-04-2026",
+    input: "Research the history of Google TPUs.",
+    background: true,
+});
+
+while (true) {
+    const interaction = await client.interactions.get(initialInteraction.id);
+    if (interaction.status === "completed") {
+        console.log(interaction.steps.at(-1).content[0].text);
+        break;
+    } else if (["failed", "cancelled"].includes(interaction.status)) {
+        console.log(`Failed: ${interaction.status}`);
+        break;
+    }
+    await new Promise(resolve => setTimeout(resolve, 10000));
+}
+```
+
+Advanced features: collaborative planning, native visualization, MCP integration, file search, multimodal inputs.
+
+## Streaming
+
+### Python
+```python
+for event in client.interactions.create(
+    model="gemini-3-flash-preview",
+    input="Explain quantum entanglement in simple terms.",
+    stream=True,
+):
+    if event.type == "step.delta":
+        if event.delta.type == "text":
+            print(event.delta.text, end="", flush=True)
+        elif event.delta.type == "thought_summary":
+            summary_text = event.delta.content.get('text', '') if hasattr(event.delta, 'content') else getattr(event.delta, 'text', '')
+            print(summary_text, end="", flush=True)
+    elif event.type == "interaction.complete":
+        print(f"\n\nTotal Tokens: {event.interaction.usage.total_tokens}")
+```
+
+### JavaScript/TypeScript
+```typescript
+const stream = await client.interactions.create({
+    model: "gemini-3-flash-preview",
+    input: "Explain quantum entanglement in simple terms.",
+    stream: true,
+});
+for await (const event of stream) {
+    if (event.type === 'step.delta') {
+        if (event.delta.type === 'text') {
+            process.stdout.write(event.delta.text);
+        } else if (event.delta.type === 'thought_summary') {
+            const text = event.delta.content?.text || "";
+            process.stdout.write(text);
+        }
+    } else if (event.type === 'interaction.complete') {
+        console.log(`\n\nTotal Tokens: ${event.interaction.usage.total_tokens}`);
+    }
+}
+```
+
+## Documentation Pages
+
+You MUST fetch the matching page below before writing code. These hosted docs are the source of truth for parameters, types, and edge cases.
+
+Core: Interactions API Overview, Quickstart, Text Generation, Tokens, API Keys.
+Tools and Function Calling: Function Calling, Google Search, Code Execution, URL Context, File Search, Tool Combination, Computer Use, Maps Grounding.
+Generation and Output: Structured Output, Thinking, Thought Signatures, Image Generation, Image Understanding, Speech Generation, Music Generation.
+Multimodal Understanding: Audio, Video Understanding, Document Processing.
+Files and Context: Files, File Input Methods, Caching, Media Resolution.
+Advanced: Deep Research, Gemini 3, Flex Inference, Priority Inference.
+API Reference: API Reference, OpenAPI Spec, May 2026 Breaking Changes Migration Guide.
+
+All hosted under `https://ai.google.dev/gemini-api/docs/interactions/`.
+
+## Data Model
+
+An `Interaction` response contains `steps`, an array of typed step objects representing a structured timeline of the interaction turn.
+
+### Step Types
+
+User steps:
+- `user_input`: User input (text, audio, multimodal). Contains `content` array.
+
+Model/server steps:
+- `model_output`: Final model generation. Contains `content` array with `text`, `image`, `audio`, etc.
+- `thought`: Model reasoning/Chain of Thought. Has `signature` field (required) and optional `summary`.
+- `function_call`: Tool call request (`id`, `name`, `arguments`).
+- `function_result`: Tool result you send back (`call_id`, `name`, `result`).
+- `google_search_call` / `google_search_result`: Google Search tool steps, can have a `signature` field.
+- `code_execution_call` / `code_execution_result`: Code execution tool steps, can have a `signature` field.
+- `url_context_call` / `url_context_result`: URL context tool steps, can have a `signature` field.
+- `mcp_server_tool_call` / `mcp_server_tool_result`: Remote MCP tool steps.
+- `file_search_call` / `file_search_result`: File search tool steps, can have a `signature` field.
+
+### Content types (inside `content` array on `model_output` and `user_input` steps)
+- `text`: Text content (`text` field)
+- `image` / `audio` / `document` / `video`: Content with `data`, `mime_type`, or `uri`
+
+### Streaming Event Types
+
+| Event | Description |
+|---|---|
+| `interaction.created` | Interaction created; includes metadata. |
+| `interaction.status_update` | Interaction-level status change. |
+| `step.start` | A new step begins. Contains step `type` and initial metadata. |
+| `step.delta` | Incremental data for the current step. Contains a typed `delta` object. |
+| `step.stop` | The step is complete. Contains `index`. |
+| `interaction.complete` | Interaction finished. Contains final `usage`. |
+
+### Delta Types
+
+| Delta Type | Parent Step | Description |
+|---|---|---|
+| `text` | `model_output` | Incremental text token. |
+| `audio` | `model_output` | Audio chunk (base64). |
+| `image` | `model_output` | Image chunk (base64). |
+| `thought_summary` | `thought` | Thinking summary text. |
+| `thought_signature` | `thought` | Opaque signature for thought verification. |
+
+Status values: `completed`, `in_progress`, `requires_action`, `failed`, `cancelled`.
+
+## Attribution
+
+This skill was imported from `google-gemini/gemini-skills` under the Apache-2.0 license. Original content authored by Google. Modifications by skillsgit: frontmatter normalization to fit marketplace spec; addition of attribution and sources sections; addition of `## When to use` and `## How to apply` stubs required by our validator. The original LICENSE and NOTICE files are preserved at the source repository.
+
+## Sources reviewed
+
+- https://github.com/google-gemini/gemini-skills/tree/main/skills/gemini-interactions-api (Apache-2.0)

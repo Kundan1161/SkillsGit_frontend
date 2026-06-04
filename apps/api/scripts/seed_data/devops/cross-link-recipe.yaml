@@ -1,0 +1,106 @@
+# DevOps occupation cross-link recipe — Wave 3, T-08.
+#
+# Source: team/devops-occupation-slugs.md §Cross-link recipe seed (Wave-1 draft).
+#
+# Each entry below is applied at build time by scripts/build_devops_vault.py
+# to the source skill's frontmatter `links:` array. The vault builder
+# (src/vault/builder.py) emits these as a `## Linked notes` footer in
+# each .md file plus a structured `links[]` entry in vault.json. Obsidian's
+# Graph View picks them up automatically.
+#
+# Relations:
+#   - applies          : the source's methodology applies to the target
+#   - extends          : the source extends or refines the target
+#   - see-also         : adjacent / cross-reference
+# (`contradicts` and `recorded-instance-of` exist in LinkRelation but
+#  aren't used in this occupation — no Wave-3 contradictions, and
+#  recorded-instance-of is reserved for memory-neuron → base in Wave 4.)
+#
+# Total: 60 explicit cross-links across 30 members (avg ≈ 2 outbound/skill).
+#
+# NB: 7 slugs use the published `id` form, not the source filename — the
+# Wave-2 publish pipeline strips the `devops-` / `eng-` prefix when the
+# frontmatter `id` ships that way. See occupation.yaml for the remap list.
+
+links:
+  # ── CI/CD axis ─────────────────────────────────────────────────────
+  - {from: ci-pipeline-architect, to: gha-workflow-optimizer, relation: see-also}
+  - {from: ci-pipeline-architect, to: artifact-signing-and-verification-designer, relation: extends}
+  - {from: ci-pipeline-architect, to: imported-voltagent-cloudflare-workers-best-practices, relation: see-also}
+  - {from: gha-workflow-optimizer, to: ci-pipeline-architect, relation: applies}
+  - {from: gha-workflow-optimizer, to: artifact-signing-and-verification-designer, relation: see-also}
+  - {from: artifact-signing-and-verification-designer, to: ci-pipeline-architect, relation: applies}
+  - {from: artifact-signing-and-verification-designer, to: secrets-architecture-designer, relation: see-also}
+
+  # ── IaC axis ────────────────────────────────────────────────────────
+  - {from: terraform-module-reviewer, to: k8s-manifest-reviewer, relation: see-also}
+  - {from: terraform-module-reviewer, to: secrets-architecture-designer, relation: see-also}
+  - {from: k8s-manifest-reviewer, to: terraform-module-reviewer, relation: see-also}
+  - {from: k8s-manifest-reviewer, to: workload-identity-architect, relation: see-also}
+  - {from: k8s-manifest-reviewer, to: kubernetes-cost-optimizer, relation: see-also}
+  - {from: k8s-manifest-reviewer, to: spark-on-kubernetes-architect, relation: see-also}
+
+  # ── Observability triangle ──────────────────────────────────────────
+  - {from: instrumentation-coverage-reviewer, to: cardinality-cost-reviewer, relation: see-also}
+  - {from: instrumentation-coverage-reviewer, to: observability-dashboard-architect, relation: applies}
+  - {from: observability-dashboard-architect, to: instrumentation-coverage-reviewer, relation: applies}
+  - {from: observability-dashboard-architect, to: alert-policy-architect, relation: see-also}
+  - {from: observability-dashboard-architect, to: slo-designer, relation: applies}
+  - {from: cardinality-cost-reviewer, to: instrumentation-coverage-reviewer, relation: applies}
+  - {from: cardinality-cost-reviewer, to: cloud-cost-audit, relation: see-also}
+
+  # ── SLO → alerting → incident response chain ────────────────────────
+  - {from: slo-designer, to: alert-policy-architect, relation: extends}
+  - {from: slo-designer, to: observability-dashboard-architect, relation: see-also}
+  - {from: alert-policy-architect, to: slo-designer, relation: applies}
+  - {from: alert-policy-architect, to: ops-incident-commander, relation: extends}
+  - {from: alert-policy-architect, to: ops-runbook-generator, relation: see-also}
+  - {from: ops-incident-commander, to: ops-runbook-generator, relation: applies}
+  - {from: ops-incident-commander, to: alert-policy-architect, relation: applies}
+  - {from: ops-runbook-generator, to: ops-incident-commander, relation: see-also}
+
+  # ── Chaos / resilience ──────────────────────────────────────────────
+  - {from: chaos-experiment-planner, to: imported-alirezarezvani-chaos-engineering, relation: see-also}
+  - {from: chaos-experiment-planner, to: ops-incident-commander, relation: see-also}
+  - {from: chaos-experiment-planner, to: imported-google-skills-waf-reliability, relation: applies}
+  - {from: imported-alirezarezvani-chaos-engineering, to: chaos-experiment-planner, relation: see-also}
+  - {from: imported-google-skills-waf-reliability, to: slo-designer, relation: applies}
+  - {from: imported-google-skills-waf-reliability, to: chaos-experiment-planner, relation: see-also}
+
+  # ── Cost / FinOps ───────────────────────────────────────────────────
+  - {from: cloud-cost-audit, to: cloud-cost-alert-designer, relation: extends}
+  - {from: cloud-cost-audit, to: kubernetes-cost-optimizer, relation: see-also}
+  - {from: cloud-cost-audit, to: imported-google-skills-waf-cost, relation: applies}
+  - {from: cloud-cost-alert-designer, to: cloud-cost-audit, relation: applies}
+  - {from: cloud-cost-alert-designer, to: alert-policy-architect, relation: see-also}
+  - {from: kubernetes-cost-optimizer, to: cloud-cost-audit, relation: applies}
+  - {from: kubernetes-cost-optimizer, to: k8s-manifest-reviewer, relation: see-also}
+  - {from: imported-google-skills-waf-cost, to: cloud-cost-audit, relation: see-also}
+
+  # ── Identity / secrets ──────────────────────────────────────────────
+  - {from: secrets-architecture-designer, to: workload-identity-architect, relation: extends}
+  - {from: secrets-architecture-designer, to: artifact-signing-and-verification-designer, relation: see-also}
+  - {from: workload-identity-architect, to: secrets-architecture-designer, relation: applies}
+  - {from: workload-identity-architect, to: k8s-manifest-reviewer, relation: see-also}
+
+  # ── Platform / internal developer platform ──────────────────────────
+  - {from: internal-platform-strategy-author, to: ci-pipeline-architect, relation: see-also}
+  - {from: internal-platform-strategy-author, to: observability-dashboard-architect, relation: see-also}
+  - {from: internal-platform-strategy-author, to: ops-runbook-generator, relation: see-also}
+
+  # ── Data-platform extensions (optional cluster) ─────────────────────
+  - {from: spark-on-kubernetes-architect, to: k8s-manifest-reviewer, relation: applies}
+  - {from: spark-on-kubernetes-architect, to: kubernetes-cost-optimizer, relation: see-also}
+  - {from: kafka-topic-architect, to: kafka-consumer-pattern-picker, relation: extends}
+  - {from: kafka-topic-architect, to: kafka-schema-evolution-architect, relation: see-also}
+  - {from: kafka-consumer-pattern-picker, to: kafka-streams-pipeline-designer, relation: see-also}
+  - {from: kafka-streams-pipeline-designer, to: kafka-topic-architect, relation: applies}
+  - {from: kafka-schema-evolution-architect, to: kafka-topic-architect, relation: applies}
+
+  # ── Networking ──────────────────────────────────────────────────────
+  - {from: imported-google-skills-networking-observability, to: observability-dashboard-architect, relation: see-also}
+  - {from: imported-google-skills-networking-observability, to: ops-incident-commander, relation: see-also}
+
+  # ── Cloudflare cluster ──────────────────────────────────────────────
+  - {from: imported-voltagent-cloudflare-platform, to: imported-voltagent-cloudflare-workers-best-practices, relation: extends}
+  - {from: imported-voltagent-cloudflare-workers-best-practices, to: ci-pipeline-architect, relation: see-also}

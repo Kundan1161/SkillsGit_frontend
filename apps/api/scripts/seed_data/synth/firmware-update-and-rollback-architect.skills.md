@@ -1,0 +1,304 @@
+---
+id: skillsgit-curated/firmware-update-and-rollback-architect
+version: 1.0.0
+name: Firmware Update and Rollback Architect
+description: Design a robust firmware update system with A/B partitions, signed images, atomic switch, watchdog-guarded recovery, and fleet rollout safety.
+authors:
+  - name: Wave-3 Methodology Synthesis
+    handle: wave3-embedded
+    role: author
+category: robotics
+tags:
+  - niche:embedded-realtime
+  - ota
+  - bootloader
+  - mcuboot
+  - signed-images
+  - rollback
+  - a-b-partitions
+  - secure-boot
+license_type: free
+ai:
+  required_models:
+    - claude-opus-4-7
+    - claude-sonnet-4-6
+  compatible_models:
+    - gpt-4o
+    - gpt-4.1
+    - gemini-1.5-pro
+  min_context_tokens: 32000
+  tools_optional:
+    - web_search
+  estimated_tokens_per_invocation: 7000
+trigger_keywords:
+  - firmware update
+  - ota
+  - bootloader
+  - mcuboot
+  - a/b partitions
+  - signed firmware
+  - rollback
+  - secure boot
+  - bricked device
+  - fleet rollout
+  - recovery image
+example_invocations:
+  - "Design an OTA update mechanism for a battery-powered LoRaWAN sensor."
+  - "We need A/B partitions and signed images on STM32WB with a 512 KB flash."
+  - "Review our firmware-update flow for bricked-device risk and rollback paths."
+  - "How should we stage a fleet rollout to 50,000 devices safely?"
+inputs:
+  - name: device_profile
+    type: text
+    required: true
+    description: MCU, flash size, RAM, external storage (SPI/eMMC/none), connectivity (BLE, LoRa, cellular, Wi-Fi, USB, serial), power profile.
+  - name: deployment_context
+    type: text
+    required: true
+    description: Fleet size, network reliability, user attendance (attended/unattended), physical accessibility, safety/regulatory regime.
+  - name: existing_stack
+    type: text
+    required: false
+    description: Bootloader in use (MCUboot, custom, vendor SDK), crypto library, transport, current update mechanism if any.
+  - name: threat_model
+    type: text
+    required: false
+    description: Adversary capability (network attacker, JTAG-capable attacker, supply-chain), required protections (confidentiality, anti-rollback, anti-cloning).
+outputs:
+  - name: update_architecture
+    type: markdown
+    description: Update-system design covering partitions, image format, signing/verification, transport, atomic switch, recovery, and rollout plan.
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Initial release.
+---
+
+# Firmware Update and Rollback Architect
+
+## When to use
+
+Use this skill when an embedded team needs a defensible design for "how do we ship a firmware update to a device that is already deployed, without bricking it." The same skill also serves to review an existing update flow for bricked-device, rollback, and fleet-rollout risk.
+
+Typical triggers:
+
+- A new product is moving from prototype to manufacturing and lacks a credible OTA story.
+- The current OTA is single-image with no recovery and the team has had field bricks.
+- Security review demands signed images, rollback protection, or a hardware root of trust.
+- A regulator (FDA SaMD, automotive, industrial) demands documented update integrity and traceability.
+- Fleet rollout has scaled past the point where ad-hoc shipping is safe.
+
+The skill produces a design document — partition layout, image format, verification flow, transport, atomic-switch rules, recovery plan, and rollout strategy. It does not write production code, and it does not certify the design.
+
+**Safety disclaimer (mandatory):** This skill produces methodology guidance. Embedded software defects can cause physical harm in safety-critical contexts. All outputs must be reviewed by qualified embedded engineers and, where applicable, validated against the safety standard governing the deployment (ISO 26262 automotive, IEC 62304 medical, DO-178C aerospace, IEC 61508 industrial). A faulty update mechanism can convert a working device into a hazard at fleet scale. Penetration test and field-pilot every design before broad rollout.
+
+## How to apply
+
+Work the steps in order. Each step states the property being established, the failure mode it prevents, and where MCUboot or similar permissively licensed reference fits.
+
+### Step 1 — Establish the goals and non-goals
+
+State the properties the system must guarantee:
+
+- **Atomicity.** A power loss at any instant must leave the device in a known-good runnable state.
+- **Authenticity.** Only images signed by the project's release key may run.
+- **Integrity.** Any flipped bit, truncated download, or interrupted flash must fail verification.
+- **Rollback.** A failed boot or failed self-test of a new image must roll back to the previous known-good image without manual intervention.
+- **Anti-rollback (security).** An attacker must not be able to downgrade a device to a known-vulnerable older image. Anti-rollback is in tension with safety rollback; the design must resolve which wins and when.
+- **Confidentiality (optional).** Image bodies are encrypted in transit and optionally at rest if reverse-engineering risk is in scope.
+- **Observability.** Every update attempt must produce an audit record (success, failure, reason, version before/after).
+
+State the non-goals explicitly (e.g., "this design does not protect against an attacker with persistent JTAG access in the lab").
+
+### Step 2 — Decide the partition layout
+
+Choose among the canonical layouts:
+
+- **Single slot (in-place).** One application slot, downloaded into a temporary buffer (external flash or RAM-backed), then erased-and-rewritten on switch. Cheapest on Flash, but no atomic guarantee unless the bootloader resumes verification on power loss and can complete the copy. Acceptable for ultra-constrained parts with external scratch.
+- **Dual slot (A/B).** Two equal-sized application slots plus a small bootloader and a small scratch area. The bootloader picks which slot to boot; updates write to the inactive slot and atomically toggle the boot pointer. This is the default modern design. MCUboot implements this on Cortex-M, RISC-V, and others.
+- **Dual slot with swap.** A/B layout with a swap operation that exchanges slots on each update so the *active* slot is always the same physical region. Eases linker scripts; costs extra erase cycles. MCUboot supports both swap-using-scratch and swap-using-move.
+- **Dual slot with overwrite-only.** Bootloader copies the new image from the staging slot to the active slot. Simpler, but a power loss mid-copy must be recoverable by re-fetching the image.
+- **Recovery partition.** A small, rarely-updated bootloader-and-recovery image lives in protected flash. Used when both A and B fail.
+
+Decision factors: flash budget, erase-cycle endurance, presence of external flash, willingness to maintain two link maps, whether the device may be unattended for years.
+
+Output the address map. Reserve a small NV area for boot-state metadata: active slot, trial bit, boot-attempt counter, rollback counter.
+
+### Step 3 — Design the image format
+
+An image is `[ header ][ body ][ footer / TLVs ]`. Use a permissive, well-supported format rather than rolling your own. MCUboot's image format is the de-facto reference: 32-byte header, body, TLV trailer with hash, signature, and metadata.
+
+Required fields:
+
+- **Magic.** Identifies the format and bootloader version.
+- **Version.** Semantic version (major.minor.patch.build). Used by anti-rollback.
+- **Body size and load address.** Linker-script anchor.
+- **Hash.** SHA-256 over the header + body.
+- **Signature.** Detached signature over the hash. Use ECDSA P-256 or Ed25519. RSA is acceptable for legacy fleets but Ed25519 is the modern default — small public keys, fast verify.
+- **Dependencies.** Optional version constraints for paired components (BLE controller image, secondary MCU image, hardware revision).
+- **Encryption header (optional).** AES-CTR or AES-GCM key wrapped to a device public key, if confidentiality is in scope.
+
+Document the TLV ordering. Document which fields are covered by the signature (header + body + metadata TLVs that affect behavior; not the signature itself).
+
+### Step 4 — Plan key management
+
+Keys are the lifetime risk of the system. Plan the full lifecycle:
+
+- **Key generation.** Offline, HSM-backed, with documented ceremony. Never on a developer laptop.
+- **Public key burned into the device.** Stored in a region protected by the silicon's read-only-after-lock fuse or option-byte mechanism. On Cortex-M parts, this typically means OTP, factory-locked option bytes, or a secure storage zone (Arm TrustZone, secure enclave).
+- **Multiple keys.** Have at least a primary and a backup public key on every device, with the bootloader trying both. This is your only recovery if the primary signing key is compromised.
+- **Key rotation.** Plan how a new public key enters the field. Usually: signed firmware that *adds* a key to the device's trust list, validated before activation.
+- **Compromise response.** Write the runbook for "we believe the signing key is compromised." Include: stop releasing, rotate to backup, push a recovery image, deprecate the old key once fleet adoption is high enough.
+
+For development, keep separate dev keys with a different OID. Production builds must not boot dev-signed images and vice versa.
+
+### Step 5 — Specify the verification flow
+
+In bootloader on every boot:
+
+1. Validate header magic and version.
+2. Validate body size against slot size.
+3. Recompute SHA-256 of header + body.
+4. Verify signature against the device's primary public key; on failure, fall back to backup keys.
+5. Check anti-rollback counter against the device's stored minimum version. If image version < min, refuse.
+6. Check dependencies (paired component versions).
+7. Branch to image entry.
+
+The bootloader runs from a region not erased by application updates and is itself ideally signed by a chained root key, or at minimum is short and audited. Open-source MCUboot or similar should be preferred over a custom bootloader for any product carrying safety or security obligations.
+
+### Step 6 — Atomic-switch logic and "trial" mode
+
+After download into the inactive slot and verification, the bootloader does *not* yet permanently commit. Sequence:
+
+1. Mark slot B as "pending" / "trial."
+2. Reboot.
+3. Bootloader sees the trial bit, runs the slot-B image.
+4. The new image must *self-confirm* within a bounded time (typically 60 s for connectivity-based confirmation, longer for offline products). Self-confirmation means: hit a self-test, communicate with the back-end, then write the "confirmed" flag.
+5. If the device resets before confirmation (watchdog, hard fault, brown-out), the bootloader sees the trial bit still set, increments a boot-attempt counter, and on threshold reverts to slot A.
+6. On confirmation, the bootloader marks slot B as the primary and slot A as the previous-known-good.
+
+This is the property that prevents bricks. MCUboot calls this the "swap-with-revert" flow; equivalent semantics exist in custom bootloaders.
+
+Decisions to document:
+
+- Trial timeout (long enough for the image to come up, short enough that a stuck device recovers within user-tolerated time).
+- Boot-attempt threshold (typical: 3 attempts).
+- What counts as "confirmation" — must be an action of the new image, not a passive timer.
+
+### Step 7 — Transport and download protocol
+
+Independent of the on-device update mechanism. Common choices:
+
+- **HTTPS download** (Wi-Fi / cellular). Use a permissively licensed TLS stack (mbedTLS / Apache-2.0, Mbed-TLS PSA crypto, or BearSSL / MIT). Pin the server certificate or use a small CA list.
+- **CoAP/OSCORE** over LoRaWAN or constrained links. Fragment the image and tolerate retries; total download may span days.
+- **BLE / Nordic SMP** for proximity updates. Apply the MCUmgr (Apache-2.0) protocol where possible.
+- **Serial / USB DFU** for attended updates. Use STM32 DFU, Tinyusb-DFU (MIT), or Zephyr's MCUmgr serial.
+- **Manufacturing-line burn** for the very first image. Out of scope for OTA but document that the same image format applies.
+
+Always verify on-device after the entire image is received. Never verify on chunks alone — chunk-level verification protects only against transport corruption, not against malicious assembly.
+
+### Step 8 — Storage of the staged image
+
+If you have external flash (SPI NOR or QSPI), staging is easy. If you don't:
+
+- For dual-slot internal-flash designs, the staging *is* the secondary slot.
+- For single-slot designs, you must stage in RAM (rare; only viable for very small images) or download in pieces with a resumable protocol so a power loss restarts the download from the last verified offset.
+
+Erase only after verification of the chunk fits. Track flash-erase wear in a counter so the team can see when a fleet is approaching endurance limits.
+
+### Step 9 — Recovery image and last-resort paths
+
+Plan for the case where both A and B fail.
+
+- **Read-only recovery firmware.** A small image in protected flash that boots when no application image verifies. Capable of accepting a fresh signed update over a minimal transport (serial, BLE, USB).
+- **Hardware recovery trigger.** A physical button pressed at boot enters recovery mode, regardless of slot state. Document this so field service can use it.
+- **Out-of-band reset of anti-rollback.** Document whether a key-holder can authorize an exception, and how. This is sometimes the only path out of "we anti-rollbacked our entire fleet because of a regression."
+
+Test the recovery path on every release. A recovery image that has never been exercised is not a recovery image.
+
+### Step 10 — Fleet rollout strategy
+
+The on-device design is half the system. The other half is the rollout:
+
+- **Canary.** First 0.1–1 % of devices, ideally a known subset with extra telemetry. Watch for 24–72 h depending on duty cycle.
+- **Ring expansion.** Internal → friends-and-family → 1 % → 10 % → 50 % → 100 %, with a kill switch at each stage.
+- **Targeting.** By hardware revision, by region (carrier compatibility), by firmware version (skip-version policies), by criticality (production lines last).
+- **Halt criteria.** Pre-define what failure rate triggers halt: e.g., > X % devices fail to confirm new image, > Y % regressions in connectivity, any safety-relevant fault.
+- **Rollback at scale.** If a rollout is halted, devices currently downloading must abort and devices in trial must auto-revert. Devices that already confirmed need a forward fix; usually a follow-up release rather than a network-driven downgrade (which fights anti-rollback).
+- **Telemetry.** Every device reports: previous version, new version, time-to-confirm, reset cause counters since update, key health metrics. Roll this up into a single dashboard before the rollout begins, not during the incident.
+
+### Step 11 — Threat-model review
+
+Walk the threat model:
+
+- **Network attacker forging an image.** Stopped by signature verification.
+- **Network attacker replaying an old vulnerable image.** Stopped by anti-rollback.
+- **Network attacker corrupting the download.** Stopped by hash + signature.
+- **Attacker with brief physical access (USB, exposed UART).** Mitigated by signed images and read-protected flash; depends on silicon features.
+- **Attacker with JTAG.** Out of scope for most consumer products; raises the question of debug-port lock and secure boot.
+- **Compromised signing key.** Mitigated only by backup key + key rotation.
+- **Compromised cloud build pipeline.** Mitigated only by offline key custody and reproducible builds.
+
+Document which threats are in scope and which are accepted.
+
+### Step 12 — Produce the design document
+
+Output:
+
+1. **Goals and non-goals.** From Step 1.
+2. **Partition map.** Addresses, sizes, scratch, NV metadata.
+3. **Image format.** Header, body, TLVs, signature scheme.
+4. **Key plan.** Generation, storage, rotation, compromise response.
+5. **Verification flow.** Step-by-step bootloader logic.
+6. **Trial-and-confirm logic.** Triggers, timeouts, boot-attempt counter, revert.
+7. **Transport.** Protocol, TLS stack, fragmentation, resumability.
+8. **Recovery image.** Address, transport, trigger.
+9. **Rollout plan.** Rings, halt criteria, telemetry, rollback strategy.
+10. **Threat model.** In scope vs accepted.
+11. **Test plan.** Power-loss matrix (kill power at each phase), brick-survival tests, fleet pilot.
+12. **Reference URLs.** Permissive-license OSS to study and possibly vendor (next section).
+
+## Inputs
+
+- **Device profile.** MCU, flash, RAM, external storage, connectivity, power.
+- **Deployment context.** Fleet size, network reliability, user attendance, safety regime.
+- **Existing stack.** Bootloader, crypto, transport, current update mechanism.
+- **Threat model.** Adversary capabilities and protection requirements.
+
+## Outputs
+
+A markdown design with the 12 sections above, plus a power-loss-injection test matrix and a fleet-rollout runbook skeleton.
+
+## Examples
+
+> "STM32WB55, 1 MB flash, 256 KB RAM, BLE-only, 50k devices in unattended home installs, no external flash. Currently single-slot DFU with no signing."
+
+Expected design (abridged):
+
+- **Partitions.** 32 KB MCUboot bootloader at 0x0, slot A 480 KB, slot B 480 KB, scratch 16 KB, NV metadata + recovery hint in remaining bytes. Internal-only — no external flash.
+- **Image format.** MCUboot v1 image with Ed25519 signature, SHA-256, version TLV, dependency TLV for the BLE stack image.
+- **Keys.** Two Ed25519 keys (primary + backup) generated in an HSM, public keys placed in protected flash by a one-time provisioning step on the factory line.
+- **Verification.** MCUboot stock flow with anti-rollback enabled (min version stored in NV).
+- **Trial-and-confirm.** New image must self-confirm via BLE handshake with the companion app within 5 minutes; otherwise revert.
+- **Transport.** SMP-over-BLE using MCUmgr; phone-app drives the download. No direct cloud-to-device path.
+- **Recovery.** MCUboot recovery mode entered by holding the pairing button for 10 s at boot; SMP accepts a signed image over BLE.
+- **Rollout.** Ring 1: 100 internal devices for 7 days. Ring 2: 5 % of fleet for 14 days. Ring 3: 25 %. Ring 4: 100 %. Halt if > 0.5 % of devices fail to confirm or > 0.1 % require recovery flow.
+- **Threats.** Network attacker — out of scope (BLE transport, paired). Lab attacker with JTAG — out of scope; the silicon's read-out protection is engaged.
+
+## Limitations
+
+- This skill produces a design, not certified code. Bootloader and crypto code must come from audited sources (MCUboot, mbedTLS, BearSSL) — do not roll your own.
+- Linux-class systems (SwUpdate, RAUC, Mender) have different trade-offs not covered here; the skill targets MCU-class deployments with bootloader-driven updates. Verify the license of any tool you adopt; some popular Linux update agents are GPL/LGPL and excluded from this skill's permissive-only scope.
+- Hardware-specific features (Arm TrustZone, RoT silicon, PSA Certified flows) require vendor documentation. The skill highlights where they fit but does not specify them.
+- Confidentiality of image bodies is treated as optional. If reverse-engineering is in scope, an encryption-at-rest design with a per-device key derivation must be added.
+- Re-verify the license of MCUboot, mbedTLS, MCUmgr, and any other dependency before shipping; this skill names projects believed to be Apache-2.0 / MIT / BSD at publication time, but license terms can change.
+
+## Source references (URL-only)
+
+- https://github.com/mcu-tools/mcuboot
+- https://github.com/zephyrproject-rtos/zephyr
+- https://github.com/Mbed-TLS/mbedtls
+- https://github.com/apache/nuttx
+- https://github.com/nrfconnect/sdk-nrf
+- https://github.com/hathach/tinyusb
+- https://github.com/embeddedartistry/embedded-resources

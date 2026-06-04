@@ -1,0 +1,75 @@
+{
+  "attribution_index": {
+    "<volatile-skill-id>": "domains/observability/alert-policy-architect.md"
+  },
+  "build": {
+    "built_at": "<volatile>",
+    "composed_at": "<volatile>",
+    "composed_hash": "<volatile>",
+    "occupation_build_hash": "<volatile>",
+    "occupation_build_id": "<volatile>",
+    "persona_build_hashes": "<volatile>",
+    "persona_build_ids": "<volatile>"
+  },
+  "files": [
+    {
+      "content_hash": "<volatile>",
+      "creator_handle": "skillsgit-curated",
+      "kind": "skill",
+      "links": [],
+      "links_resolved": true,
+      "neuron": null,
+      "skill_id": "<volatile>",
+      "tags": [
+        "ci"
+      ],
+      "vault_path": "domains/ci-cd/ci-pipeline-architect.md",
+      "version": "1.0.0"
+    },
+    {
+      "content_hash": "<volatile>",
+      "creator_handle": "skillsgit-curated",
+      "kind": "skill",
+      "links": [],
+      "links_resolved": true,
+      "neuron": null,
+      "skill_id": "<volatile>",
+      "tags": [
+        "ops"
+      ],
+      "vault_path": "domains/incident/ops-runbook-generator.md",
+      "version": "1.0.0"
+    },
+    {
+      "content_hash": "<volatile>",
+      "creator_handle": "skillsgit-curated",
+      "kind": "skill",
+      "links": [],
+      "links_resolved": true,
+      "neuron": null,
+      "skill_id": "<volatile>",
+      "tags": [
+        "alert"
+      ],
+      "vault_path": "domains/observability/alert-policy-architect.md",
+      "version": "1.0.0"
+    }
+  ],
+  "occupation": {
+    "content_hash": "<volatile>",
+    "creator_handle": "skillsgit-curated",
+    "domains": [
+      "ci-cd",
+      "incident",
+      "observability"
+    ],
+    "name": "AI DevOps Engineer (demo)",
+    "skill_id": "<volatile>",
+    "slug": "ai-devops-engineer",
+    "version": "1.0.0"
+  },
+  "personas": [],
+  "schema_version": 1,
+  "vault_id": "<volatile>",
+  "warnings": []
+}

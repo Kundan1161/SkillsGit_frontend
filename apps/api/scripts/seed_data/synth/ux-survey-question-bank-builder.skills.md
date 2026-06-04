@@ -1,0 +1,326 @@
+---
+id: skillsgit-curated/ux-survey-question-bank-builder
+version: 1.0.0
+name: Survey Question Bank Builder
+description: Design a survey that actually answers the research question — bias-aware question wording, scale choice, branching, length budget, pilot plan, and a question bank you can reuse across studies.
+authors:
+  - name: skillsgit Curated
+    handle: skillsgit-curated
+    role: author
+category: design
+tags: [niche:ux-research, survey, questionnaire, scales, response-bias, quantitative, mixed-methods]
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6, claude-haiku-4-5, gpt-4o]
+  tools_required: []
+  min_context_tokens: 32000
+  estimated_tokens_per_invocation: 5000
+trigger_keywords:
+  - survey
+  - questionnaire
+  - survey design
+  - question bank
+  - scale design
+  - response bias
+  - Likert scale
+  - branching survey
+  - NPS
+  - pilot survey
+  - quantitative research
+  - in-product survey
+example_invocations:
+  - "Build me a 5-minute satisfaction survey for our newly-onboarded customers."
+  - "Design a survey to measure perceived ease of use of the redesign across segments."
+  - "I need a question bank for our in-product feedback widget — three to six questions max."
+  - "Draft a survey to test pricing sensitivity for the new tier."
+inputs:
+  - name: survey_goal
+    type: text
+    required: true
+    description: What decision the survey will inform. The narrower the better. "Pick between two pricing tiers" is workable; "understand customers" is not.
+  - name: respondent_profile
+    type: text
+    required: true
+    description: Who is the survey for, where they will see it, and the relationship they have with the team (current users, prospects, mixed). Used for tone, screening, and length budget.
+  - name: channel
+    type: choice
+    required: false
+    description: Where the survey will run. Affects length budget, question types, and dropout management.
+    choices: [email, in-product, intercept, paid-panel, post-session]
+  - name: target_length_minutes
+    type: number
+    required: false
+    description: Target completion time in minutes. Defaults to 5 for general surveys, 2 for in-product widgets, 8 for incentivized panels.
+  - name: required_comparisons
+    type: text
+    required: false
+    description: Segments you want to compare. Drives sample size guidance and which screener questions are included to enable cuts.
+  - name: prior_questions
+    type: text
+    required: false
+    description: Questions used in past surveys that the team wants to repeat for trend comparison. The bank will preserve their wording when possible and call out any tradeoffs.
+  - name: regulatory_or_brand_constraints
+    type: text
+    required: false
+    description: Language requirements (consent, accessibility), brand voice rules, regulated industry constraints. Affects wording and structure.
+outputs:
+  - name: survey_questionnaire
+    type: markdown
+    description: The full survey — intro, screener, main questions with branching logic, optional follow-ups, and close. Each question annotated with its purpose, scale rationale, and the bias it guards against.
+  - name: question_bank
+    type: markdown
+    description: A reusable bank of questions tagged by topic, scale type, and known-good wording — a starting library for the team's future studies.
+  - name: pilot_plan
+    type: markdown
+    description: A small-N pilot plan with what to watch for and what would trigger a rewrite before full launch.
+  - name: analysis_setup
+    type: markdown
+    description: How responses will be analyzed — variable definitions, comparison plan, how to treat partials, and dashboard structure.
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Initial release.
+---
+
+# Survey Question Bank Builder
+
+## When to use
+
+Use this skill when the team needs structured input from many respondents on a focused question. Surveys work well for measurement (does this metric move?), comparison across segments (do new users feel differently than returning ones?), and prioritization (which of these problems matters most to whom?). They work poorly for understanding why people feel what they feel and for generating new concepts — that work belongs to interviews.
+
+Trigger this skill when the input includes:
+
+- A specific question that needs a sample-sized answer.
+- A request for a "survey," "questionnaire," "form," "poll," or "feedback widget."
+- A measurement need — "how do we know if the new design improved things?"
+- A comparison need — "do enterprise customers feel different about this than SMB?"
+
+Do not trigger when:
+
+- The team wants to explore why something is happening (use the interview-guide-designer skill).
+- The team needs to test whether people can do something (use the usability-test-planner skill).
+- The team wants to synthesize already-collected qualitative data (use the research-synthesis skill).
+- The question is "what should we build" — surveys are bad at this; recommend interviews instead.
+
+If `survey_goal` is too broad to design against, ask one clarifying question. A survey written without a sharp goal will produce data the team cannot decide from.
+
+## How to apply
+
+Work through these steps in order. The most common survey failure is not bad questions — it is the right answers to the wrong question, delivered too late.
+
+### Step 1. Pin the decision and the comparison
+
+Restate the goal as: "We will collect X from Y people, and use it to decide Z by [date]." If the team cannot fill in any of those slots, surface the gap before designing.
+
+Also pin the comparison. Almost every useful survey is a comparison — between segments, between time periods, between options, or between a result and a benchmark. State the comparison explicitly: "Compare perceived ease-of-use between the redesign and the prior version" or "Compare upgrade interest across SMB and enterprise tiers." This shapes both which questions are asked and which screening questions are needed to slice the data.
+
+### Step 2. Enforce the length budget
+
+The relationship between survey length and data quality is nonlinear and unforgiving. As surveys grow past five minutes, dropout rises sharply and answer quality drops as respondents satisfice — pick the first plausible answer to get done. Budget guidance:
+
+- In-product micro-surveys: 1–3 questions, under 60 seconds.
+- General email surveys: 4–8 questions, under 5 minutes.
+- Incentivized panel surveys: up to 15 questions if needed, under 10 minutes.
+- Post-session debrief surveys: 3–6 questions tied to what just happened.
+
+When the input asks for more than the budget allows, propose the cut. Ask: "If you had to remove every question that is not tied to the decision, what would you keep?"
+
+### Step 3. Choose question types deliberately
+
+For each measurement need, pick the question type that matches:
+
+- **Single-select** — when one answer is right and the answer set is closed. Good for screening.
+- **Multi-select** — when multiple things can be true. Always include "none of the above" and never let "other" be the dominant response without a follow-up text field.
+- **Likert scale (5- or 7-point)** — for attitudes and agreement. Use balanced wording on the endpoints; keep the neutral midpoint unless the team has a strong reason to force a side.
+- **Semantic differential** — for paired-opposite assessments ("difficult / easy"). Good for usability ratings.
+- **Numeric rating (1–10)** — for likelihood or recommendation. Familiar but coarse; do not over-interpret a 7 vs. an 8.
+- **Open text** — for color, quotes, and the one thing the closed-ended questions miss. Always optional, never gates progression.
+- **Rank-order** — for prioritization across a small set (3–5 items). Painful for respondents beyond 7 items.
+- **Constant-sum** — for budget-allocation questions. Use only when the trade-off is what matters.
+
+Match the scale points to what the team will do with the answer. Five points is plenty for most attitude questions; seven is justified when finer discrimination matters. Avoid double-barreled scales that mix frequency and intensity.
+
+### Step 4. Write questions that resist common biases
+
+Every question is a chance to introduce bias. Name the threats and guard against them.
+
+- **Leading wording.** "How helpful was our excellent new feature?" presupposes excellence. Rewrite to neutral: "How helpful did you find the new feature?"
+- **Loaded terms.** "Do you agree that we should improve our support?" assumes improvement is needed. Rewrite to a non-loaded statement.
+- **Double-barreled.** "Was the checkout fast and easy?" mixes two things. Split into two questions.
+- **Acquiescence bias.** Respondents agree more than they disagree. Balance positively-worded and negatively-worded items in any agreement scale.
+- **Social desirability.** People answer the way they think they should. For sensitive topics, use third-person framing ("Some people in your situation say X — does that resonate?") or anonymity reassurance.
+- **Recall bias.** "How often did you use the feature in the last 30 days?" produces guessed numbers. When precision matters, anchor to specific events or behavior buckets.
+- **Order effects.** Earlier questions prime later answers. Randomize within sections where possible; never place the leading question first.
+- **Anchor effects.** Showing a high number primes the respondent toward it. Be careful with numeric scales and example values in prompts.
+- **Survey fatigue.** Late-survey questions get worse answers. Put the most decision-critical questions early.
+
+Annotate each question in the draft with the bias it most needs to guard against. The team should see the reasoning.
+
+### Step 5. Place screening at the top
+
+Screen out respondents who do not match the target profile before they invest time. Screeners:
+
+- Should be short (2–4 questions).
+- Should disqualify silently — never tell the respondent why they were screened out, to prevent gaming on future surveys.
+- Include comprehension or trap questions for paid-panel surveys where fraud is a risk. A trap question has one obviously correct answer ("Please select 'Strongly disagree' to confirm you are reading") and filters out inattentive respondents.
+
+For in-product surveys, the screening is often the trigger logic itself — show only to users in segment X, not by asking. But include a one-question confirmation when the segment definition might be wrong.
+
+### Step 6. Build branching that respects the respondent
+
+Branching makes surveys shorter for each respondent by skipping irrelevant questions. Rules:
+
+- Branch on what is true now, not what might be true. Avoid "if you might use feature X" — branch on "have used X in the last week."
+- State the path the respondent did not see in the analysis plan. When 60% never saw a question, the answer "70% of 40% said yes" is what is being reported.
+- Cap depth at 2–3 branch layers. Deeper branching becomes hard to analyze and easy to misroute.
+- Provide an exit path for "this doesn't apply." Forcing answers is a common quality-killer.
+
+### Step 7. Choose the right scales — and stick to them across surveys
+
+Consistency across surveys is worth more than micro-improvements per survey. If the team has used a 5-point Likert for satisfaction in three prior studies, use it again — comparability is more valuable than the slightly-better 7-point alternative this time. The pilot may reveal a strong reason to change; otherwise, keep faith with the past.
+
+When introducing a new scale, document the reasoning and what you would compare it against. Don't introduce three new scales in one survey.
+
+### Step 8. Plan for the in-product variant carefully
+
+In-product surveys have a different shape:
+
+- One to three questions, max.
+- Triggered on a relevant moment — after the action, not in the middle of it.
+- Dismissable; never blocking.
+- Visual weight low; not modal unless the question is decision-critical and the moment is right.
+- Frequency-capped per user; do not show the same person twice in a window.
+
+Word them like they belong in the product, not like they came from a vendor.
+
+### Step 9. Write the intro and consent
+
+The intro tells the respondent:
+
+- Who is asking (the team or company).
+- Why (what decision the answers feed, in plain language).
+- How long (honest estimate based on pilot, not aspiration).
+- What is done with the data (privacy, retention, identifiability).
+- Whether participation is anonymous, named, or pseudonymous.
+- Incentive, if any, and how it is delivered.
+
+For regulated industries, add the specific consent language required by policy. For minors or vulnerable participants, add the protective language.
+
+A good intro adds 30 seconds; a bad one halves response rate.
+
+### Step 10. Plan sample size and statistical power
+
+Sample size depends on what comparison the survey is making.
+
+- For directional in-product questions, 100 responses per segment is a workable floor.
+- For decisions that hinge on small differences (e.g., 5-point shift in NPS, A/B between variants), use a power calculation. Expect 200–800 per segment.
+- For exploratory crosstabs with multiple segments, plan for each cut to clear the minimum cell size needed for the comparison to mean anything.
+
+State sample-size targets per segment in the plan, and the decision rule for early-stopping or extending. Surveys that ended on a fixed date instead of a target N produce findings that do not survive contact with reality.
+
+### Step 11. Pilot before launch
+
+Pilot with 5–15 respondents from the target profile before full launch. Watch for:
+
+- Questions where respondents pause, hesitate, or ask for clarification.
+- Wording that respondents interpret differently than intended.
+- Scales where everyone hits the same option (lack of discrimination).
+- Branching paths that misfire.
+- Time-on-survey vs. estimate.
+
+Treat pilot data as throwaway. The goal is to fix the survey, not to add to the data.
+
+Document changes between pilot and launch. Future research replication depends on knowing what was tested.
+
+### Step 12. Define the analysis plan in advance
+
+Decide before responses come in:
+
+- What variables you will report (raw counts, percentages, means, medians).
+- How partials are treated (kept vs. dropped, threshold for inclusion).
+- Which crosstabs are planned (segment × question) and which are exploratory.
+- What the headline metric is and how you will compare it.
+- Where dashboards or reports live and who has access.
+
+For Net Promoter Score and similar composite metrics, define exactly how the calculation is done and how it will be reported. Inconsistent calculation across surveys destroys trend-line value.
+
+### Step 13. Plan the close and follow-up
+
+The close tells the respondent thanks, confirms the incentive process, and (if appropriate) asks for follow-up consent — "Can we contact you for a longer conversation about your answers?" This is one of the highest-quality recruit channels for follow-on qualitative research.
+
+### Step 14. Build the question bank for reuse
+
+Tag each question in the survey with topic, scale type, intended construct, and known limitations. Add it to the team's question bank with the version and date it was first deployed. The bank becomes the lever for consistency across surveys over time — and protects against newly-invented questions that accidentally drift from prior wording.
+
+## Inputs
+
+- `survey_goal` (required): the decision the survey informs.
+- `respondent_profile` (required): who answers it.
+- `channel` (optional): where the survey runs.
+- `target_length_minutes` (optional): time budget.
+- `required_comparisons` (optional): segment cuts.
+- `prior_questions` (optional): reusable wording from earlier studies.
+- `regulatory_or_brand_constraints` (optional): language and policy needs.
+
+## Outputs
+
+- `survey_questionnaire`: the deployable survey.
+- `question_bank`: a reusable library tagged for future surveys.
+- `pilot_plan`: small-N pilot guidance.
+- `analysis_setup`: variable definitions and analysis decisions.
+
+## Examples
+
+### Example 1 — post-onboarding satisfaction survey
+
+Goal: measure perceived ease of getting started on the new onboarding flow, and compare new SMB customers to new enterprise customers.
+
+Channel: email at day-7 of new account.
+
+Length budget: 4 minutes.
+
+The survey produced would be 6–7 questions: two-question screener (confirm role and account-age fit), three core questions covering ease, confidence, and one open-text "what was hardest," one segmenting question (company size), one follow-up consent. The Single Ease Question (1–7 scale) is used to allow comparison with usability tests later. Bias guards: balanced agreement wording, neutral midpoint kept, no leading product language. Sample-size target: 200 per segment to detect a half-point shift on the ease scale.
+
+### Example 2 — in-product feedback widget for a search redesign
+
+Goal: monitor whether search satisfaction shifts after a redesign launch.
+
+Channel: in-product, triggered after the user opens search results then closes the results page.
+
+Length budget: 60 seconds.
+
+The output is a 2-question widget: a single-question rating ("How well did the results match what you were looking for?" on a 1–5 scale, with text labels) and one optional open-text follow-up shown only when the rating is 1, 2, or 5 (high-signal extremes). The widget is frequency-capped to once per user per 30 days. Trigger rule excludes new users in their first session. Analysis plan defines the headline as median rating week-over-week, with a planned crosstab by user tenure bucket.
+
+### Example 3 — pricing-tier sensitivity survey
+
+Goal: decide between two candidate price points for a new tier.
+
+Channel: paid panel of current customers eligible for the new tier.
+
+Length budget: 8 minutes, with incentive.
+
+The output is a longer survey with a careful comparison structure — respondents are randomized into two groups, each seeing one candidate price point with the tier features. Standard van-Westendorp-style price-sensitivity questions are adapted with neutral wording, paired with a willingness-to-trial commitment question. Bias guards include avoiding round-number anchoring in scale labels, balancing positively-and negatively-worded items in the willingness items, and randomizing the feature-list order to prevent primacy effects. Sample-size target: 300 per variant for a 5-percentage-point detectable difference in stated intent.
+
+## Limitations
+
+- Surveys measure stated preference and stated behavior; both can diverge from actual behavior. Triangulate with usage data when stakes are high.
+- This skill does not field the survey, recruit, or analyze responses. It produces the design.
+- Net Promoter Score is included as a familiar option but is a coarse metric — do not bet major decisions on small NPS movements.
+- The skill cannot detect when the respondent profile is wrong for the question. If the team surveys only happy users, the survey will not produce a true picture.
+- For surveys in regulated or vulnerable-population contexts (minors, healthcare patients, financial decisions for elders), an ethics or legal review is required beyond what this skill produces.
+- Translation across languages introduces wording drift. The skill produces source-language questions only; back-translation review is needed for non-English deployments.
+
+## Sources reviewed
+
+Patterns were drawn by surveying these open-source repositories covering survey tooling, agent-skill collections that include survey design steps, and broader research methodology resources. All prose above is original to this skill; no source text was reproduced.
+
+- https://github.com/surveyjs/survey-library
+- https://github.com/VoltAgent/awesome-claude-code-subagents
+- https://github.com/msitarzewski/agency-agents
+- https://github.com/product-on-purpose/pm-skills
+- https://github.com/aakashg/pm-claude-code-setup
+- https://github.com/ruxailab/RUXAILAB

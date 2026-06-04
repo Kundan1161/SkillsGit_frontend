@@ -1,0 +1,260 @@
+---
+id: skillsgit-curated/entity-resolution-system-designer
+version: 1.0.0
+name: Entity Resolution System Designer
+description: Design an end-to-end entity resolution system — blocking, candidate generation, pairwise scoring, transitive closure, golden-record materialization, review queue, drift monitoring, and audit trail.
+authors:
+  - name: skillsgit Curated
+    handle: skillsgit-curated
+    role: author
+category: data
+tags: [niche:entity-resolution, record-linkage, deduplication, master-data, blocking, golden-record, review-queue, drift-monitoring]
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6, gpt-4o, gpt-4.1, gemini-1.5-pro]
+  tools_required: []
+  tools_optional: [web_search, code_execution, file_io]
+  min_context_tokens: 32000
+  estimated_tokens_per_invocation: 7500
+trigger_keywords:
+  - entity resolution
+  - record linkage
+  - deduplication design
+  - master data management
+  - golden record
+  - blocking strategy
+  - pairwise classifier
+  - identity resolution
+  - fuzzy match
+  - merge survivorship
+  - manual review queue
+  - clustering records
+example_invocations:
+  - "Design an entity resolution system for our customer table — we have 80 million records from twelve source systems and a 3 percent estimated duplicate rate."
+  - "We need to dedupe a supplier master across regions. Walk me through the blocking strategy, pairwise model, and golden-record rules."
+  - "Plan an entity resolution pipeline that includes a human review queue and an audit trail acceptable to internal audit."
+inputs:
+  - name: domain
+    type: text
+    required: true
+    description: The records being resolved — what they represent, how many there are, where they come from, and what downstream consumers will rely on the resolved identity.
+  - name: attribute_inventory
+    type: text
+    required: false
+    description: Available attributes per record, their fill rates, their reliability per source, and any known systematic errors (transliteration, abbreviation, formatting drift).
+  - name: ground_truth_availability
+    type: text
+    required: false
+    description: Whether labeled match pairs exist, whether labels can be created cheaply, and what tolerance is acceptable for false-merge versus missed-merge.
+  - name: downstream_consumers
+    type: text
+    required: false
+    description: Systems and processes that will consume the resolved identity, with their latency, consistency, and audit-trail expectations.
+  - name: regulatory_constraints
+    type: text
+    required: false
+    description: Cross-border restrictions, PII handling, retention rules, and audit requirements that the resolution pipeline must satisfy.
+outputs:
+  - name: design_document
+    type: markdown
+    description: Full design covering blocking, scoring, clustering, survivorship, review, monitoring, and audit.
+  - name: design_json
+    type: json
+    description: Machine-readable design with `blocking_keys`, `pairwise_features`, `clustering_strategy`, `survivorship_rules`, `review_thresholds`, `monitoring_signals`, `audit_records`.
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Initial release.
+---
+
+# Entity Resolution System Designer
+
+## When to use
+
+Use this skill when a team needs to design an entity resolution (ER) system from scratch, or substantially redesign an existing one. The output is a written design: how records get into the system, how candidate pairs are generated, how pairs are scored, how scores are turned into clusters, how clusters become a single "golden record," how borderline decisions reach human reviewers, and how the whole pipeline is monitored and audited over time.
+
+This skill is appropriate when the source data is structured (people, organisations, products, addresses, devices, accounts), when uniqueness across sources is not guaranteed by a shared identifier, and when the consequences of bad matches matter — a wrong merge sends one customer's data into another customer's profile, a missed merge fragments a single customer into apparent duplicates and inflates counts. It is not the right skill for pure semantic search over unstructured text (use the semantic search architect), for designing the storage layer alone, or for picking an embedding model for a vector-based blocker (use the embedding-model selector for that sub-step and bring its output here).
+
+A good ER design specifies what each stage produces, what it costs, how it is evaluated, and how it can be rolled back when a model or rule changes. The skill writes designs in that style.
+
+## Inputs
+
+| Input | Required | Purpose |
+| --- | --- | --- |
+| `domain` | yes | Frames the entire design — record type, scale, sources, intended use. |
+| `attribute_inventory` | no | Drives blocking key choice and pairwise feature design. |
+| `ground_truth_availability` | no | Determines whether the scorer is rule-based, supervised, weakly supervised, or active-learning trained. |
+| `downstream_consumers` | no | Constrains latency, consistency model, and survivorship policy. |
+| `regulatory_constraints` | no | Sets the audit-trail depth and PII handling requirements. |
+
+## How to apply
+
+The skill walks a sixteen-stage design pipeline. Stages 1-3 frame the problem; stages 4-9 design the matching pipeline; stages 10-13 design the post-match consumers and human-in-the-loop layer; stages 14-16 cover monitoring, operations, and the deliverable.
+
+### Stage 1 — Frame the problem
+
+1. Restate `domain` in one paragraph that names the entity ("an organisation," "a person-household pair," "a product SKU"), the unit of resolution (per source row versus per cross-source key), and the consumers that will read the result. Resolution is meaningless without a consumer; the design must trace each downstream decision back to the merging choice that supports it.
+2. Quantify the scale: total record count, expected daily increment, expected duplicate density (rough percentage), number of sources, and whether new sources are expected to onboard during the system's lifetime. A 100-million-row system with a 1 percent duplicate rate is a fundamentally different problem from a 1-million-row system with a 30 percent duplicate rate.
+3. State the cost asymmetry. False merges (two distinct entities collapsed into one) and missed merges (one entity left as two records) have different downstream costs. In healthcare and finance, false merges typically cost more than missed merges; in marketing analytics, the reverse is often true. The asymmetry sets the scoring thresholds later.
+
+### Stage 2 — Attribute inventory and normalisation
+
+4. Catalogue every attribute available across sources, with fill rate, distribution, and per-source reliability. An attribute that is 99 percent populated in source A and 12 percent populated in source B contributes asymmetrically to evidence.
+5. Define normalisation per attribute. Names get case-folded, accents stripped, common suffixes (Inc, Ltd, GmbH) handled by an allow-list, nicknames mapped (Bill → William). Addresses go through a standardiser (USPS-style for US, equivalents elsewhere). Dates are coerced to a common format. Phone numbers are reduced to digits-only canonical form. Identifiers (tax id, national id) are validated and checksum-verified where possible.
+6. Identify systematically erroneous attributes — fields where one source consistently lies (legacy systems with frozen old values, free-text fields polluted by test data, OCR-extracted values). Flag them so the scorer can downweight rather than ignore.
+7. Decide on hashing of sensitive identifiers. National identity numbers and full names may need to be hashed with a domain-pepper before they enter the matching environment. The design specifies which fields are hashed, which hash, where the pepper lives, and how the hash interacts with comparison (you cannot fuzzy-match a hash; only exact-match on hash is meaningful).
+
+### Stage 3 — Choose the resolution mode
+
+8. Pick the resolution mode based on consumer needs: **batch** (run nightly, produce a snapshot of clusters), **incremental** (each new record is resolved against the existing cluster set), or **streaming** (sub-second per record). Most enterprise systems are incremental; streaming is reserved for fraud and identity-at-checkout scenarios.
+9. Decide on **deduplication versus linkage**. Deduplication operates within one table; linkage operates between two or more tables. Most real systems do both: dedupe each source, then link across sources. The design states the order and the reason.
+10. Decide on **single-source-of-truth versus federated**. In the former, the ER system writes a canonical record to a master table that downstream systems read. In the latter, source systems keep their records and the ER system publishes a mapping. The former is operationally simpler but politically harder; the federated approach is more common in practice.
+
+### Stage 4 — Blocking strategy
+
+11. Blocking is the first cost-reduction step: instead of comparing every record to every other record (N-squared), generate candidate pairs only among records that share a coarse blocking key. The design specifies the keys.
+12. **Standard blocking keys** include hash of normalised surname plus first character of given name, hash of street-name plus postcode, hash of normalised company name plus country. Pick keys with high recall (true matches fall in the same block) and reasonable selectivity (blocks are not too large).
+13. **Multi-pass blocking** runs several independent blocking keys and unions the resulting candidate pairs. A single key cannot recover all matches; three to five orthogonal keys is the typical sweet spot. The design states each pass, its purpose ("recovers transliteration errors in surnames"), and its expected block-size distribution.
+14. **Locality-sensitive blocking** uses LSH or learned vector embeddings for unstructured-name fields. The design specifies the embedding source, the LSH bucket strategy, and the cap on candidates per record. Use this when string-based keys produce too many false positives on free-text fields.
+15. **Block size caps**. A block larger than a few thousand candidates is a degenerate block; cap and either skip with logging or subdivide with a finer key. The design names the cap and the spill-over strategy.
+
+### Stage 5 — Candidate-pair generation
+
+16. For each block, generate the candidate pairs that will be scored. The design states whether self-pairs are excluded (yes for dedupe within a source), whether cross-source pairs are prioritised, and whether to short-circuit on exact-match identifiers before scoring.
+17. **Hard match short-circuit**. If two records share a strong identifier (validated tax id, validated national id, verified email + verified phone), treat them as matched without scoring. The design lists which identifiers qualify and the validation required for each.
+18. **Block-aware sampling for training**. If a supervised scorer is to be trained, draw labelled pairs from within blocks (so the model learns to discriminate "looks similar but is not" from "looks similar and is"), not from random pairs across the table.
+
+### Stage 6 — Pairwise scoring
+
+19. Choose the scoring engine. Common choices: **rule-based** (a small set of weighted comparators per attribute, summed and thresholded — works when domain experts have strong opinions and labels are scarce); **probabilistic Fellegi-Sunter** style (per-attribute match and non-match probabilities estimated by EM or from labels — strong for structured fields with stable distributions); **supervised classifier** (gradient-boosted trees on per-attribute comparator features — strong when a few thousand labels exist); **embedding-distance** (cosine distance on a learned representation — strong for free-text fields and weakly structured data); **active-learning hybrid** (model selects the highest-information pairs to label, scaling expert time efficiently).
+20. **Per-attribute comparators**. For each attribute used in scoring, name the comparator: exact, Jaro-Winkler, Levenshtein, token-set Jaccard, numeric absolute or relative tolerance, date proximity. Reuse the normalised values from Stage 2; do not re-normalise inside the comparator.
+21. **Score calibration**. The raw score must be calibrated to a probability of match. Isotonic or Platt calibration against a held-out labelled set is sufficient. Without calibration the thresholds in Stage 9 are not transferable across model retrains.
+22. **Two thresholds, not one**. Set an **auto-merge** threshold (above it, pairs are merged without review) and an **auto-non-merge** threshold (below it, pairs are dropped). Between them, pairs go to human review. The two thresholds are chosen against the cost asymmetry from Stage 1.
+
+### Stage 7 — Clustering and transitive closure
+
+23. Pairwise decisions must be combined into clusters of records that all refer to the same entity. The naive approach — transitive closure on auto-merge pairs — gives correct topology but is over-aggressive: A-B, B-C, C-D each pass threshold, the cluster A-B-C-D may not.
+24. **Connected components** is the simplest clustering scheme; use only when pairwise precision is very high. Run on a graph of auto-merge edges only.
+25. **Correlation clustering** balances pulling together pairs labelled match and pushing apart pairs labelled non-match. It is robust to noisy pairwise decisions but expensive at scale; partition the graph by block first.
+26. **Centroid-based merging** picks a high-confidence seed record per cluster and merges only records whose pairwise score against the seed exceeds the auto-merge threshold. Reduces chain-merge artifacts.
+27. **Cluster-level constraints**. After clustering, run sanity checks: a cluster cannot contain two different validated tax ids; a cluster cannot contain two records with non-overlapping date-of-birth windows. Constraint violations split the cluster and route the conflict to review.
+28. **Stability across runs**. Resolution should be deterministic for the same inputs and stable across small input perturbations. The design specifies a tie-breaking rule (lexicographic on record id is typical) and a cluster-id assignment scheme that survives reruns (hash of the sorted member ids, or a stable allocator that survives membership changes).
+
+### Stage 8 — Golden-record materialization
+
+29. For each cluster, produce one golden record that downstream systems read. The design specifies the **survivorship rules** per attribute: most-recent, longest, highest-priority-source, validated-only, majority-vote. Survivorship is per attribute, not per record — the cleanest name may live in one source while the cleanest address lives in another.
+30. **Source-priority lattice**. List the sources in priority order per attribute family. Source priority can vary by attribute: source A is the truth for legal name, source B is the truth for billing address, source C is the truth for contact email.
+31. **Provenance per field**. The golden record stores, for each surviving value, which source it came from and when. Without provenance, the golden record is opaque and downstream debugging is impossible.
+32. **Conflict resolution**. Where survivorship cannot pick a winner (two equally fresh and equally authoritative values), the design states the fallback: queue for review, pick deterministically, or expose multiple values to consumers. Each fallback has cost; the choice depends on consumer tolerance.
+33. **Stable golden-record identity**. The golden record gets a persistent id (a UUID, allocated once and never reassigned). If the cluster later splits, both halves get new ids and the original id is retired with a redirect; if two clusters merge, one id survives and the other redirects. The redirect history is part of the audit trail.
+
+### Stage 9 — Downstream consumer governance
+
+34. Catalogue the downstream consumers identified in Stage 1. For each, document: what they consume (the golden record, the cluster mapping, the audit trail), how they consume it (pull from a materialized view, subscribe to a change stream, look up on demand), and how they react to changes (cluster splits, cluster merges, attribute survivorship flips).
+35. **Change semantics**. Define what a "change event" means for each consumer. A field change is a different event from a cluster membership change, which is different from a cluster split or merge. Consumers that confuse these events will either over-react or miss critical updates.
+36. **Backward compatibility for cluster ids**. Most consumers index on cluster id. When clusters split or merge, the id space changes; the design specifies a grace window during which the old id resolves via a redirect table, and a deprecation policy for redirect entries.
+37. **Latency contract**. Each consumer has a latency tolerance from input event to golden-record update. The design states the per-consumer SLO (for example: web checkout consumers see updates within five seconds; analytics consumers see them within an hour; regulatory reports refresh nightly).
+
+### Stage 10 — Manual review queue
+
+38. Pairs between auto-merge and auto-non-merge thresholds, and cluster-level constraint violations, go to a human review queue. The design specifies queue mechanics, reviewer tooling, and feedback loops.
+39. **Queue prioritisation**. Order by expected impact: pairs involving high-value entities first, pairs blocking downstream operations first, oldest pairs after a staleness threshold. Random sampling within priority bands prevents starvation of low-priority but accumulating cases.
+40. **Reviewer UI requirements**. Side-by-side record display, attribute-level diff with provenance, comparator scores visible, suggested decision with confidence, easy match/non-match/skip/escalate. Reviewers should not have to write SQL to do their job.
+41. **Inter-reviewer agreement**. Sample a small fraction of decisions for double-review and measure agreement. Disagreement on more than a few percent of cases signals either an unclear rubric, an over-broad threshold band, or reviewer training drift.
+42. **Feedback into the model**. Reviewer decisions are labelled data; route them into the training set with the original score attached, and retrain the pairwise scorer on a documented cadence. The design states the cadence and the regression-test guard.
+
+### Stage 11 — Drift monitoring
+
+43. Resolution quality drifts because data drifts: new sources, new attribute distributions, new error modes, new languages, new legal-entity types. The design specifies the signals monitored.
+44. **Per-block size and rate**. Watch the distribution of block sizes and the rate at which records enter each block. A block whose size grows by an order of magnitude in a week is either a new data source landing in it or a normalisation regression.
+45. **Score distribution**. Watch the histogram of pairwise scores across the auto-merge, review, and auto-non-merge bands. A shift in the mass between bands is a model-quality signal even before recall or precision can be measured against fresh labels.
+46. **Reviewer override rate**. The rate at which reviewers disagree with the model's suggested decision in the review band is a leading indicator of model drift. Alert when override rate moves by more than a configured tolerance.
+47. **Cluster stability**. Track the fraction of clusters that change membership each run. A spike in churn after a model retrain is a regression and triggers rollback.
+48. **Source-onboarding drill**. When a new source onboards, the system runs a dry-run resolution against a staging environment and produces a quality report before the source is admitted to production. Bypassing this drill is forbidden.
+
+### Stage 12 — Audit trail
+
+49. Every merge, every split, every survivorship choice, every reviewer override is recorded with: input record ids, model and threshold versions, comparator scores, reviewer id and timestamp where applicable, resulting golden record id, prior golden record ids redirected. The audit log is append-only and replicated to a write-once store.
+50. **Time-travel queries**. The design specifies how to answer "what did the golden record look like at time T?" and "which input records contributed to golden record G at time T?" These are routine questions during dispute resolution and regulatory inquiry.
+51. **Regulator-facing extracts**. Where the regulatory regime requires it (financial services, healthcare, public sector), the design specifies the format and cadence of regulator-facing extracts and how the audit log feeds them.
+52. **Right-to-erasure paths**. When a source record must be erased, the design specifies the cascade: remove the input record, recompute the affected cluster, re-materialize the golden record, log the erasure in the audit trail (with the erased-record id only, no further detail). The erasure is itself an audited event.
+
+### Stage 13 — Cold-start and bootstrap
+
+53. The first run on a populated corpus is different from steady-state operation. The design specifies the bootstrap procedure: an initial blocking pass, a coarse rule-based scorer to produce seed labels, an active-learning loop to refine the scorer, a held-out evaluation, then a graduated rollout to consumers.
+54. **Initial labelling budget**. State a target number of labels for the initial scorer (typical ranges: 500 to a few thousand for rule-based-plus-supervised, more for deep models). Active learning brings each label's information value to near-maximum; without it, label budgets are spent on easy cases.
+55. **Evaluation set**. Construct a held-out evaluation set with hard cases (transliteration, abbreviation, partial overlap, edge entities like single-name organisations) over-represented relative to their natural rate. Hold this set out of all training and use it for every release decision.
+
+### Stage 14 — Operational concerns
+
+56. **Reproducibility**. Every run records its model versions, threshold versions, normalisation-rule versions, and source data snapshots. The design states the storage retention for each.
+57. **Backfill versus incremental**. State the policy for retroactive changes: when the scorer improves, which historical decisions are revisited and on what schedule. Backfill is expensive and can disturb downstream consumers; the design balances quality against churn.
+58. **Sharding and parallelism**. State the parallelism strategy: shard by blocking key, parallelise pairwise scoring across workers, fan in for clustering and survivorship. Embarrassingly parallel up to the clustering step.
+59. **Cost-per-resolution budget**. Estimate the compute, storage, and reviewer time per million records. Without a budget the system silently grows until it triggers a budget review under pressure.
+
+### Stage 15 — Pre-flight checks before launch
+
+60. Before declaring the system production-ready, run the pre-flight: a known-duplicate set is recovered at the expected recall, a known-non-duplicate set is left split at the expected precision, the review queue can keep up with steady-state inflow at the planned reviewer staffing, the audit log answers the regulator's standard queries inside the required latency, and the right-to-erasure cascade completes inside the regulatory window.
+61. State the rollout phases: shadow (run alongside any existing resolution, compare outputs, do not affect consumers), advisory (publish results to a small consumer with rollback), full (all consumers).
+
+### Stage 16 — Compose the deliverable
+
+62. Render the design as a single document organised by stage, with each design choice traceable to an input from Stage 1-3 and an evaluation outcome from Stage 6 or 15.
+63. Emit `design_json` with the fields enumerated under `outputs`. Each field carries provenance: which stage produced it and which decision drove it.
+64. End with an "open questions" section that names the choices not yet locked, the assumptions still pending validation, and the people responsible for closing each.
+
+## Outputs
+
+The skill returns two artifacts:
+
+1. `design_document` (markdown) — the readable design organised by stage.
+2. `design_json` (JSON) — structured design with the keys listed under `outputs`.
+
+## Examples
+
+**Input (placeholder):**
+
+`domain`: "Customer master across nine retail banking source systems. 60 million customer records growing 0.5 percent per week. Estimated duplicate rate 4 percent. Downstream consumers include risk reporting, marketing segmentation, branch staff lookup, and regulator-facing customer-due-diligence reports."
+
+`attribute_inventory`: "Full name, date of birth, national id (validated in three of nine sources), residential address, mobile phone, email, opened-date per source. Fill rates between 70 and 99 percent depending on attribute and source."
+
+`ground_truth_availability`: "Three thousand manually labelled pairs from a prior project. Subject-matter experts available for one day per week to label new pairs."
+
+`regulatory_constraints`: "Local data residency law forbids cross-border movement of unhashed national id. Right-to-erasure window of 30 days. Regulator can request audit trail extracts on 48 hours notice."
+
+**Design (abbreviated):**
+
+- Mode: incremental, with nightly batch reconciliation. Federated golden record (no master table; consumers read a mapping).
+- Blocking: four passes — (surname-soundex + DOB-year), (postcode + first-two of street), (mobile-suffix-7-digits), (LSH-bucket on legal-name embedding). Per-block cap 1000; spills go to a wide-net review bucket.
+- Scoring: Fellegi-Sunter weights trained from the existing 3000 labels, calibrated to probability. Auto-merge above 0.97, auto-non-merge below 0.55, review band in between. Hard short-circuit on validated national-id match.
+- Clustering: connected components on auto-merge edges, with post-cluster constraints (no two distinct validated national ids per cluster; DOB-year window of ±1).
+- Golden record: survivorship per attribute, with priority lattice documented per attribute. Provenance recorded per field.
+- Review: queue ordered by entity value, side-by-side UI with diff and comparator scores. Reviewer feedback flows into a weekly retrain.
+- Monitoring: block-size distribution, score histogram, reviewer override rate, cluster churn per run.
+- Audit: append-only log to write-once storage; time-travel queries on a 7-year window; right-to-erasure cascade inside 14 calendar days.
+- Bootstrap: initial backfill over 4 weeks with shadow comparison against the prior dedupe; 2-week advisory phase with risk-reporting consumer; full rollout in week 7.
+
+## Limitations
+
+- The skill writes ER designs at the architecture level; it does not produce comparator implementations, SQL DDL, or labelled training data.
+- Scoring approaches differ in their data hunger; the recommendation is generic, and a specific corpus may require a different approach than the default. The design's evaluation step is the check.
+- The skill assumes well-defined source systems and attribute schemas; resolving across heavily semi-structured text (legal documents, social media bios) requires upstream extraction before this skill applies.
+- Cost estimates are relative; absolute dollar figures depend on cloud pricing and reviewer labour rates and are out of scope.
+- Survivorship policies are domain-sensitive; the skill produces reasonable defaults, but a domain expert must validate them before production.
+- The skill is silent on user-facing UX for merge disputes initiated by the data subject themselves; that is an adjacent product surface.
+- High-throughput streaming resolution (sub-second per record) requires engineering effort beyond the design — index structures for incremental clustering and an online scorer pipeline. The design names these as follow-up work rather than fully specifying them.
+
+## Sources reviewed
+
+- https://github.com/moj-analytical-services/splink
+- https://github.com/dedupeio/dedupe
+- https://github.com/zinggAI/zingg
+- https://github.com/J535D165/recordlinkage
+- https://github.com/anhaidgroup/py_entitymatching
+- https://github.com/anhaidgroup/deepmatcher
+- https://github.com/OlivierBinette/Awesome-Entity-Resolution
+- https://github.com/J535D165/data-matching-software

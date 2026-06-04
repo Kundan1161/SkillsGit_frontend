@@ -1,0 +1,51 @@
+%% How Obsidian (stock, no plugins required) renders the vault.
+%% Source: docs/vault-format.md "Wiki-links" section and
+%% apps/api/scripts/build_devops_vault.py:_build_graph_json (ships
+%% per-domain color presets).
+
+graph LR
+    User["User opens vault folder in Obsidian"]
+    Indexer["Obsidian indexer<br/>walks every .md"]
+    GraphView["Graph view (Ctrl-G / Cmd-G)"]
+    Backlinks["Backlinks panel per note"]
+    Search["Full-text search"]
+
+    subgraph vaultFiles["Inside the .zip"]
+        Notes["Every .md file:<br/>frontmatter --- links: [...] ---<br/>+ body<br/>+ ## Linked notes section<br/>+ HTML comment skg-attribution<br/>+ HTML comment license"]
+        GraphJSON[".obsidian/graph.json<br/>colorGroups:<br/>  query: 'tag:#ci-cd', color: sky-500<br/>  query: 'tag:#observability', color: emerald-500<br/>  ...7 domain colors total"]
+    end
+
+    Manifest[("vault.json<br/>files[].links[]<br/>(authoritative graph)")]
+
+    User --> Indexer
+    Indexer --> Notes
+    Notes -->|"extracts [[...]] wiki-links from body text"| GraphView
+    Notes -->|"tags: in frontmatter group nodes by color"| GraphView
+    GraphJSON -->|"per-tag color preset loaded by Obsidian"| GraphView
+    Notes -->|"every [[...]] creates reverse edge"| Backlinks
+    Notes -->|"title + headings + body"| Search
+
+    Manifest -.->|"machine-readable mirror — agents read this instead of walking files"| Notes
+
+    classDef user fill:#0EA5E9,color:#fff,stroke:#0369A1,stroke-width:2px;
+    classDef obs fill:#5B21B6,color:#fff,stroke:#4C1D95;
+    classDef file fill:#E0E7FF,color:#3730A3,stroke:#4338CA;
+    classDef manifest fill:#D1FAE5,color:#065F46,stroke:#059669;
+
+    class User user;
+    class Indexer,GraphView,Backlinks,Search obs;
+    class Notes,GraphJSON file;
+    class Manifest manifest;
+
+    %% Outcome:
+    %% - Graph view shows the cross-link recipe visually (60 explicit
+    %%   edges across 30 occupation skills, plus persona neuron edges
+    %%   pointing back into the base methodology).
+    %% - Each note's backlinks panel shows reverse references.
+    %% - Color-by-tag groups CI/CD vs observability vs incident etc.
+    %% - Stock Obsidian: no plugins, no manifest required for graph
+    %%   view to work. The .obsidian/graph.json is the preset — graph
+    %%   still works without it, just with default greys.
+    %% - CODE-vs-SPEC DRIFT: spec section 3 said "no .obsidian/graph.json
+    %%   shipped". Code DOES ship one per the curation-side
+    %%   _polish_vault_with_graph_json post-step.

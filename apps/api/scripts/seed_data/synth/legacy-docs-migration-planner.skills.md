@@ -1,0 +1,209 @@
+---
+id: skillsgit-curated/legacy-docs-migration-planner
+version: 1.0.0
+name: Legacy Docs Migration Planner
+description: Plan a documentation migration — audit existing content by reader job and doc shape, map to the new IA, design redirects, sequence the move, run a dual-publish window, and retire the old site without breaking inbound links.
+authors:
+  - name: skillsgit Curated
+    handle: skillsgit-curated
+    role: author
+category: productivity
+tags:
+  - niche:documentation-system-architecture
+  - migration
+  - content-audit
+  - redirects
+  - dual-publish
+  - retirement
+  - information-architecture
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6, claude-haiku-4-5, gpt-4o]
+  tools_required: []
+  min_context_tokens: 32000
+  estimated_tokens_per_invocation: 5000
+trigger_keywords:
+  - docs migration
+  - migrate docs
+  - docs audit
+  - content audit
+  - redirect plan
+  - dual publish
+  - legacy docs
+  - retire docs site
+  - move docs
+  - docs rewrite project
+  - sunset docs
+example_invocations:
+  - "Plan the migration from our old Confluence docs to a new Docusaurus site."
+  - "We are moving from Read the Docs Sphinx to MkDocs Material — produce a migration plan."
+  - "Audit our 600 existing docs pages and map them to a tutorials/how-to/reference/explanation split."
+  - "Design the redirect strategy for sunsetting the v1 docs site."
+  - "Sequence the move of our docs from a hand-rolled CMS into Hugo."
+inputs:
+  - name: current_state
+    type: text
+    required: true
+    description: A description of the existing docs site — generator or platform, hosting, approximate page count, primary inbound traffic sources, and any known issues driving the migration.
+  - name: target_state
+    type: text
+    required: true
+    description: The intended new state — generator, hosting, IA model (a reference to the IA design from the related IA skill, or a brief description), and the deadline.
+  - name: content_inventory
+    type: text
+    required: false
+    description: A list, CSV, sitemap export, or tree of existing pages with URLs and titles. If absent, the plan instructs how to gather it as the first migration step.
+  - name: constraints
+    type: text
+    required: false
+    description: Hard deadlines, brand or legal review requirements, locale obligations, SEO traffic dependencies, and any team-capacity limits.
+outputs:
+  - name: migration_plan
+    type: markdown
+    description: The full migration plan — audit method, mapping rules, redirect strategy, sequencing, dual-publish design, retirement criteria, and risk register.
+  - name: audit_template
+    type: markdown
+    description: A spreadsheet-shaped template for the page-level audit — columns for each fact the auditor needs to capture, with example rows.
+  - name: cutover_checklist
+    type: markdown
+    description: A day-by-day cutover checklist for the dual-publish-to-retirement window.
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Initial release.
+---
+
+# Legacy Docs Migration Planner
+
+## When to use
+
+Reach for this skill when a team owns an existing documentation site and is moving to a new one — new generator, new platform, new information architecture, or all three. A docs migration is the single most failure-prone documentation project a team can undertake: months of effort can quietly destroy years of SEO equity, break a hundred thousand inbound links across the internet, and leave readers confused for a quarter. The skill produces a plan that mitigates these risks.
+
+It is not the right tool when:
+
+- The user wants only a content rewrite (same site, same URLs, better prose). That is editorial work, not migration.
+- The user wants a generator chosen. Migration assumes the target generator is decided.
+- The user wants the IA designed. The IA is a precondition; this skill expects it as input or as a brief description.
+- The migration is *internal-only* docs with no external readers. The redirect and SEO machinery here is overkill; the IA design and a simpler move plan suffice.
+
+Engage the skill when the request mentions migration, moving docs, sunsetting a docs site, an audit, a rewrite project, or a redirect strategy. The output is a plan, an audit template, and a cutover checklist.
+
+## How to apply
+
+The methodology runs in six phases. Each phase is gated; do not proceed without the prior phase's artifact.
+
+### Phase 1 — Inventory and audit
+
+1. **Produce a complete page inventory.** Crawl the existing site or export a sitemap; do not rely on the navigation tree, which always undercounts. Every URL that serves content is in scope, including orphaned pages reachable only by search. The output is a row per URL with: URL, title, last modified date, last modified author, page weight in bytes, monthly traffic over the last twelve months, top three inbound referrer domains, top three internal-link sources.
+2. **Reject the temptation to skip the traffic data.** A migration without traffic data is steered blind. If the analytics pipeline cannot produce it, fix that first; migrating without it will retire pages that are quietly serving real readers.
+3. **Classify each page by doc shape.** For each row, mark which of the four established shapes it belongs to: *lesson* (teaches), *recipe* (helps the reader finish a task), *lookup* (a fact reference), *discussion* (explains the model or the trade-offs). Pages that mix shapes are the migration's most expensive items; mark them *mixed* and treat them as candidates for splitting in the new site.
+4. **Classify each page by reader job.** Cross-reference against the persona list from the new IA. A page that does not serve a named persona's named job is a candidate for retirement.
+5. **Classify each page by health.** Three states: *evergreen* (still accurate, will move as-is with light edits), *stale* (covers a real topic but the facts have drifted), *retire* (covers a topic no longer relevant, duplicates another page, or has effectively zero traffic and zero inbound links).
+6. **Set the retirement bar honestly.** A useful default: any page with under five visits per month *and* no inbound external link *and* no internal link from a healthy page is a retirement candidate. Mark; do not delete yet.
+7. **Surface duplicates.** Group rows by title similarity, by content similarity if a similarity score is available, or by URL stem. Duplicate clusters become *consolidate* targets in the new site: one new page replaces several old ones, with all old URLs redirecting to the new one.
+8. **Produce an audit summary.** Counts per shape, per job, per health. Estimated effort per cell. The summary is what the project sponsor signs off on before any migration work begins.
+
+### Phase 2 — Map old to new
+
+9. **Build the new sitemap from the IA design.** Every node has a slug; every slug is a forever decision. If the IA design is incomplete in this regard, freeze it before proceeding.
+10. **Assign each surviving old page a destination slug in the new sitemap.** Spreadsheet column: *new URL*. Pages that consolidate point to the same destination; pages that split point to *primary destination* plus a list of secondary destinations.
+11. **Identify the orphans.** A new sitemap node with no old page mapping to it is a *write-new* item: content the migration needs to author. List explicitly and budget effort.
+12. **Identify the gardens.** An old page that the audit marks *stale* but moves anyway is a garden — it goes to the new site with a `last_reviewed` date older than today and lands on a queue for refresh. Do not block the migration on refreshing them; refresh during dual-publish at the latest.
+13. **Apply a per-shape rewrite rule.** A lesson migrated as-is is usually wrong; lessons are tied to the version of the product as it existed, and the product has changed. Add a *rewrite required* flag to every lesson that is older than six months at migration time. Recipes survive as-is more often. References must be regenerated from the source-of-truth — usually the OpenAPI spec or the code, not the prose — to be trustworthy.
+14. **Decide on the *changelog* migration.** Changelogs are immutable history; they migrate as a single block, often as a sub-site, with old URLs redirected en masse to a new prefix. Do not rewrite changelog entries; do regenerate the rendered shape.
+
+### Phase 3 — Redirect strategy
+
+15. **Treat URLs as a public interface.** Every URL on the old site that ever served a 200 must, on cutover, return a 301 (permanent) redirect to a new URL on the new site — or, for retired pages, to a thoughtfully-chosen replacement page rather than the home page. The home page is the wrong destination for most retired pages; it loses the reader's context.
+16. **Maintain redirects in a single source-of-truth file** in the new docs repo. Each row: old URL, new URL, rationale. The rationale is the single biggest defense against a future maintainer breaking the redirect — and there will be a future maintainer.
+17. **Validate the redirect map.** Lint for cycles, chains over two hops, redirects to 404s, redirects whose new URL does not exist in the new sitemap, and redirects whose old URL does not exist in the inventory. Run the lint in CI on every change to the redirect file.
+18. **Reserve a few well-chosen *graceful retirements*.** A page that retires goes to a thematic landing rather than to the home page. Example: a v1 *Authentication setup* page retires to the v2 authentication landing with a banner at the top: "this is a newer page; the old guide for v1 has been retired, but here is what changed."
+19. **Pre-stage the redirect map** on the old domain before cutover. Many hosting providers let a redirect map be staged behind a feature flag; flip the flag at cutover. A failed cutover with no fallback is a quarter-long incident.
+20. **Notify high-traffic referrers.** A handful of inbound referrer domains will account for the bulk of the traffic — Stack Overflow answers, blog posts, vendor integration pages. Reach out individually before cutover with the new URL; a one-line email saves a thousand readers from a 404. Internal referrers (the engineering blog, the marketing site) are easier: own them and update them in lockstep with cutover.
+
+### Phase 4 — Sequencing
+
+21. **Choose a sequencing model.** Three patterns dominate:
+    - *Big-bang*: build the entire new site offline, cut over in one shot. Lowest risk to readers (no half-state), highest risk to schedule (entire migration becomes a single milestone). Recommended for small sites and tight deadlines.
+    - *Section-by-section*: move sections of the site (Reference first, then Guides, then Concepts) over weeks. New section live as it lands; old section retired as its replacement lights up. Recommended for medium-sized sites with a strong section split.
+    - *Dual-publish parallel-write*: both sites live concurrently for a window; writers author into both. Highest engineering cost (two pipelines), lowest reader impact. Recommended for very large sites or sites with heavy SEO equity.
+22. **Pick a tracer-bullet section.** The first section to migrate proves the new pipeline. Choose a section that is small, easy to audit, and not on the critical path of any current launch. Quickstart or a small *concepts* hub are common picks. Do not pick Reference first; it is large, mechanical, and bottlenecks on auto-generation.
+23. **Order the rest by ROI.** Sections with high traffic, high reader-job criticality, and low rewrite cost go first. Sections with low traffic and high rewrite cost (often, deep legacy *explanation* hubs) go last; some of them will retire instead of migrate by the end of the project.
+24. **Pad the schedule by fifty percent.** Migrations always overrun. The slack lands in the dual-publish window, not at the end; an under-budget migration ends early, an over-budget one bleeds into retirement.
+25. **Plan around freezes.** A product launch, a fiscal year-end, an audit, or a peak traffic window is a bad time to break URLs. Get the calendar from the product team before scheduling cutover.
+
+### Phase 5 — Dual-publish window
+
+26. **Run dual-publish for at least one full week**, two weeks if the site has heavy SEO equity. Both old and new sites serve real traffic. The old site shows a banner at the top of every page: "We have new docs at the new URL — try the same page there." The banner does *not* auto-redirect; readers who hit familiar URLs should still get the familiar page during the window.
+27. **Instrument both sites.** Track per-page clicks on the *try the new docs* banner; track per-page traffic on the new site. Pages with high old-site traffic and low new-site traffic are *mapping defects*: either the redirect is wrong or the new page is materially worse.
+28. **Open a feedback channel scoped to the migration.** A short form, a docs-migration issue label, or a chat channel. Triage daily during dual-publish; the signal-to-noise is high in the first days.
+29. **Refresh the gardens during the window.** Use dual-publish to refresh the stale-but-migrated pages noted in Phase 2. They are already at their new URLs; the work is editorial. Closing this debt before retirement avoids a "new site is full of stale pages on day one" reputation hit.
+30. **Hold a go/no-go review at the end of the window.** A short checklist: redirect map complete and tested, top-traffic pages working on the new site, search returning sensible results for canary queries, feedback queue triaged, broken-link audit on the new site clean. Any red item delays retirement.
+
+### Phase 6 — Retirement
+
+31. **At retirement, flip the old domain to redirect-only.** Every URL on the old domain serves a 301 to the new domain (per the redirect map). The banner from Phase 5 becomes irrelevant; remove it cleanly.
+32. **Hold the redirect-only state for at least twelve months.** A year covers most external linkers' refresh cycles. Do not collapse it earlier; doing so abandons reader equity that took years to accumulate.
+33. **At the twelve-month mark, evaluate.** Pages with continuing inbound traffic keep their redirect. Pages with effectively zero traffic for twelve months can be retired hard — but most teams find the cost of keeping the redirect map alive is small enough that they leave it indefinitely. The expensive part of a redirect is writing it, not serving it.
+34. **Decommission the old hosting only after the redirect map has lived without it.** If the new hosting can serve the redirects (most can), the old hosting comes down at retirement. If only the old hosting can, decommission it last, and only after the redirect map has been mirrored elsewhere.
+35. **Hold a migration retrospective.** Five questions: what would we cut from scope, what would we add, what surprised us in the analytics during dual-publish, what part of the new IA needs revision after a quarter of real reader behavior, and what was the single most expensive avoidable error.
+36. **Schedule an IA review six months out.** The new site at six months has six months of real reader data. Re-running the IA exercise against that data closes the loop from migration to ongoing-improvement.
+
+## Inputs
+
+- **`current_state`** — required. Without a clear picture of what is being migrated, the plan is generic. Include the count, the platform, the hosting, the rough traffic shape, and the reason for the migration.
+- **`target_state`** — required. The destination generator and hosting, the new IA at top-level granularity, and the deadline.
+- **`content_inventory`** — optional. Strongly preferred. If absent, the plan adds a Phase 0 (gather the inventory) and warns of a high probability of schedule slip until it exists.
+- **`constraints`** — optional. Calendar freezes, legal review, locale requirements. Surface these early; they constrain the sequencing in Phase 4.
+
+## Outputs
+
+- **`migration_plan`** — the prose plan organized by the six phases, with this team's specific decisions slotted in.
+- **`audit_template`** — a column-by-column template for the page-level audit, ready to paste into a spreadsheet. Columns: URL, title, last modified, last author, monthly traffic, top referrers, doc shape, reader job, health state, target new URL, target shape, rewrite required, notes.
+- **`cutover_checklist`** — a day-by-day checklist from one week before cutover to one month after, with named owners as placeholders and clear go/no-go gates.
+
+## Examples
+
+### Example 1 — Confluence wiki to Docusaurus
+
+**Input.** A team has 380 pages of product docs in Confluence, accumulated over five years. Heavy SEO from public-internet referrers (developers integrate the product). Moving to a public-facing Docusaurus site on Vercel. Deadline: end of next quarter.
+
+**Result.** Phase 1 surfaces 380 pages, of which 145 are *mixed-shape* essays, 60 are *retire* candidates (low traffic, no inbound links), 90 are *recipes* in good shape, 50 are *references* requiring regeneration from the OpenAPI spec, 35 are *lessons* requiring rewrite. Phase 2 maps 280 surviving pages to the new IA's roughly 220 destination slugs, with 60 consolidations marked. Phase 3 produces a 380-row redirect map. Phase 4 chooses section-by-section: Quickstart and Concepts first (small, low traffic, builds team muscle), Reference second (mechanical regeneration), Guides third (heaviest editorial), Changelog last. Phase 5 dual-publishes for two weeks because of public-SEO equity. Phase 6 holds redirect-only for eighteen months given the heavy referrer base. Risk register flags two items: a public blog post linking deep into Confluence accounts for fifteen percent of inbound traffic (reach out individually); the Confluence search-engine indexing has been slow to update historically (verify with a test page before cutover).
+
+### Example 2 — Sphinx on Read the Docs to MkDocs Material on Cloudflare Pages
+
+**Input.** An OSS Python library with 220 docs pages across three live versions (v1, v2, v3). Moving from Sphinx to MkDocs Material. Existing docs are healthy. Strong contributor community.
+
+**Result.** The IA largely survives — the move is mostly a generator change. Phase 1 audit is brief: 220 pages mostly evergreen. Phase 2 mapping is largely one-to-one with slug normalization (collapsing some camelCase legacy paths to kebab-case). Phase 3 redirect map is sizable but mechanical. Phase 4 chooses big-bang because the audit found no major content shifts. Phase 5 dual-publishes for one week. Phase 6 keeps redirects indefinitely; the cost is trivial. Risk register flags two items: the existing search-results UI is more featureful than MkDocs Material's default (mitigation: enable the search plugin's instant-search feature and the related-content highlight); a few hundred GitHub README badges across the ecosystem link to specific RTD URLs (low impact, redirects will catch them).
+
+### Example 3 — Home-grown internal CMS to a static Hugo site
+
+**Input.** A platform team's internal docs in a home-grown CMS that is no longer maintained. About 700 pages, much of it stale. Moving to Hugo with the Docsy theme, hosted on internal Kubernetes. Internal-only; no public SEO concern.
+
+**Result.** Phase 1 surfaces aggressive retirement: 240 pages retire, 120 consolidate down to 60, 280 migrate, 60 write-new. Phase 2 maps to a fresh IA aligned with the platform's three product surfaces. Phase 3 redirect map smaller than the inventory because the old CMS URLs are inside the company firewall — a smaller set of external internal-link sources (the company wiki, the on-call runbooks, three internal blog posts) gets explicit outreach. Phase 4 chooses dual-publish parallel-write because the team is small and cannot freeze new content for a quarter. Phase 5 runs four weeks given the size. Phase 6 retires the old CMS hard at the end because internal-only equity decays faster and there is a maintenance burden in keeping the old CMS alive. Risk register flags one item: internal search (the company-wide Glean instance) needs to be reconfigured to index the new domain before cutover, or all colleague-discovered links will 404.
+
+## Limitations
+
+- The skill produces a plan, not the migration itself. Executing it requires capacity, tools, and editorial work the plan can size but not perform.
+- Auto-translation of legacy content to the new generator's markup is out of scope. Most generators have community-maintained converters of varying quality; the plan should budget for manual cleanup proportional to the source format's distance from clean markdown.
+- SEO outcomes cannot be guaranteed. A well-executed migration with redirects from every old URL typically preserves the bulk of inbound traffic, but search engines reweight unpredictably for a quarter or two after a large redirect event.
+- Trying to migrate and re-IA simultaneously is harder than doing them in sequence. If the timeline allows, run the IA design as a separate, prior project; if not, surface the additional risk in the plan's risk register.
+- The skill assumes the new docs site is the canonical destination. If the team intends to keep both sites alive long-term ("we will migrate the public-facing stuff but keep the internal CMS"), the methodology does not match the situation; the plan should flag this as a scope error and decline.
+
+## Sources reviewed
+
+The methodology in this skill was synthesized after reviewing the following projects. None of their prose, structure, or assets was copied. Each contributed a pattern or a constraint; the synthesis is original.
+
+- https://github.com/evildmp/diataxis-documentation-framework — four-doc-type framework reference (CC-BY-SA 4.0)
+- https://github.com/facebook/docusaurus — MIT (code), CC-BY-4.0 (docs)
+- https://github.com/squidfunk/mkdocs-material — MIT
+- https://gitlab.com/antora/antora — MPL-2.0
+- https://github.com/google/docsy — Apache-2.0
+- https://github.com/readthedocs/readthedocs.org — MIT
+- https://github.com/writethedocs/www — see repo LICENSE.md
+- https://github.com/Redocly/redoc — MIT
+- https://github.com/stoplightio/elements — Apache-2.0

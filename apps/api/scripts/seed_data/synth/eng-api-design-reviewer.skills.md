@@ -1,0 +1,337 @@
+---
+id: skillsgit-curated/api-design-reviewer
+version: 1.0.0
+name: API Design Reviewer
+description: Audit a proposed REST or RPC API against consistency, RESTfulness, versioning, error format, pagination, idempotency, and security checks — return a severity-ranked findings report.
+authors:
+  - name: skillsgit Curated
+    handle: skillsgit-curated
+    role: author
+category: engineering
+tags: [api-design, rest, openapi, http, versioning, pagination, idempotency, security]
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6, gpt-4o, gpt-4.1, gemini-1.5-pro]
+  tools_required: [file_io]
+  tools_optional: [web_search, code_execution]
+  min_context_tokens: 32000
+  estimated_tokens_per_invocation: 8000
+trigger_keywords:
+  - review my api design
+  - audit this openapi spec
+  - rest api review
+  - api design review
+  - critique this endpoint
+  - openapi audit
+  - check my api for consistency
+  - api lint
+  - rest review
+  - is this restful
+  - check pagination design
+  - review http verbs
+  - api versioning review
+  - find api smells
+  - check error responses
+example_invocations:
+  - "Review the attached OpenAPI spec for our orders service and flag inconsistencies before we publish v1."
+  - "Audit these six endpoints — I'm worried about pagination and error envelope drift."
+  - "Critique this proposed gRPC service for naming, idempotency, and backward compatibility risks."
+inputs:
+  - name: api_spec
+    type: text
+    required: true
+    description: OpenAPI/Swagger YAML or JSON, gRPC .proto, GraphQL SDL, or a prose description of endpoints with methods, paths, request/response shapes.
+  - name: api_style
+    type: choice
+    required: false
+    description: Which architectural style the API claims to follow.
+    choices: [rest, rest-hateoas, rpc, grpc, graphql, jsonrpc, mixed]
+  - name: consumer_context
+    type: text
+    required: false
+    description: Who calls this API (internal services, partners, public developers, mobile clients) — affects backward-compatibility weight.
+  - name: existing_conventions
+    type: text
+    required: false
+    description: Existing style guide, neighboring APIs to align with, or pinned decisions (e.g. "we always use cursor pagination").
+  - name: focus_areas
+    type: text
+    required: false
+    description: Optional comma list to bias the review (e.g. "errors, pagination, auth"). If omitted, all dimensions are scored.
+outputs:
+  - name: review_report
+    type: markdown
+    description: Severity-ranked findings (blocker / major / minor / nit), each with an example fix, plus a "what's good" callouts section and an overall verdict.
+  - name: findings_json
+    type: json
+    description: Machine-readable findings list with rule id, endpoint reference, severity, category, message, and suggested replacement.
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Initial release.
+---
+
+# API Design Reviewer
+
+## When to use
+
+Use this skill when an engineer or team is about to publish, version, or expand an HTTP, RPC, or RPC-over-HTTP API and wants a senior reviewer pass before the contract is frozen. It is calibrated for situations where the cost of a wrong design choice climbs fast after release: public APIs, partner integrations, internal APIs that already have multiple consumers, and any spec that will be auto-generated into client SDKs.
+
+Trigger this skill on inputs like:
+
+- "Here is our OpenAPI 3.1 spec — review it before I cut a 1.0 tag."
+- "We have eight endpoints living in three Notion docs; please pull them into a normalized review."
+- "Compare this proposed endpoint set to our existing customer API and flag drift."
+- "Audit this gRPC service for streaming, idempotency keys, and error code use."
+
+Do not use this skill for:
+
+- Generic code review of the implementation that backs the API (use a code review skill instead).
+- Pure performance benchmarking. This skill reasons about contract shape, not throughput.
+- Greenfield API design from a blank page. Pair this skill with a design generator first, then run this skill on the produced draft.
+
+## Inputs
+
+- `api_spec` (required) — The artifact to review. Prefer OpenAPI 3.x YAML/JSON or a `.proto` file. If the user pastes prose, parse paths, methods, request bodies, response bodies, headers, status codes, and authentication into an internal canonical form before scoring.
+- `api_style` — Hints which rule pack to weight. RESTful style enables resource-naming and HATEOAS checks; gRPC enables proto-naming and unary/streaming checks; GraphQL enables nullability and N+1 checks; "mixed" runs the union and flags style-drift findings.
+- `consumer_context` — Public APIs raise the severity of backward-compatibility, security, and versioning findings. Internal-only APIs allow softer treatment of error envelopes but a sharper eye on coupling.
+- `existing_conventions` — Used to override defaults. If the team already publishes cursor pagination, do not flag the lack of `Link` headers; flag any new endpoint that drifts to offset pagination instead.
+- `focus_areas` — When the user names specific concerns, raise their findings to the top of the report but still run the full check set.
+
+## How to apply
+
+Apply the steps below in order. Each step produces a list of `findings`; merge them at the end and rank by severity.
+
+### 1. Normalize the input into a checklist of operations
+
+1.1. Parse the spec into a list of `operations`. Each operation is a tuple `(method, path-or-rpc-name, request-shape, response-shape, status-codes, auth-requirements, idempotency-marker, pagination-shape, content-types)`.
+
+1.2. If the spec is prose, ask the implicit question "what would the OpenAPI rendering look like?" and build it mentally. Treat unstated fields as unknowns rather than defaults; an absence in the spec is itself a finding category called "unspecified contract".
+
+1.3. Identify the resource taxonomy. For REST, list the nouns. For RPC, list the verbs and the noun each verb mutates. Note which resources are aggregates versus value objects.
+
+1.4. Build a dependency graph: which operations create, read, update, delete which resources, and which operations require prior operations to have run. This graph is needed for idempotency and consistency findings later.
+
+### 2. Score consistency
+
+Consistency is the highest-impact dimension because a single inconsistency multiplies through every SDK and every consumer.
+
+2.1. Compare resource name plurality across endpoints. If `/users` lists users but `/order/{id}` retrieves a single order, raise an inconsistency finding. Prefer plural collection nouns and `{id}` segments rather than mixed singular/plural.
+
+2.2. Compare casing across path segments, query parameters, headers, and body fields. Pick the dominant style (kebab-case path segments, snake_case JSON fields, PascalCase headers, or whatever the existing conventions specify) and flag every deviation with the count of operations affected.
+
+2.3. Check that the same concept is named the same way everywhere. If `customer_id` appears in some bodies and `customerID` or `userId` appears in others for the same underlying entity, treat that as a blocker.
+
+2.4. Verify that timestamps share a single representation across the API. RFC 3339 / ISO 8601 strings with explicit timezone (typically UTC `Z`) is the safe default; epoch seconds and epoch milliseconds mixed in the same spec is a major finding.
+
+2.5. Verify that money, durations, and other unit-bearing values carry their unit. `amount: 1299` without a currency or scale is a blocker on a payment-adjacent endpoint and a major finding elsewhere.
+
+2.6. Confirm a single error envelope shape is used across all operations. Multiple envelopes (e.g. `{ error: "..." }` for one endpoint and `{ errors: [...] }` for another) is a blocker on any API with more than two consumers.
+
+### 3. Score RESTfulness (only when style is REST)
+
+3.1. Verify HTTP method semantics. `GET` must be safe and idempotent. `PUT` must be idempotent. `POST` is creation or non-idempotent action. `DELETE` must be idempotent. Flag any operation whose described behavior contradicts the method's contract — for example a `GET` that mutates state, or a `DELETE` that returns a non-2xx the second time.
+
+3.2. Check that collections are addressed with collection nouns and items with item paths. `GET /orders` returns a list; `GET /orders/{id}` returns one; `POST /orders` creates one. Path patterns like `GET /getOrder?id=123` are RPC-over-HTTP smells and should be flagged for renaming when the spec claims to be REST.
+
+3.3. Look for resource modeling errors. Verbs in paths (`/cancelOrder`, `/sendInvoice`) often indicate a missing resource. Suggest modeling them as sub-resources (`POST /orders/{id}/cancellations`) or as state transitions on the parent resource.
+
+3.4. Audit hierarchical nesting depth. A path with more than two levels of `{id}` parameters (`/orgs/{o}/teams/{t}/projects/{p}/issues/{i}`) is hard to consume and usually signals over-modeling. Flag and propose flatter alternatives where the inner resource can be addressed by a globally unique id.
+
+3.5. Audit status code use. `200 OK` should be a normal success. `201 Created` should accompany creation, ideally with a `Location` header. `202 Accepted` belongs on async-kicked-off operations. `204 No Content` is right when there is genuinely no body. `400`, `401`, `403`, `404`, `409`, `410`, `412`, `415`, `422`, `429` each have specific meanings — flag overloading (e.g. a `400` used for "not found").
+
+3.6. If the spec claims HATEOAS, verify that responses actually contain `links` or `_links` with relations and that those relations are documented. If they are not, demote the style claim or remove it.
+
+### 4. Score versioning
+
+4.1. Confirm a single, documented versioning strategy. The common choices are path-based (`/v1/`), media-type-based (`Accept: application/vnd.acme.v1+json`), or header-based (`X-API-Version: 1`). Mixing two within the same API is a blocker.
+
+4.2. Reject "no version" in any external API. Even when the team plans never to break compatibility, the absence of a version signal removes the option later. Suggest `/v1/` as the lowest-friction default.
+
+4.3. Check that versioning granularity is the whole API, not per-endpoint. Per-endpoint versions (`/orders/v2/...` next to `/users/v1/...`) explode the matrix of supported combinations; flag as a major finding unless the consumer context is internal with a single client.
+
+4.4. For each operation, mark whether a hypothetical additive change (adding a new optional field) would be backward-compatible under the chosen strategy. If the JSON is parsed strictly somewhere, additive changes are not safe; that downgrades the strategy.
+
+4.5. Look for forwards-compatibility leaks. Enum fields without an "unknown" escape value, fixed-length arrays, and explicit-only response shapes all create future breakage. Recommend lenient parsers and reserved enum slots.
+
+### 5. Score error format
+
+5.1. Confirm every documented operation lists at least one error response in addition to its happy path. A spec that documents only `200`s is a major finding because client codegen will not include error handling.
+
+5.2. Verify the error envelope contains: a stable machine-readable code (`code: "order.not_found"` or similar), a human-readable message, a trace or request id for support, and optionally a list of field-level violations for 4xx validation errors.
+
+5.3. Check that error codes form a hierarchy or namespace. Flat codes like `1000`, `1001`, `1002` are inferior to dotted namespaces because the latter let clients catch families with prefix matching.
+
+5.4. Audit problem-detail style if used (RFC 7807 / RFC 9457). Required fields `type`, `title`, `status`, `detail`, and `instance` should be documented. If the spec only sometimes follows the standard, flag the drift.
+
+5.5. Verify that 5xx responses do not leak stack traces, SQL fragments, or internal hostnames. If the spec shows an example body containing these, treat as a security blocker.
+
+### 6. Score pagination
+
+6.1. Identify every operation that can return a list. A list endpoint without any pagination contract is a blocker on any API likely to have more than 100 items per resource.
+
+6.2. Determine which pagination style is used and check it is applied consistently. Common styles: offset/limit, page/size, cursor-based, link-header / RFC 5988. Cursor-based is preferred for streams and very large tables; offset is acceptable for small, fixed catalogues.
+
+6.3. Verify the pagination contract is round-trippable: the response must contain everything the client needs to ask for the next page without inventing parameters. A cursor scheme must return either the next cursor in the body or a `Link` header.
+
+6.4. Check that maximum page size is documented and that a server-side cap is described. Unbounded `limit=999999999` queries are a denial-of-service vector.
+
+6.5. Confirm a stable sort order is part of the contract. Pagination without a deterministic sort produces duplicates and gaps across pages.
+
+6.6. Look for `total` or `count` fields and decide whether they are honest. On big tables the total is expensive; many APIs lie or return stale totals. Recommend either committing to an accurate total (with documented cost) or removing the field.
+
+### 7. Score idempotency
+
+7.1. For each unsafe operation (`POST`, mutating `PATCH`, financial side-effect), check whether the contract supports retry-safe replays. The standard is an `Idempotency-Key` header carrying a client-generated token that the server uses to deduplicate.
+
+7.2. Verify the documented semantics of a duplicate idempotency key: same response body, same status code, same side effects, for a documented window (typically 24h).
+
+7.3. Flag operations that perform a non-idempotent action with no idempotency key. Payments, order placement, message sends, and outbound webhooks are blockers; non-critical mutations are majors.
+
+7.4. Inspect retry guidance. The spec should tell clients which 5xx codes are safe to retry and recommend exponential backoff with jitter.
+
+7.5. Check for unconditional updates that should be conditional. `PUT /resources/{id}` without `If-Match` or `ETag` invites lost-update bugs. Recommend optimistic concurrency control via `ETag`/`If-Match` for resources that have multiple writers.
+
+### 8. Score security
+
+8.1. Identify the authentication scheme. Bearer tokens (OAuth2, JWT, opaque), mTLS, API keys, signed requests — each has documented strengths. Flag any operation that does not declare its auth requirement.
+
+8.2. Check that scopes or permissions are described per-operation. "Authenticated" is not specific enough on an admin endpoint.
+
+8.3. Audit rate-limit documentation. Look for `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`, or RFC 9331 `RateLimit-*` headers. Without documented limits, clients cannot back off correctly.
+
+8.4. Look for sensitive data flowing in URLs. Personal identifiers, tokens, and secrets must travel in headers or bodies, not as query parameters. URLs end up in logs and browser history.
+
+8.5. Verify CORS or cross-origin policy is mentioned for browser-facing APIs. An unrestricted `Access-Control-Allow-Origin: *` paired with credentials is a security blocker.
+
+8.6. Check input shapes for known injection vectors. Free-text fields that flow into shell commands, SQL fragments, or HTML render contexts must be flagged with an input-validation requirement note.
+
+8.7. Verify TLS-only is required. No HTTP allowed, no `http://` example URLs in the spec.
+
+### 9. Score deprecation and lifecycle
+
+9.1. If the spec marks any operation `deprecated: true`, check there is a documented sunset date and a documented replacement.
+
+9.2. Look for "alpha", "beta", or "preview" markers. These should not be on the same major version as stable operations; if they are, recommend separating them under a `/v1beta1/` or analogous path.
+
+9.3. Verify that "removed" operations are documented as `410 Gone` rather than `404 Not Found` for at least one minor version cycle so clients can surface a useful error.
+
+### 10. Score the contract-as-code
+
+10.1. Inspect schema discipline. Every request body and every response body should have a named schema; inline anonymous schemas reduce reusability and confuse codegen.
+
+10.2. Check that `nullable` and `required` are explicit. Implicit nullability and implicit-optional fields lead to client crashes.
+
+10.3. Confirm examples are present for each operation and that examples validate against their schemas. A schema-violating example is a blocker because it is the surface customers see first.
+
+10.4. Verify content types are declared and consistent. `application/json` is the safe default; do not allow undeclared content-type fallthrough.
+
+10.5. Check for accidental polymorphism — fields that change type by context — and flag them. Most clients cannot model union types ergonomically.
+
+### 11. Severity ranking
+
+Sort the merged findings by:
+
+- **Blocker** — the API cannot ship as-is without breaking consumers or exposing the system. Examples: missing auth on a sensitive endpoint, mixed versioning strategies, inconsistent error envelope, money without currency, stack trace in 5xx example.
+- **Major** — the API will ship but will produce predictable pain within a quarter. Examples: per-endpoint versioning, unbounded list endpoint, no idempotency key on payment, inconsistent casing across paths.
+- **Minor** — visible quality drag. Examples: missing `Location` header on `201`, deep nested hierarchies, missing rate-limit headers.
+- **Nit** — taste calls. Examples: choice of `kebab-case` vs `snake_case`, presence of trailing slash in path examples.
+
+Promote a finding by one severity if the consumer context is "public" or "partner". Demote by one if it is "internal single team" — except security findings, which never demote.
+
+### 12. Produce the report
+
+12.1. Write a one-paragraph verdict at the top: ship / ship-with-fixes / do-not-ship-yet, with the count of blockers.
+
+12.2. List the blockers with a one-line description, the affected operation(s), and a one-line suggested fix.
+
+12.3. Then majors, minors, nits in that order.
+
+12.4. Add a "what works well" section. Reviews that contain only criticism get reflexively dismissed; surface two or three real strengths.
+
+12.5. Emit a parallel `findings.json` with stable rule ids so a CI pipeline can diff this run against a future run.
+
+### Decision rules and heuristics
+
+- When two findings overlap, prefer the more actionable one. "Inconsistent casing" is more actionable than "spec lacks style guide".
+- When you do not have enough information to decide, say so. A finding marked "unspecified contract" tells the team to add documentation rather than guessing.
+- Do not invent backwards-compatibility constraints unless the user states they exist. If the API is unreleased, breaking changes cost nothing.
+- Severity is about the cost of the bug, not the elegance of the fix. A small "always-200" smell on a high-traffic endpoint outranks a deep modeling debate on a rarely-called one.
+- Avoid recommending custom solutions where standards exist. RFC 7807 problem details, RFC 5988 link headers, RFC 9331 rate limit headers, and OAuth2 bearer tokens save invention.
+
+### Edge cases
+
+- gRPC services have method names rather than paths; map method names to the resource-noun-plus-verb pattern (`GetOrder`, `ListOrders`, `CreateOrder`, `UpdateOrder`, `DeleteOrder`, `BatchGetOrders`) and flag deviations.
+- GraphQL schemas have one endpoint; consistency findings shift to type names, field names, and operation names. Pagination becomes connection/edge/cursor; flag missing `pageInfo`.
+- JSON-RPC and other RPC-over-HTTP styles inherit RPC consistency rules but lose REST resource modeling. Skip the RESTful section but apply versioning, errors, idempotency, security.
+- Internal RPC over a message bus (Kafka, NATS, RabbitMQ) is event design, not API design — recommend the team run an event-schema review instead.
+- Webhook endpoints (the API your service calls outward) need their own security model (signing), retry contract, and replay protection; treat them as a sub-API in section 7 and 8.
+
+## Outputs
+
+- `review_report` — a single markdown document of roughly 1–4 pages depending on the spec size. Sections: Verdict, Blockers, Majors, Minors, Nits, What works well, Sources for the rules cited.
+- `findings_json` — an array of `{ id, rule, severity, category, operation, message, suggestion }`. Stable `id` is a slug derived from `(category, operation, rule)` so re-runs are diffable.
+
+## Examples
+
+### Worked example
+
+Input excerpt (simplified):
+
+```yaml
+paths:
+  /Users:
+    get:
+      summary: List users
+      responses:
+        '200':
+          description: users
+  /user/{id}:
+    get:
+      summary: Get a user
+      responses:
+        '200':
+          description: ok
+        '400':
+          description: not found
+  /createOrder:
+    post:
+      summary: Create an order
+      responses:
+        '200':
+          description: created
+```
+
+Expected findings:
+
+- **Blocker** — casing/plurality inconsistency: `/Users` vs `/user/{id}`. Both should be `/users` and `/users/{id}`.
+- **Blocker** — `400` used for "not found"; should be `404`.
+- **Major** — verb-in-path: `/createOrder` should be `POST /orders`.
+- **Major** — `POST /orders` lacks an idempotency contract. Recommend `Idempotency-Key` header semantics.
+- **Major** — no error envelope shown anywhere. Recommend a documented envelope per RFC 7807.
+- **Minor** — successful `POST` returns `200` instead of `201` and no `Location` header.
+- **Nit** — verbs in summaries are inconsistent ("List", "Get", "Create" — fine, keep).
+
+The report should also call out one strength if any is found; in this stub spec there is none, so the strengths section says so honestly.
+
+## Limitations
+
+- This skill reasons about the contract surface, not the implementation. It cannot tell whether the backing service actually honors the idempotency guarantees described.
+- It infers REST conventions from common practice; teams with non-standard but consistent rules (an internal style guide that uses singular nouns, for example) should pass that style guide via `existing_conventions` so the skill calibrates to it.
+- It does not auto-generate a fixed spec. It returns findings with example fixes; producing the corrected spec is a separate step.
+- For very large specs (more than 50 operations) the model may summarize categories rather than enumerate every finding per operation; the user can re-run with `focus_areas` set to narrow the scope.
+
+## Sources reviewed
+
+- https://github.com/OAI/OpenAPI-Specification
+- https://github.com/stoplightio/spectral
+- https://github.com/github/rest-api-description
+- https://github.com/paypal/paypal-rest-api-specifications
+- https://github.com/ContextMapper/context-mapper-dsl
+- https://github.com/structurizr/structurizr
+- https://github.com/mingrammer/diagrams
+- https://github.com/adr/madr

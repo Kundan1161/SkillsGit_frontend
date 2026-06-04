@@ -1,0 +1,246 @@
+---
+id: skillsgit-curated/legal-dpa-reviewer
+version: 1.0.0
+name: DPA Reviewer
+description: Review a Data Processing Addendum against GDPR Article 28 structure — controller/processor roles, sub-processors, SCCs, breach notification, audit rights, deletion — and produce a gap report.
+authors:
+  - name: skillsgit Curated
+    handle: skillsgit-curated
+    role: author
+category: legal
+tags: [niche:contract-review, dpa, gdpr, privacy, sub-processors, sccs, data-protection]
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6, gpt-4o]
+  tools_required: []
+  tools_optional: [file_io]
+  min_context_tokens: 64000
+  estimated_tokens_per_invocation: 10000
+trigger_keywords:
+  - review this dpa
+  - dpa gap analysis
+  - data processing addendum check
+  - gdpr article 28 review
+  - check sccs in dpa
+  - sub-processor flow-down
+  - dpa breach notification
+  - dpa audit rights
+  - dpa redline
+  - data processing agreement review
+example_invocations:
+  - "Review this vendor DPA against GDPR Article 28 and flag the gaps."
+  - "Does this DPA include SCCs and proper sub-processor flow-down?"
+  - "Run a DPA gap analysis assuming the customer is an EU controller and the vendor is a US processor."
+inputs:
+  - name: dpa_text
+    type: text
+    required: true
+    description: Full text of the Data Processing Addendum, including any annexes (description of processing, sub-processor list, technical and organizational measures, Standard Contractual Clauses).
+  - name: controller_processor_role
+    type: choice
+    required: true
+    description: The role allocation between the parties under the DPA. Note that "joint controller" and "processor-to-processor" scenarios change the framework materially.
+    choices: [customer_controller_vendor_processor, customer_processor_vendor_subprocessor, joint_controllers, undefined]
+  - name: data_flow_jurisdictions
+    type: json
+    required: false
+    description: Where data originates (e.g. ["EU", "UK", "Switzerland"]) and where the processor is located (e.g. ["US"]). Drives the SCCs / UK-IDTA / Swiss-amendment analysis.
+  - name: data_categories
+    type: json
+    required: false
+    description: Categories of personal data processed (e.g. ["contact-info", "behavioral", "health", "financial", "children", "biometric", "criminal"]). Special categories under GDPR Article 9 require additional safeguards.
+  - name: customer_dpa_template
+    type: text
+    required: false
+    description: The customer's standard DPA template or DPA playbook. If omitted, the skill applies a balanced baseline drawn from GDPR Article 28 minimum requirements.
+outputs:
+  - name: dpa_report
+    type: markdown
+    description: A section-by-section gap analysis with status (compliant/partial/non-compliant/missing), the DPA's current position, the requirement, the gap, and the recommended action.
+  - name: dpa_json
+    type: json
+    description: Machine-readable fields — verdict_per_section, overall_verdict, blocking_gaps, advisory_gaps, scc_status, sub_processor_compliance, breach_notification_window_hours, audit_rights_strength, confidence.
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Initial release.
+---
+
+# DPA Reviewer
+
+## When to use
+
+**Important non-legal-advice notice.** This skill produces a structured first-pass review of a Data Processing Addendum against GDPR Article 28's minimum required terms and adjacent good-practice elements. It is not legal advice, does not establish a lawyer-client relationship, and does not substitute for review by qualified privacy counsel admitted in the relevant jurisdictions. Data-protection law is jurisdiction-sensitive, fact-dependent, and changes faster than any single methodology can keep up with — the EU-US Data Privacy Framework, the UK International Data Transfer Agreement, and supervisory authority guidance evolve continuously, and supervisory enforcement priorities shift. Treat the output as a structured worklist for human review. Any decision to sign, reject, or push back on a DPA should rest with a human privacy professional who can take responsibility for the call in the regulatory context that applies.
+
+Invoke this skill when a Data Processing Addendum (or Data Processing Agreement, or, less precisely, a "GDPR addendum") has landed in a vendor-onboarding or customer-negotiation workflow and the next step is a gap analysis against GDPR Article 28 and the surrounding data-protection framework. Typical entry points: a vendor-risk reviewer screening a SaaS provider's DPA before allowing personal data to flow; a customer-side privacy reviewer evaluating whether the vendor's DPA satisfies the customer's controller obligations; a vendor-side counsel reviewing a customer's red-lined DPA to determine what is acceptable to give up; an in-house counsel preparing for a DPA negotiation call.
+
+The skill assumes the controller / processor / sub-processor roles are stated or readily identifiable. If the roles are ambiguous or the relationship is a joint-controllership (where both parties determine purposes and means of processing), the analysis framework shifts substantially — flag the ambiguity and route to qualified privacy counsel rather than producing a possibly-misleading report.
+
+Do not use this skill for: DPAs governing data that is not "personal data" under GDPR or analogous frameworks (the framework does not apply, and the skill's calibration assumptions will mislead); DPAs covering only US-only data flows where the customer relies exclusively on state-level frameworks (CCPA, CDPA, CPA) that have their own structures (a US-state-law-only review needs a different skill); HIPAA Business Associate Agreements (different statutory structure — use a BAA-specific review skill); employment-context data flows (different framework, different supervisory expectations); intelligence-services or law-enforcement data-sharing arrangements (entirely outside scope of a commercial DPA review).
+
+The skill is also not the right tool for evaluating the substance of the vendor's technical and organizational measures (the TOMs annex). The skill notes whether TOMs are described and at what level of specificity, but evaluating whether they are sufficient for the specific risk requires a security review, not a legal one.
+
+## How to apply
+
+Treat DPA review as a section-by-section pass against GDPR Article 28's required terms, augmented by the surrounding data-protection framework elements (transfer mechanisms, sub-processor terms, special-category data, supervisory cooperation). The methodology is a checklist with calibration knobs — strict where the regulatory framework imposes hard requirements, more permissive where market norms apply. For each section, classify the current text and recommend the next action.
+
+1. **Confirm the document is a DPA.** Check that it allocates roles (controller / processor / sub-processor or joint controllers), defines processing activities, and references either GDPR or an equivalent framework. A "Data Protection Schedule" that merely describes the vendor's privacy practices without binding terms is not a DPA — flag it as `not_a_dpa` and return a single recommendation: request a real DPA.
+
+2. **Identify the role allocation.** Use the `controller_processor_role` input as the starting point and verify against the document. The standard B2B SaaS pattern is customer-as-controller and vendor-as-processor. Variations: customer is itself a processor (with the vendor as sub-processor); joint controllers (the parties together determine purposes and means); independent controllers (the vendor processes for its own purposes, not on the customer's instructions). The framework, audit rights, sub-processor consent, and SCC mechanics all turn on the role allocation — getting this wrong invalidates the rest of the analysis.
+
+3. **Step through GDPR Article 28(3) required terms.** For each, classify the DPA's current text and recommend an action.
+
+   **a. Subject matter and duration of processing.** Is there a clear statement of what is being processed and for how long, typically in Annex 1 / Annex A / Description of Processing? Required. Missing or vague is `non-compliant`.
+
+   **b. Nature and purpose of processing.** Is the purpose stated with sufficient specificity? "Providing the Services" is too vague — required to be linked to the categories of activity actually performed.
+
+   **c. Type of personal data and categories of data subjects.** Required. Use `data_categories` input to flag special-category data (Article 9: health, biometric, racial, religious, political, union membership, sexual orientation, criminal-offense data). Special categories require explicit treatment in the DPA — additional safeguards, often a defined justification basis.
+
+   **d. Obligations and rights of the controller.** Required. Look for a statement that the controller is responsible for the lawful basis, transparency, and data-subject rights, and that the processor will assist.
+
+   **e. Instructions-only processing.** Article 28(3)(a): the processor must process only on documented instructions from the controller. Look for language that the vendor processes "only on the customer's documented instructions, including with regard to transfers." `meets` if explicit; `partial` if implied but not stated; `non-compliant` if absent.
+
+   **f. Confidentiality of processor personnel.** Article 28(3)(b): persons authorized to process must be under appropriate confidentiality obligations. Look for either a contractual commitment or a statement that the processor's employees are bound by statutory or contractual confidentiality. Routine to find; flag if missing.
+
+   **g. Security of processing.** Article 28(3)(c): the processor must implement appropriate technical and organizational measures (Article 32). Look for either (i) a TOMs annex describing the measures, or (ii) a binding commitment to maintain a security program meeting defined certifications. A vague reference to "industry-standard security" without specifics is `partial`.
+
+   **h. Sub-processor terms.** Article 28(2) and 28(4): the processor may engage sub-processors only with the controller's prior specific or general written authorization, and must impose the same data-protection obligations on the sub-processor by contract. Examine three sub-elements:
+   - **Authorization regime.** Is general authorization given with a notice mechanism, or is specific authorization required for each? General authorization with thirty-day notice and right to object is the predominant market norm; specific authorization is rare and demanding.
+   - **Sub-processor list.** Is one provided, where, and how is it updated?
+   - **Flow-down.** Does the DPA commit the processor to impose terms on the sub-processor that are substantially equivalent? Mandatory under GDPR — `non-compliant` if missing.
+
+   **i. Data-subject rights assistance.** Article 28(3)(e): the processor must assist the controller in fulfilling its obligations under Articles 15–22 (access, rectification, erasure, restriction, portability, objection, automated decisions). Look for: a commitment to forward data-subject requests received directly by the processor; a mechanism to help the controller respond; reasonable cost allocation.
+
+   **j. Article 32–36 assistance.** Article 28(3)(f): the processor must assist with security obligations (Article 32), breach notification (Articles 33–34), DPIA (Article 35), and prior consultation with the supervisory authority (Article 36). Look for explicit commitments — particularly the breach-notification cooperation, which is the most frequently tested.
+
+   **k. Deletion or return on termination.** Article 28(3)(g): at the choice of the controller, the processor must delete or return personal data at the end of services and delete existing copies (unless EU/Member State law requires retention). Look for: an explicit choice mechanism; a defined window (typically thirty to ninety days); explicit treatment of backups; a deletion certificate.
+
+   **l. Audit and information rights.** Article 28(3)(h): the processor must make available to the controller all information necessary to demonstrate compliance, and allow audits (including inspections) by the controller or an auditor mandated by the controller. Most market-standard DPAs implement this with: third-party audit reports (SOC 2 Type II, ISO 27001 audit report) provided on request under NDA; written information requests answered within a reasonable window; on-site inspection rights conditioned on prior notice, reasonable frequency, NDA, cost allocation. The processor's right to "satisfy audit rights solely by providing third-party audit reports" is common but conditional — if the controller has reasonable cause, the controller should retain at least an information-request right. Wholly auditing-out of audit rights is `non-compliant`.
+
+   **m. Immediate notice of conflicting instructions.** Article 28(3)(h) second sentence: the processor must immediately inform the controller if, in its opinion, an instruction infringes GDPR. Often a single sentence; check that it is present.
+
+4. **Step through transfer-mechanism analysis.** Use `data_flow_jurisdictions` to determine which mechanism applies.
+
+   **EU → US transfers.** The vendor must rely on (a) Standard Contractual Clauses (the 2021 EU Commission SCCs, in the appropriate module — typically Module 2 for controller-to-processor or Module 3 for processor-to-processor), (b) the EU-US Data Privacy Framework if the vendor is certified, or (c) another lawful mechanism such as Binding Corporate Rules. Many DPAs incorporate the SCCs by reference and complete the modular annexes in the DPA's own annexes. Verify: which module is used; whether the annexes are completed substantively (not just placeholder text); whether the DPA addresses supplementary measures appropriate for the data category (a "Transfer Impact Assessment" reference or appendix is good practice post-Schrems II).
+
+   **EU → other "non-adequate" countries.** Same SCC framework applies; verify the module is set correctly.
+
+   **UK transfers.** The UK has its own International Data Transfer Agreement (IDTA), or an Addendum to the EU SCCs. Verify which is used; the UK-Addendum-to-EU-SCCs is the dominant pattern for processors serving both EU and UK customers.
+
+   **Swiss transfers.** Verify a Swiss Amendment or equivalent Swiss-specific provisions are addressed if Swiss data is involved.
+
+5. **Step through breach-notification mechanics.** Look for: the notification window (no later than seventy-two hours after the controller becomes aware is the regulatory deadline under Article 33; the *processor's* notification to the controller should be faster — "without undue delay" is the statutory minimum, but a defined number of hours, typically twenty-four to seventy-two, is the market norm); the content of the notification (categories of data subjects affected, approximate number, likely consequences, measures taken); the cooperation obligation for follow-up.
+
+6. **Step through special-category data handling.** If `data_categories` includes any Article 9 special category, examine: explicit acknowledgment of the special-category nature; documented lawful basis on the controller side (the DPA should reference this without trying to substitute for it); enhanced security and access controls; any restrictions on profiling or automated decision-making.
+
+7. **Step through international cooperation and supervisory authority response.** Look for: a commitment to assist with supervisory inquiries; a commitment to inform the controller of any binding legal requests from law enforcement or government authorities (subject to legal restrictions on disclosure); a commitment to challenge unlawful or disproportionate government requests where lawful to do so.
+
+8. **Classify each section.** Four states: `compliant`, `partial`, `non-compliant`, `missing`. Be precise:
+   - `compliant` — the section meets the Article 28 requirement (or the relevant non-GDPR-but-equivalent requirement) and the customer's standard.
+   - `partial` — the section exists and addresses the topic but in a way that falls short (vague commitments, narrow scope, hostile carve-outs).
+   - `non-compliant` — the section is present but materially fails the requirement; or the section is missing in a way that GDPR specifically requires.
+   - `missing` — the section is absent from the DPA. (For Article 28 required terms, `missing` and `non-compliant` are nearly equivalent, but the language matters for the recommended action — "draft and add" versus "rewrite.")
+
+9. **Synthesize an overall verdict.**
+   - `gdpr_aligned` — every Article 28 required term is `compliant`; transfer mechanisms are in place; sub-processor and breach-notification mechanics are sound. Sign as drafted.
+   - `negotiate_specific_gaps` — Article 28 terms are largely present; one or more sections are `partial` or have specific gaps. Engage in negotiation.
+   - `material_gaps_present` — one or more Article 28 required terms are `non-compliant` or `missing`, or the transfer mechanism is inadequate for the data flow. Do not allow data flow until remedied.
+   - `not_a_dpa` — the document does not meet the threshold to be considered a DPA. Request that the vendor provide a real DPA.
+
+10. **Separate blocking gaps from advisory gaps.** Blocking gaps must be remedied before data flow; advisory gaps should be raised in negotiation but can be lived with subject to documented risk acceptance.
+
+11. **Recommend specific actions per gap.** Name the DPA section that needs to change, the substance of the change, and (where relevant) a fallback position. Do not draft full clause language — name the substance.
+
+12. **Score confidence.** Reduce confidence if: annexes are referenced but not provided; the role allocation is ambiguous; the data flow jurisdictions are not specified; the data categories are not specified and the DPA does not specify them either.
+
+13. **Self-check before returning.** Verify: every Article 28 required term has a status; the verdict matches the per-section statuses; the transfer-mechanism analysis matches the data-flow jurisdictions; special-category-data findings are present when those categories are in scope; the recommendations do not contradict the verdict.
+
+14. **Acknowledge what was not reviewed.** The TOMs annex requires a security review, not just a legal review — flag explicitly. The sub-processor list itself requires due diligence on each sub-processor — flag explicitly. The Transfer Impact Assessment, if referenced, may be a separate document requiring its own review.
+
+## Inputs
+
+- `dpa_text` (required, text) — full DPA with annexes included where possible.
+- `controller_processor_role` (required, choice) — fixes the framework.
+- `data_flow_jurisdictions` (optional, JSON) — drives transfer-mechanism analysis.
+- `data_categories` (optional, JSON) — flags special-category requirements.
+- `customer_dpa_template` (optional, text) — the customer's standard or playbook.
+
+## Outputs
+
+- `dpa_report` (markdown) — overall verdict; section-by-section table with Article 28 sub-clause reference, current position, requirement, status, recommended action; transfer-mechanism analysis; special-category analysis if applicable; consolidated blocking gaps; advisory gaps; out-of-scope acknowledgments; confidence and rationale.
+- `dpa_json` (JSON) — `verdict_per_section`, `overall_verdict`, `scc_status` (which module, whether annexes completed), `sub_processor_compliance` (authorization regime, list available, flow-down present), `breach_notification_window_hours`, `audit_rights_strength` (third_party_only / information_requests / on_site_with_cause / full_on_site), `special_category_handling` (object), `blocking_gaps` (array), `advisory_gaps` (array), `recommended_action`, `confidence`, `confidence_reason`, `not_a_dpa` (bool), `annexes_missing` (array).
+
+## Examples
+
+### Example 1 — EU controller, US processor, standard B2B SaaS
+
+**Input controller_processor_role:** `customer_controller_vendor_processor`
+
+**Input data_flow_jurisdictions:** `{"controller": ["EU"], "processor": ["US"]}`
+
+**Input data_categories:** `["contact-info", "behavioral"]`
+
+**Output dpa_report (excerpt):**
+
+> **Overall verdict: negotiate_specific_gaps.** Article 28 required terms are largely present. Three gaps require negotiation; transfer mechanism is in place but needs annex review.
+>
+> **Article 28(3)(a) instructions-only:** `compliant`. §2.1 expressly limits processing to documented controller instructions.
+>
+> **Article 28(3)(c) security:** `partial`. §5 references "appropriate technical and organizational measures" and points to Annex 2 (TOMs). Annex 2 is summary-level (eleven measures named without specificity on key management, access logging, or pen-test cadence). Request more specificity or rely on the SOC 2 Type II report as the substantiation.
+>
+> **Article 28(2)/(4) sub-processors:** `partial`. General authorization with thirty-day notice — `compliant` mechanism. Sub-processor list at vendor.example.com/subprocessors — `compliant`. Flow-down language at §7.4 says vendor "shall require its sub-processors to comply with terms substantially the same as those imposed on Vendor under this DPA." `compliant`. However, the right to object on a new sub-processor only triggers a termination remedy with no proration of prepaid fees — push for proration. Advisory gap.
+>
+> **Article 28(3)(f) breach assistance:** `partial`. §8 commits to notify "without undue delay" — the regulatory minimum but below market norm. Push for a defined window of seventy-two hours. Recommended.
+>
+> **Article 28(3)(g) deletion/return:** `compliant`. §10 offers choice between return and deletion; sixty-day window post-termination; backups deleted on rolling thirty-day cycle; deletion certificate on request.
+>
+> **Article 28(3)(h) audit:** `partial`. §11 limits audit to provision of SOC 2 Type II report and reasonable written information requests. No on-site inspection right even with cause. For a behavioral-data deal of this size, the third-party report regime is acceptable, but push for a "with reasonable cause" on-site step. Advisory.
+>
+> **Transfer mechanism (EU → US):** SCCs Module 2 incorporated at §13 and Annex 3 (annexed clauses). Annexes 1A and 1B are completed substantively. No Data Privacy Framework reliance. `compliant`, subject to the standard Transfer Impact Assessment that the customer's privacy team should run separately.
+>
+> **Special-category data:** none in scope per inputs. No additional analysis required.
+>
+> **Blocking gaps:** none.
+>
+> **Advisory gaps:**
+> - §8 — breach notification window.
+> - §7.4 — sub-processor objection / fee proration.
+> - §11 — on-site audit step with cause.
+>
+> **Out of scope:** Annex 2 TOMs require a security review; the sub-processor list itself requires per-vendor diligence.
+
+### Example 2 — vague "GDPR Schedule" attached to a SaaS agreement
+
+**Input controller_processor_role:** `customer_controller_vendor_processor`
+
+**Output dpa_report (excerpt):**
+
+> **Overall verdict: not_a_dpa.** The attached "GDPR Compliance Schedule" describes the vendor's privacy practices and includes general statements about GDPR alignment, but does not contain Article 28(3) required terms in binding form: no documented-instructions language, no sub-processor flow-down, no audit rights, no deletion-on-termination mechanic, no SCCs for EU-to-US transfer.
+>
+> Recommended action: request that the vendor provide a real DPA. Most market SaaS vendors maintain one; if the vendor does not, that is itself a significant data-protection finding to escalate.
+
+## Limitations
+
+- **Not legal advice.** Output is a structured worklist, not a legal opinion. Privacy-counsel review remains essential before signature or rejection.
+- **Framework-bound.** The methodology is built around GDPR Article 28 and the surrounding EEA framework, with light adjustments for UK and Swiss data flows. It does not apply with the same fidelity to non-GDPR frameworks (CCPA processing-service-provider language, LGPD, PIPEDA, China PIPL, India DPDP). For deals outside the EEA-equivalent framework, the analysis must be re-grounded — flag this clearly and consider a regional-specialist review.
+- **Annex-blind.** If the DPA references annexes (TOMs, sub-processor list, SCC annexes, Description of Processing) but the annexes were not provided in the input, the analysis is missing material content. Flag `annexes_missing` and reduce confidence.
+- **No security analysis.** The TOMs annex needs evaluation against the data sensitivity and threat model — that is a security review, not a legal review.
+- **No supervisory authority context.** Different EU member-state supervisory authorities have different priorities and have issued different guidance (e.g., German DPAs are particularly strict on the controller's pre-engagement diligence; the Irish DPC and the CNIL have specific positions on US transfers). The skill applies a generic EU-framework baseline; specialist counsel should overlay the relevant national context.
+- **Transfer Impact Assessment is out of scope.** Post-Schrems II, controllers transferring personal data to "third countries" are expected to perform a Transfer Impact Assessment evaluating the destination country's surveillance regime and the supplementary measures applied. This skill notes whether the DPA references a TIA but does not perform one.
+- **Sub-processor diligence is out of scope.** A clean DPA with a sub-processor list including a high-risk sub-processor (e.g., one based in a country with broad surveillance authority and no adequacy decision) is still a hazard. The list must be diligence'd separately.
+- **Joint-controllership and processor-to-processor scenarios** change the framework materially. The skill flags them and recommends specialist counsel rather than producing a possibly-misleading report. Do not override that escalation without explicit user direction.
+
+## Sources reviewed
+
+The methodology synthesized here is informed by reviewing public, permissively-licensed contract-workflow and data-protection repositories on GitHub, augmented by reference to statutory and supervisory-authority frameworks. **Source thinness disclosure:** open-source DPA templates under MIT/Apache/Unlicense terms are rare — most well-known industry DPA standards (Common Paper DPA, Bonterms DPA) are released under Creative Commons (CC BY 4.0) and were therefore excluded from primary methodology sourcing. The methodology below leans on MIT-licensed and Unlicense workflow repositories that catalog DPA practices and vendor disclosures, plus the official statutory framework via the EUR-Lex portal.
+
+- https://github.com/tollwerk/data-processing-agreements
+- https://github.com/Open-Source-Legal/OpenContracts
+- https://github.com/open-agreements/open-agreements
+- https://github.com/accordproject/template-archive
+- https://github.com/ankane/awesome-legal
+- https://eur-lex.europa.eu/eli/reg/2016/679/oj

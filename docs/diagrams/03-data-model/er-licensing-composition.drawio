@@ -1,0 +1,92 @@
+<mxfile host="app.diagrams.net" agent="skillsgit-arch" version="24.7.17" type="device">
+  <diagram name="ER licensing composition" id="er-licensing-composition-skillsgit">
+    <mxGraphModel dx="2000" dy="1400" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2000" pageHeight="1600" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- Title -->
+        <mxCell id="title" value="License composition — how persona + occupation licenses fan-in to one vault download&#10;Source: apps/api/src/{billing,vault}/models.py + vault/composer.py; spec team/03-vault-generation.md §10" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=none;fontSize=18;fontStyle=1;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="40" y="20" width="1500" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- Entities row 1 -->
+        <mxCell id="g-catalog" value="Catalog anchor" style="rounded=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=14;fontStyle=1;verticalAlign=top;align=center;" vertex="1" parent="1">
+          <mxGeometry x="40" y="100" width="340" height="240" as="geometry" />
+        </mxCell>
+        <mxCell id="tbl-skills" value="skills&#10;━━━━━━━━━━━━&#10;id (PK)&#10;kind (occupation OR persona)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;align=left;verticalAlign=top;spacingLeft=8;spacingTop=8;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="60" y="140" width="300" height="120" as="geometry" />
+        </mxCell>
+
+        <!-- Licenses -->
+        <mxCell id="g-licenses" value="Licenses (two participating shapes)" style="rounded=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=14;fontStyle=1;verticalAlign=top;align=center;" vertex="1" parent="1">
+          <mxGeometry x="420" y="100" width="540" height="320" as="geometry" />
+        </mxCell>
+        <mxCell id="tbl-licenses" value="licenses&#10;━━━━━━━━━━━━&#10;id (PK)&#10;buyer_id (FK → users)&#10;skill_id (FK → skills)&#10;   — the occupation OR persona purchased&#10;composition_role (occupation|persona|standalone)&#10;target_occupation_skill_id (FK → skills)&#10;   — set ONLY for persona role&#10;status (active|expired|revoked)&#10;expires_at (timestamptz)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;align=left;verticalAlign=top;spacingLeft=8;spacingTop=8;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="440" y="140" width="500" height="260" as="geometry" />
+        </mxCell>
+
+        <!-- Builds -->
+        <mxCell id="g-builds" value="Vault build (per skill + version + content)" style="rounded=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=14;fontStyle=1;verticalAlign=top;align=center;" vertex="1" parent="1">
+          <mxGeometry x="1000" y="100" width="500" height="320" as="geometry" />
+        </mxCell>
+        <mxCell id="tbl-vault-builds" value="vault_builds&#10;━━━━━━━━━━━━&#10;id (PK)&#10;skill_id (FK → skills)&#10;skill_version_id (FK → skill_versions)&#10;content_hash (char(64))&#10;   UK with skill_id (idempotent rebuilds)&#10;storage_url  S3 vaults/{skill_id}/{version}/{hash}.zip&#10;manifest_json (jsonb)&#10;status (queued|running|succeeded|failed)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;align=left;verticalAlign=top;spacingLeft=8;spacingTop=8;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="1020" y="140" width="460" height="260" as="geometry" />
+        </mxCell>
+
+        <!-- Downloads -->
+        <mxCell id="g-downloads" value="Vault download (per compose call audit row)" style="rounded=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=14;fontStyle=1;verticalAlign=top;align=center;" vertex="1" parent="1">
+          <mxGeometry x="1540" y="100" width="420" height="320" as="geometry" />
+        </mxCell>
+        <mxCell id="tbl-vault-downloads" value="vault_downloads&#10;━━━━━━━━━━━━&#10;id (PK)&#10;occupation_license_id (FK → licenses) — anchor&#10;buyer_id (FK → users)&#10;occupation_build_id (FK → vault_builds, RESTRICT)&#10;persona_build_ids (uuid[]) — merged in&#10;persona_license_ids (uuid[]) — snapshot at compose time&#10;composed_hash (char(64)) — post-watermark sha256&#10;storage_url  S3 delivery/vaults/{nonce}.zip (1h TTL)&#10;user_agent_hash, ip_hash" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;align=left;verticalAlign=top;spacingLeft=8;spacingTop=8;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="1560" y="140" width="380" height="260" as="geometry" />
+        </mxCell>
+
+        <!-- Composition algorithm box -->
+        <mxCell id="algorithm" value="Composition algorithm — compose_for_license (vault/composer.py)&#10;━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━&#10;1. Validate buyer owns the occupation license&#10;   → 404 if not, 409 vault.compose_unentitled if role != 'occupation',&#10;     409 vault.license_inactive if status != 'active'.&#10;2. Intersect requested persona-license-ids with the buyer's set of persona licenses where&#10;   target_occupation_skill_id == anchor.skill_id (uses ix_licenses_buyer_target_occupation_status).&#10;   Any requested id NOT in the buyer's active set → 403 vault.persona_license_not_held.&#10;3. Resolve latest succeeded VaultBuild for occupation + each persona.&#10;   Persona with no build → silently skipped (warning).&#10;4. cache_key = sha256(buyer_id | occupation_skill_id | occupation_build_id | sorted(persona_build_ids)).&#10;5. On HIT (24h TTL): only re-presign cached storage_url (60s); do NOT re-merge,&#10;   do NOT write a new vault_downloads row.&#10;6. On MISS:&#10;     • download every input zip&#10;     • merge persona subtrees onto the occupation tree&#10;     • re-resolve base/&lt;slug&gt; links across the merged surface&#10;     • regenerate vault.json (merged attribution_index + warnings)&#10;     • watermark every .md (delivery.watermark.append_watermark) per buyer&#10;     • re-zip deterministically (EPOCH_TIMESTAMP)&#10;     • upload to delivery/vaults/{nonce}.zip&#10;     • INSERT vault_downloads&#10;     • cache (storage_url, composed_hash, vault_download_id) for 24h&#10;     • presign fresh URL (60s)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#0369A1;align=left;verticalAlign=top;spacingLeft=12;spacingTop=10;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="40" y="480" width="1500" height="500" as="geometry" />
+        </mxCell>
+
+        <!-- Notes -->
+        <mxCell id="notes" value="Notes&#10;━━━━━━━━━━━━&#10;• Two license shapes participate:&#10;     composition_role='occupation' — the anchor; buyer picks ONE per compose call.&#10;     composition_role='persona', target_occupation_skill_id=&lt;occ.id&gt; — optional overlays;&#10;        only personas whose target matches the anchor's skill_id compose in.&#10;     composition_role='standalone' = legacy single-file delivery — does NOT participate.&#10;• persona_build_ids and persona_license_ids are stored as snapshots on the audit row,&#10;  so later persona changes don't rewrite history.&#10;• The composed bundle lives under delivery/vaults/{nonce}.zip with a 1h S3 lifecycle policy;&#10;  the vault_downloads row is permanent.&#10;• Same buyer composing twice with the same input builds = cache HIT;&#10;  same storage_url back, fresh 60s presigned URL each call.&#10;  Watermark is re-applied per call → two downloads differ in their &lt;!-- license:HMAC ts:NOW --&gt; line.&#10;• Cache invalidation triggers (spec §14):&#10;     - new occupation build succeeds&#10;     - new persona build the buyer owns succeeds&#10;     - buyer adds/removes a persona license&#10;     - occupation or persona is yanked" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;align=left;verticalAlign=top;spacingLeft=10;spacingTop=10;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1560" y="480" width="400" height="500" as="geometry" />
+        </mxCell>
+
+        <!-- Drift note -->
+        <mxCell id="drift" value="CODE-vs-SPEC DRIFT (acknowledged in composition-merge.drawio)&#10;Spec §10 implies a vault_downloads row is written on every compose call.&#10;Code only writes on cache MISS. Cache hits return the existing storage_url + presign a fresh 60s URL&#10;and do NOT add a new audit row. (Composer constants COMPOSE_CACHE_TTL_SECONDS=24h, PRESIGNED_URL_TTL_SECONDS=60.)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fee2e2;strokeColor=#b91c1c;align=left;verticalAlign=top;spacingLeft=10;spacingTop=10;fontSize=11;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="40" y="1020" width="1920" height="100" as="geometry" />
+        </mxCell>
+
+        <!-- ===== Edges ===== -->
+        <!-- skills → licenses (two relationships) -->
+        <mxCell id="rel-1" value="purchased as (skill_id)" style="endArrow=ERmany;startArrow=ERone;edgeStyle=entityRelationEdgeStyle;strokeColor=#6c8ebf;html=1;" edge="1" parent="1" source="tbl-skills" target="tbl-licenses">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel-2" value="target_occupation_skill_id (persona role)" style="endArrow=ERmany;startArrow=ERone;edgeStyle=entityRelationEdgeStyle;strokeColor=#6c8ebf;dashed=1;html=1;" edge="1" parent="1" source="tbl-skills" target="tbl-licenses">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- skills → builds -->
+        <mxCell id="rel-3" value="built for" style="endArrow=ERmany;startArrow=ERone;edgeStyle=entityRelationEdgeStyle;strokeColor=#d6b656;html=1;" edge="1" parent="1" source="tbl-skills" target="tbl-vault-builds">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="370" y="80" />
+              <mxPoint x="1250" y="80" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- licenses → downloads (anchor) -->
+        <mxCell id="rel-4" value="occupation_license_id anchors" style="endArrow=ERmany;startArrow=ERone;edgeStyle=entityRelationEdgeStyle;strokeColor=#82b366;strokeWidth=2;html=1;" edge="1" parent="1" source="tbl-licenses" target="tbl-vault-downloads">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- builds → downloads -->
+        <mxCell id="rel-5" value="occupation_build_id (RESTRICT)" style="endArrow=ERmany;startArrow=ERone;edgeStyle=entityRelationEdgeStyle;strokeColor=#9673a6;html=1;" edge="1" parent="1" source="tbl-vault-builds" target="tbl-vault-downloads">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

@@ -1,0 +1,78 @@
+name: skillsgit
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: skillsgit-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-skillsgit}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-skillsgit}
+      POSTGRES_DB: ${POSTGRES_DB:-skillsgit}
+    ports:
+      # Host-side 5433 to avoid colliding with a locally-installed Postgres.
+      # Inside the network, services still talk to postgres:5432.
+      - "${POSTGRES_HOST_PORT:-5433}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-skillsgit} -d ${POSTGRES_DB:-skillsgit}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - skillsgit
+
+  redis:
+    image: redis:7-alpine
+    container_name: skillsgit-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - skillsgit
+
+  minio:
+    image: minio/minio
+    container_name: skillsgit-minio
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-skillsgit}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-skillsgit}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - miniodata:/data
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - skillsgit
+
+  mailhog:
+    image: mailhog/mailhog
+    container_name: skillsgit-mailhog
+    restart: unless-stopped
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    networks:
+      - skillsgit
+
+volumes:
+  pgdata:
+  miniodata:
+
+networks:
+  skillsgit:
+    name: skillsgit
+    driver: bridge

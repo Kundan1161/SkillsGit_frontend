@@ -1,0 +1,335 @@
+---
+id: skillsgit-curated/ops-release-communication-author
+version: 1.0.0
+name: Release Communication Author
+description: Drafts the full communication set for a release or launch — internal team announcement, customer email, in-app notice, sales enablement note, and support readiness brief — tuned to the audience, the change's risk, and what action each audience needs to take.
+authors:
+  - name: skillsgit Curated
+    handle: skillsgit-curated
+    role: author
+category: operations
+tags: [niche:change-management, release-notes, launch-communications, customer-comms, internal-comms, enablement, operations]
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6, gpt-4o]
+  tools_required: []
+  min_context_tokens: 32000
+  estimated_tokens_per_invocation: 8000
+trigger_keywords:
+  - release notes
+  - launch communication
+  - launch email
+  - product announcement
+  - release announcement
+  - in-app announcement
+  - sales enablement
+  - support brief
+  - changelog
+  - go-to-market comms
+  - customer notification
+  - launch package
+example_invocations:
+  - "Draft the comms package for our new pricing tier launch next Tuesday."
+  - "We're shipping a breaking API change in 30 days. Write the customer email and internal brief."
+  - "Generate release-day comms for the new dashboard — internal, customer email, in-app, support brief."
+inputs:
+  - name: change_summary
+    type: text
+    required: true
+    description: One- or two-paragraph description of what is shipping — what changes, who it affects, when it lands, and what (if anything) the audience must do.
+  - name: audience_segments
+    type: text
+    required: false
+    description: Who receives each comm — internal teams (engineering, sales, support, exec), customer segments (free, pro, enterprise), partners. Include known sensitivities (e.g., enterprise needs 30 days advance notice).
+  - name: required_actions
+    type: text
+    required: false
+    description: What recipients must do — nothing (informational), opt-in, migrate by a date, retrain, contact account team. Different actions imply different formats.
+  - name: risk_band
+    type: choice
+    required: false
+    description: Risk band shaping comm tone and depth.
+    choices: [low, medium, high, breaking-change]
+  - name: brand_voice_notes
+    type: text
+    required: false
+    description: Tone constraints — formal, conversational, technical; any phrases or framings to avoid; brand examples to emulate.
+outputs:
+  - name: comms_package
+    type: markdown
+    description: A multi-section deliverable with one drafted comm per audience channel — internal announcement, customer email, in-app notice, sales enablement note, support readiness brief — plus a comms calendar specifying when each goes out relative to the release.
+  - name: faq_seed
+    type: markdown
+    description: A starter FAQ of the most likely questions per audience, with draft answers; intended to be loaded into the support knowledge base and the in-app help surface.
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Initial release.
+---
+
+## When to use
+
+Use this skill when a release or change needs to be communicated to more than one audience with more than one channel. The trigger is any combination of: a feature, change, or removal landing on a known date; multiple audiences (internal teams, customer segments, partners) needing tailored messages; risk of confusion, support spike, or sales disruption if the comms are wrong; the team having a pile of bullet points but no drafts.
+
+The skill is opinionated about three things. First: **every comm answers two questions for its audience — what changed and what do I have to do.** Comms that lead with "we are excited to announce" before answering either question waste the reader's first three seconds, which are the only three seconds most comms get. Second: **each channel has a job.** Internal comms align the team; customer email creates a written record; in-app meets users at the moment of impact; sales enablement equips the field; support readiness pre-loads the answers. A package that uses the same draft for all channels is a package that does none of them well. Third: **the comms calendar is part of the deliverable.** When each comm goes out relative to the release matters as much as what it says.
+
+Do not use this skill for crisis comms (incident/outage) or for legal/regulatory notifications — those have their own constraints and should not be drafted from a release-comms template. Use it for planned releases of features, pricing changes, product retirements, process changes, and migrations.
+
+## How to apply
+
+The skill builds the comms package in ten moves.
+
+1. **Reduce the change to its lede.** A single sentence that names what is changing, for whom, and when. Strip aspirational framing. "On June 1, we are sunsetting the legacy reports module; customers must migrate to the new reports module by August 1 to keep their saved views." That sentence is the foundation of every comm; if it cannot be written cleanly, the change is not yet ready to be announced.
+
+2. **Identify the action each audience must take.** Map audience to required action. Possible actions: nothing (informational), opt-in to use the new thing, migrate by a date, retrain, contact account team, sign updated terms. Comms for "nothing" audiences are short and confident; comms for "migrate by a date" audiences are long, structured, and include verification steps. Wrong calibration is the most common comms failure mode.
+
+3. **Set the tone per audience.** Internal-engineering tone is precise and technical. Sales-enablement tone is consequence-focused and objection-anticipating. Customer-email tone matches the customer's prior experience of the brand. In-app tone is short, action-oriented, and reads in five seconds. Support-brief tone is dense and reference-oriented. Pick the tone per channel and resist the urge to make every channel sound the same.
+
+4. **Draft the internal announcement first.** The internal announcement is the source of truth that the other comms are tuned versions of. It includes: the lede, the why, the timeline, the affected audiences with required actions per audience, the rollout owner, the abort criteria, and where to ask questions. It is sent before any external comm. The structure makes it useful as a reference document the team keeps open during the rollout.
+
+5. **Draft the customer email.** Customer emails are short, structured, and easy to scan: subject line that names the change neutrally (not "exciting news"), first sentence that names the change and the date, second paragraph that names the required action and the deadline if any, body that includes a what-changed bullet list (3–7 bullets), and a clear single call-to-action. Avoid: passive voice, "we" front-loading, marketing throat-clearing, and burying the date in the third paragraph. Always include a date, a link to a longer doc, and a way to contact support. For high-risk or breaking changes, send a 30-day advance notice, a 7-day reminder, and a 1-day reminder.
+
+6. **Draft the in-app or in-product notice.** The in-app notice has a hard length budget — typically a one-line banner or a small modal. The job is to interrupt the user at the moment of impact and route them to the longer information without breaking their flow. It must answer: what is different right now, and where do I learn more. For breaking changes, the in-app notice fires both pre-change (this will change on date X) and post-change (this has changed; here is what's different). Each instance is dismissable but tracked.
+
+7. **Draft the sales enablement note.** The sales enablement note is written for an AE or CSM who is about to take a call with a customer who has seen the customer email. It includes: the lede in selling-friendly language, the top three customer questions and the answers, the top three customer objections and the responses, who in the account team to loop in for which type of escalation, and any positioning against competitors that this change affects. The note is structured for scan — long-form sales messages do not survive contact with a calendar full of meetings.
+
+8. **Draft the support readiness brief.** The support brief equips the support team to triage and answer questions in the first 72 hours. It includes: the lede, a triage tree (which customer signal indicates which class of issue), a list of pre-built ticket macros with their use cases, the escalation path (when to escalate to engineering, when to escalate to account team), the expected ticket volume increase and the staffing response, and the metrics the team will watch (volume by tag, time-to-resolution, escalation rate). The support brief is the only comm with operational instructions; it reads like a runbook, not a press release.
+
+9. **Compose the FAQ seed.** Anticipate the questions each audience will ask. For internal teams: "what does this mean for my project?" "who owns this?" "what is the abort criterion?" For customers: "what do I have to do?" "what happens if I don't?" "does this affect my saved [thing]?" "is pricing changing?" "where do I get help?" Draft each answer in two to four sentences. The FAQ seeds the support knowledge base and the public help center; treat it as content, not as a placeholder.
+
+10. **Build the comms calendar relative to release date T.** Standard cadence for a medium-risk release: internal announcement at T-14, sales enablement at T-10, customer email at T-7, in-app pre-notice at T-3, release day comms (internal "it's live" at T, customer follow-up at T+0 or T+1, in-app live notice), and a T+7 "how it's going" internal update. High-risk and breaking changes shift left to T-30 and T-7 reminders. Low-risk changes compress to T-1 or T-0. The calendar names the sender per comm (which leader, which team) and the channel.
+
+### Standard comms package layout
+
+The output document uses these section headers in this order:
+
+1. `# Release Communications Package: <change name>`
+2. `## Lede` — the one-sentence statement that grounds the package.
+3. `## Audience × required action matrix` — who must do what.
+4. `## Comms calendar` — T-relative schedule with sender and channel.
+5. `## Internal announcement` — full draft, ready to send.
+6. `## Customer email` — full draft including subject line.
+7. `## In-app notice` — pre-change and post-change variants.
+8. `## Sales enablement note` — selling-friendly version with Q&A and objection responses.
+9. `## Support readiness brief` — triage tree, macros, escalation path, metrics.
+10. `## FAQ seed` — by audience.
+11. `## Reminders and follow-ups` — drafts for T-7, T-1, T+7 as applicable.
+
+### Composition rules
+
+- **Every comm names the date.** Releases without dates in the body of the comm produce confusion that the team will spend the rollout absorbing.
+- **Required action belongs in the first 30 words.** If the audience must do something, they learn that before they learn the why.
+- **No "we are excited to announce" lede.** The audience cares what the change is; the team's excitement is not relevant in the first sentence.
+- **Match length to channel.** A customer email is not an internal announcement; an in-app notice is not either.
+- **Specify the sender.** "From the platform team" vs. "from the CEO" produces different responses; the package names which.
+- **Reminders are not duplicates.** A T-1 reminder restates the deadline and the action, not the full original message.
+- **Sales and support get instructions, not announcements.** Their comms are operational artifacts.
+
+## Inputs
+
+- **Change summary (required, text).** What is shipping, who it affects, when, and what (if anything) the audience must do.
+- **Audience segments (optional, text).** Internal teams, customer segments, partners; including known sensitivities.
+- **Required actions (optional, text).** What recipients must do.
+- **Risk band (optional, choice).** Banding that shapes tone, depth, and the calendar.
+- **Brand voice notes (optional, text).** Tone constraints, framings to avoid, brand examples.
+
+## Outputs
+
+A multi-channel comms package with one drafted comm per channel, a comms calendar, and an FAQ seed for the support knowledge base.
+
+## Examples
+
+### Worked example: deprecating the legacy reports module
+
+**Change summary:** "On June 1, the legacy reports module enters deprecation. On August 1 it is removed. Customers must migrate saved views and scheduled exports to the new reports module by August 1. ~2,800 active customer accounts have at least one saved legacy report; ~340 have a scheduled export."
+
+**Audience segments:** "Internal: product, engineering, customer support, sales (especially CSMs on enterprise accounts), execs. Customers: free tier, pro tier, enterprise tier (enterprise CSMs handle these directly). Partners using the legacy reports API (about 30 integrations)."
+
+**Required actions:** "Customers: migrate saved views and scheduled exports by August 1. Partners: update API integrations to new endpoints by August 1."
+
+**Risk band:** breaking-change
+
+**Brand voice notes:** "Conversational but precise. Avoid 'exciting' and 'thrilled'. Customers are practitioners; respect their time."
+
+**Expected output (excerpted):**
+
+> # Release Communications Package: legacy reports deprecation
+>
+> ## Lede
+>
+> On June 1 the legacy reports module enters deprecation; on August 1 it is removed. Customers with saved legacy reports or scheduled exports must migrate to the new reports module before August 1.
+>
+> ## Audience × required action matrix
+>
+> | Audience | Required action | Deadline |
+> | --- | --- | --- |
+> | Free-tier customers with saved legacy reports | Migrate or accept loss of saved views | Aug 1 |
+> | Pro-tier customers with saved legacy reports | Migrate; in-app migration tool provided | Aug 1 |
+> | Enterprise customers (any legacy use) | CSM-led migration; pairing offered | Aug 1 |
+> | Partners with legacy API integration | Update endpoints | Aug 1 |
+> | Internal product/engineering | Awareness; deprecation header live June 1 | June 1 |
+> | Internal sales/CSM | Outreach plan for affected enterprise accounts | June 7 |
+> | Internal support | Macros, triage tree, capacity plan | June 1 |
+>
+> ## Comms calendar
+>
+> | Date | Audience | Channel | Sender |
+> | --- | --- | --- | --- |
+> | May 15 (T-17) | Internal all-hands | Slack + doc | Head of Product |
+> | May 18 (T-14) | Sales and CSM | Enablement deck + 30-min call | Sales Enablement |
+> | May 22 (T-10) | Support | Brief + training session | Support Ops |
+> | May 25 (T-7) | All affected customers | Email | Product Marketing |
+> | May 30 (T-2) | Enterprise customers | Personal email from CSM | Account CSM |
+> | Jun 1 (T) | All customers | In-app banner; deprecation header in API responses | Product |
+> | Jul 15 (T+45 / Aug 1 - 17) | Customers with no migration activity | Reminder email | Product Marketing |
+> | Jul 28 (T+57 / Aug 1 - 4) | Customers with no migration activity | Final reminder | Product Marketing + CSM |
+> | Aug 1 (T+62) | Internal + customers | Removal notice + in-app | Head of Product |
+> | Aug 8 (T+69) | Internal | "How it went" retro | Rollout owner |
+>
+> ## Internal announcement
+>
+> Subject: Legacy reports deprecation — June 1 entry, August 1 removal
+>
+> Team,
+>
+> On June 1 we begin a planned deprecation of the legacy reports module. On August 1 it is removed. About 2,800 customer accounts have at least one saved legacy report and roughly 340 have a scheduled export; we have customer-by-customer data and the rollout will be tracked weekly.
+>
+> Why: the legacy reports module sits on top of the v1 data path that we are sunsetting separately. Keeping legacy reports alive would block the data-path migration and double our maintenance cost in the analytics stack.
+>
+> What the rollout looks like:
+> - May 25: customer email goes out; in-app deprecation banner goes live for users with legacy saved views.
+> - June 1: deprecation begins; API responses carry a deprecation header; in-app migration tool is the supported path.
+> - June 7: CSM-led outreach to all enterprise accounts with legacy use begins.
+> - Weekly: rollout owner posts migration progress in #legacy-reports-deprecation.
+> - August 1: removal. Saved views not migrated are archived for 30 days, then deleted.
+>
+> Owners:
+> - Rollout owner: Priya (Product)
+> - Engineering: Alex (Reports)
+> - Customer comms: Lena (Product Marketing)
+> - Sales/CSM: Marcus (Customer Success leadership)
+> - Support readiness: Jordan (Support Ops)
+>
+> Abort criterion: if at T+30 fewer than 40% of affected accounts have migrated, we hold the removal date and run a second comms wave before re-scheduling. If at T+30 customer support ticket volume tagged `legacy-reports-deprecation` exceeds 3× the steady-state baseline for 5 consecutive business days, we hold and reassess.
+>
+> Questions: post in #legacy-reports-deprecation or DM Priya.
+>
+> ## Customer email
+>
+> Subject: Legacy reports module sunsetting August 1 — migrate your saved views by then
+>
+> Hi [first name],
+>
+> On August 1 we are removing the legacy reports module. If you have saved views or scheduled exports in legacy reports, please migrate them to the new reports module before August 1 or you will lose them.
+>
+> What's changing:
+> - Legacy reports stops accepting new saved views on June 1.
+> - In-app, a one-click migration tool moves your existing saved views to the new module.
+> - Scheduled exports must be re-created in the new module; we can't migrate them automatically because the export schedule lives in a different system.
+> - On August 1 the legacy module is removed. Anything not migrated will be archived for 30 days and then deleted.
+>
+> What to do:
+> 1. Open Reports → Legacy (we'll show a banner there starting June 1).
+> 2. Click "Migrate to new reports."
+> 3. Re-create any scheduled exports in the new module.
+>
+> Help: visit [link to migration guide]. If you'd rather have a hand, reply to this email and our team will set up a short walkthrough.
+>
+> Thanks,
+> The Reports Team
+>
+> ## In-app notice
+>
+> **Pre-change (May 25 → June 1):**
+> > Heads-up: legacy reports is being replaced. Migrate your saved views by August 1. [Migrate now] [Learn more]
+>
+> **Active deprecation (June 1 → August 1):**
+> > Legacy reports is deprecated. It will be removed on August 1. [Migrate now]
+>
+> **Post-removal (August 1 onward):**
+> > The legacy reports module has been removed. Your archived views are available for 30 days. [Restore archived views]
+>
+> ## Sales enablement note
+>
+> What to know: legacy reports is going away on August 1. The new reports module is fully feature-equivalent for 95% of customers. The 5% who use scheduled exports must re-create those schedules manually.
+>
+> Top customer questions:
+> 1. *"Will my saved views move automatically?"* Yes, in-app one-click migration. Scheduled exports must be re-created manually.
+> 2. *"What if I miss the deadline?"* Archived for 30 days post-Aug 1, then deleted. Restore is available via support.
+> 3. *"Is this a pricing change?"* No. Same tier, new module.
+>
+> Top objections:
+> 1. *"This is more work for us."* Acknowledge the scheduled-export pain; offer to set up a CSM-led migration walkthrough. The new module reduces scheduling overhead by 50% after migration.
+> 2. *"We don't want to be forced to change."* Acknowledge; explain the legacy module sits on a deprecated data path that we cannot maintain; emphasize the 60-day window and the in-app tool.
+> 3. *"What about the custom report we built for [thing]?"* Offer a CSM-led migration session. The new module supports all custom-field types from legacy.
+>
+> Escalations:
+> - Customer at risk of churn over this change → loop in CSM leader Marcus.
+> - Technical migration concern → loop in Reports engineering lead Alex.
+> - Top-100 ARR customer not engaging by July 15 → joint outreach with Marcus.
+>
+> ## Support readiness brief
+>
+> Triage tree for tickets tagged `legacy-reports`:
+> - "How do I migrate?" → macro `lrd-migration-howto` + link to migration guide.
+> - "Migration tool failed for me" → reproduce, capture screen + saved view ID, escalate to Reports engineering.
+> - "I lost my saved view" → check archive (30-day window); if within window, restore via internal tool; if outside window, escalate to Reports engineering for last-resort recovery.
+> - "Can I get an extension?" → policy: extensions for enterprise tier only, decided by CSM. Macro: `lrd-extension-request-csm`.
+>
+> Macros to load:
+> - `lrd-migration-howto`
+> - `lrd-migration-failed-escalation`
+> - `lrd-extension-request-csm`
+> - `lrd-saved-view-lost-restore`
+> - `lrd-pricing-no-change`
+>
+> Expected volume: 2× steady-state for the first week post-June-1 email; 3–4× in the final week before August 1; 2× during the 30-day archive window after removal. Staffing: cross-train two additional agents on legacy reports knowledge; spike-budget approved for late July.
+>
+> Metrics watched daily by support ops:
+> - Ticket count tagged `legacy-reports`.
+> - Time-to-first-response (target: < 4 hours; baseline 6).
+> - Escalation rate to Reports engineering (target: < 10%).
+> - Tickets resolved with macro vs. requiring engineering (informs documentation gaps).
+>
+> Escalation path:
+> - Engineering: Reports oncall (PagerDuty service `reports-oncall`) for migration tool failures.
+> - Account team: CSM for enterprise extension requests.
+> - Product: Priya for policy questions.
+>
+> ## FAQ seed
+>
+> [excerpted...]
+> *Will my saved views migrate automatically?* Yes — the in-app migration tool moves saved views with one click. Scheduled exports must be re-created manually because export schedules live in a separate system.
+>
+> *What happens if I miss the August 1 deadline?* Anything not migrated is archived for 30 days. After that it is deleted. Within the archive window, contact support to restore.
+>
+> *Is pricing changing?* No. Same plan, same price. Only the reports module is changing.
+>
+> *Can I get an extension?* We offer extensions case-by-case for enterprise customers. Reach out to your CSM.
+>
+> *Why are you removing this?* Legacy reports runs on a data path we are retiring across the product. Keeping it would prevent improvements in the new reports module, including a 50% reduction in scheduling overhead.
+
+## Limitations
+
+- The skill drafts; it does not approve. Legal, brand, and compliance review of customer-facing comms remains a human responsibility, especially for breaking changes and pricing changes.
+- The skill assumes the change is decided. It will not draft comms for a change that is still under debate; the lede sentence will expose ambiguity that needs to be resolved before drafting proceeds.
+- Tone calibration depends on brand-voice inputs. Without those, the skill defaults to neutral-professional, which may read as generic. Loading brand examples meaningfully sharpens output.
+- The skill cannot localize. Customer comms in multiple languages must be translated; the skill produces source-language drafts.
+- The comms calendar assumes a known release date. Releases without a date should not have comms drafted yet; the skill will say so and recommend confirming the date first.
+- The support readiness brief makes assumptions about ticket volume and staffing capacity. These are starting estimates; support ops should refine against the team's actual historical volume for comparable releases.
+- The sales enablement note's objection-handling is generic. For competitive contexts and specific accounts, a battlecard or per-account brief is a stronger artifact and the comms package should defer to it.
+
+## Sources reviewed
+
+- https://github.com/release-drafter/release-drafter
+- https://github.com/release-notes/release-notes-spec
+- https://github.com/thoughtbot/templates
+- https://github.com/vintasoftware/production-launch-checklist
+- https://github.com/argoproj/argo-rollouts
+- https://github.com/Unleash/unleash
+- https://github.com/flagsmith/flagsmith
+- https://github.com/reactjs/rfcs

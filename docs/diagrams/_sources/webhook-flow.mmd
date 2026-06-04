@@ -1,0 +1,116 @@
+%% Inbound Stripe webhook — /v1/webhooks/stripe.
+%% Source: apps/api/src/webhooks/router.py:stripe_webhook
+%%         apps/api/src/webhooks/service.py:process_event and handlers
+%%         apps/api/src/billing/stripe_client.py:get_stripe_client
+%% Spec: prompts/marketplace/03-pricing-and-checkout.md "Webhooks".
+
+sequenceDiagram
+    autonumber
+    participant Stripe as Stripe (webhook sender)
+    participant Router as webhooks/router.py stripe_webhook
+    participant SDK as billing/stripe_client.py (stripe SDK wrapper)
+    participant Service as webhooks/service.py process_event
+    participant DB as Postgres
+    participant Audit as core.db.write_audit
+
+    %% 1. Stripe sends the event
+    Stripe->>Router: POST /v1/webhooks/stripe
+    Note over Stripe,Router: Headers — Content-Type: application/json — Stripe-Signature: t=unix_ts, v1=HMAC-SHA256, v0=...
+    Note over Stripe,Router: Body — raw JSON event payload (checkout.session.completed, payment_intent.succeeded, payment_intent.payment_failed, charge.refunded, account.updated, ...)
+
+    %% 2. Payload read + signature verification
+    Router->>Router: payload = await request.body()
+    Note over Router: raw bytes — DO NOT json-parse before HMAC verify, the signature covers the raw bytes
+
+    alt settings.is_test (CI / unit tests)
+        Router->>Router: event = json.loads(payload)
+        Note over Router: skip signature check — tests post raw JSON directly. 400 webhooks.invalid_payload on JSONDecodeError.
+    else production
+        Router->>Router: assert stripe_signature header present
+        Note over Router: 400 webhooks.missing_signature if Stripe-Signature absent
+        Router->>SDK: construct_webhook_event(payload, stripe_signature, settings.STRIPE_WEBHOOK_SECRET)
+        Note over SDK: Stripe SDK verifies HMAC-SHA256 over (timestamp + '.' + body) using the webhook secret. Also checks timestamp tolerance (5 min default).
+        alt signature invalid
+            SDK-->>Router: SignatureVerificationError
+            Router-->>Stripe: 401 webhooks.invalid_signature
+            Note over Router,Stripe: Do NOT log raw payload or signature — both are sensitive.
+        end
+        SDK-->>Router: verified event dict
+    end
+
+    Router->>Router: assert event["id"] present
+    Note over Router: 400 webhooks.invalid_payload on missing event.id
+
+    %% 3. Persist + dedup
+    Router->>Service: process_event(session, event)
+    Service->>DB: _persist_event(session, event) — session.get(WebhookEvent, event.id)
+    alt already exists (replay / re-delivery)
+        DB-->>Service: existing WebhookEvent row
+        Service-->>Router: deduped=true, event_id, status
+        Router-->>Stripe: 200 OK (re-deliveries are explicit no-ops)
+    else new event
+        Service->>DB: INSERT webhook_events (id=event.id, type=event.type, payload_json=event, received_at=now, status=RECEIVED)
+        Service-->>Service: row, is_new=true
+    end
+
+    %% 4. Dispatch on event.type
+    Service->>Service: etype = event.type
+    Note over Service: HANDLED_EVENTS = checkout.session.completed, payment_intent.succeeded, payment_intent.payment_failed, charge.refunded, account.updated
+
+    alt etype == "checkout.session.completed"
+        Service->>Service: _on_checkout_session_completed(event)
+        Service->>DB: dedup — SELECT orders WHERE stripe_payment_intent_id=PI (skip if already inserted)
+        Service->>DB: Parse metadata (skill_id, skill_version_id, buyer_id) — ValueError re-raised (promotes to 500 so Stripe retries)
+        Service->>DB: INSERT orders, INSERT order_items
+        Service->>DB: issue_one_time_license (source=ONE_TIME, max_version=cap, status=ACTIVE)
+        Service->>DB: UPDATE skills SET total_sales += 1
+        Service->>Audit: order.placed, license.granted
+        Service->>Service: best-effort notify creator webhook (creator/webhooks.notify_creator_webhook if module present — never blocks)
+
+    else etype == "payment_intent.succeeded"
+        Service->>Service: no-op
+        Note over Service: checkout.session.completed already issued the license. This event is just marked PROCESSED to clear the row.
+
+    else etype == "payment_intent.payment_failed"
+        Service->>Service: _on_payment_intent_payment_failed(event)
+        Service->>DB: SELECT orders WHERE PI=...
+        alt order exists
+            Service->>DB: UPDATE orders SET status=FAILED
+            Service->>Audit: order.payment_failed
+        end
+
+    else etype == "charge.refunded"
+        Service->>Service: _on_charge_refunded(event)
+        Service->>DB: SELECT orders WHERE PI=...
+        Service->>DB: amount vs amount_refunded — full=REFUNDED, partial=PARTIALLY_REFUNDED
+        Service->>DB: SELECT order_items.id WHERE order_id=...
+        loop for each active license sourced from those items
+            Service->>DB: UPDATE licenses SET status=REVOKED
+            Service->>Audit: license.revoked (reason=refund, order_id)
+        end
+        Service->>Audit: order.refunded
+
+    else etype == "account.updated"
+        Service->>Service: _on_account_updated(event)
+        Service->>DB: SELECT users WHERE stripe_connect_account_id=acct_id
+        Service->>DB: UPDATE users SET payouts_enabled = obj.payouts_enabled
+        Note over Service,DB: Keeps the creator's payouts_enabled flag in sync with Stripe's view — used by assert_skill_purchasable to block checkout if disabled.
+
+    else unhandled type (subscription.*, invoice.*, ...)
+        Service->>Service: row.status stays RECEIVED (processed_at = NULL)
+        Note over Service: Stripe gets 200 anyway — Cycle-2 handlers will pick these up by re-querying RECEIVED rows.
+    end
+
+    %% 5. Mark processed
+    alt handled successfully
+        Service->>DB: UPDATE webhook_events SET status=PROCESSED, processed_at=now
+    end
+
+    %% 6. Handler exception path
+    Note over Service,DB: If a handler raises — 1. service catches, sets row.status=FAILED + error=ExcName. 2. session.flush. 3. RE-RAISES so the router returns 5xx. 4. Router rolls back business writes, commits the failure row, then raises webhooks.handler_error (500). 5. Stripe retries per its exponential-backoff policy. (Idempotency at INSERT layer ensures retries are safe.)
+
+    %% 7. Final response
+    Router->>DB: session.commit()
+    Router-->>Stripe: 200 OK (deduped, event_id, type, handled, status)
+
+    Note over Stripe,Audit: Failure modes summary — 400 missing_signature or invalid_payload — 401 invalid_signature — 500 handler_error so Stripe retries — 200 success or unhandled-but-acked (Stripe done). Stripe's retry policy: exponential backoff up to 3 days. Every handler is idempotent at the DB INSERT layer (stripe_payment_intent_id is unique on orders, webhook_events.id PK dedups before dispatch).

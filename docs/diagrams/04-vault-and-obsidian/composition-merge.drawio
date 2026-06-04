@@ -1,0 +1,212 @@
+<mxfile host="app.diagrams.net" agent="skills-git-architect" version="22.1.16">
+  <diagram name="Composition merge" id="composition-merge-skillsgit">
+    <mxGraphModel dx="2200" dy="1400" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2600" pageHeight="1800" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- Title -->
+        <mxCell id="title" value="Composition merge — compose_for_license&#10;source: apps/api/src/vault/composer.py" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=none;fontSize=20;fontStyle=1;align=left;" vertex="1" parent="1">
+          <mxGeometry x="40" y="20" width="900" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- Actors -->
+        <mxCell id="buyer" value="Buyer&#10;(web-marketplace UI&#10;or API client)" style="shape=mxgraph.basic.actor;html=1;align=center;verticalAlign=top;fillColor=#0EA5E9;strokeColor=#0369A1;fontColor=#FFFFFF;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="60" y="100" width="80" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="buyer-label" value="POST /v1/vault/compose&#10;{ occupation_license_id,&#10;  include_persona_license_ids? }" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E0F2FE;strokeColor=#0369A1;fontSize=11;align=left;spacingLeft=6;spacingTop=4;" vertex="1" parent="1">
+          <mxGeometry x="40" y="230" width="220" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- Router -->
+        <mxCell id="router" value="vault/router.py" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#B45309;fontStyle=1;align=center;" vertex="1" parent="1">
+          <mxGeometry x="320" y="140" width="160" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- Composer -->
+        <mxCell id="composer" value="vault/composer.py&#10;compose_for_license()" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EDE9FE;strokeColor=#5B21B6;fontStyle=1;align=center;" vertex="1" parent="1">
+          <mxGeometry x="560" y="140" width="200" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- DB -->
+        <mxCell id="db" value="Postgres" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#D1FAE5;strokeColor=#065F46;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="840" y="140" width="120" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- Cache -->
+        <mxCell id="cache" value="core/cache.py&#10;(Redis facade)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCE7F3;strokeColor=#BE185D;fontStyle=1;align=center;" vertex="1" parent="1">
+          <mxGeometry x="1020" y="140" width="160" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- S3 -->
+        <mxCell id="s3" value="Storage (S3 / MinIO)" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#FFEDD5;strokeColor=#C2410C;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1240" y="140" width="160" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- Watermark -->
+        <mxCell id="watermark" value="delivery/watermark.py&#10;append_watermark()" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCE7F3;strokeColor=#9D174D;align=center;" vertex="1" parent="1">
+          <mxGeometry x="1460" y="140" width="180" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- ========== Step lanes (top→bottom flow) ========== -->
+
+        <!-- Step 1 -->
+        <mxCell id="s1" value="1. _load_occupation_license&#10;SELECT licenses WHERE id=…&#10;-- 404 vault.license_not_found if not yours&#10;-- 409 vault.compose_unentitled if role != occupation&#10;-- 409 vault.license_inactive if status != active" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E0E7FF;strokeColor=#4338CA;align=left;spacingLeft=10;spacingTop=8;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="60" y="320" width="500" height="100" as="geometry" />
+        </mxCell>
+
+        <!-- Step 2 -->
+        <mxCell id="s2" value="2. _active_persona_licenses → _intersect_persona_licenses&#10;SELECT WHERE composition_role=persona AND&#10;target_occupation_skill_id=occ.skill_id AND status=active&#10;(uses ix_licenses_buyer_target_occupation_status)&#10;-- 403 vault.persona_license_not_held on any requested id missing" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E0E7FF;strokeColor=#4338CA;align=left;spacingLeft=10;spacingTop=8;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="60" y="440" width="500" height="100" as="geometry" />
+        </mxCell>
+
+        <!-- Step 3 -->
+        <mxCell id="s3step" value="3. _latest_succeeded_build for occupation + each persona&#10;-- 409 vault.compose_no_build if occupation has no succeeded build&#10;-- Persona with no build → skip silently (log warning)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E0E7FF;strokeColor=#4338CA;align=left;spacingLeft=10;spacingTop=8;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="60" y="560" width="500" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- Step 4 cache key -->
+        <mxCell id="s4" value="4. cache_key = sha256(buyer_id | occ_skill_id |&#10;occ_build_id | sorted(persona_build_ids))" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCE7F3;strokeColor=#BE185D;align=left;spacingLeft=10;spacingTop=8;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="60" y="660" width="500" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- Cache decision diamond -->
+        <mxCell id="dec" value="cache.get_or_compute(cache_key, ttl=24h)" style="rhombus;whiteSpace=wrap;html=1;fillColor=#FCE7F3;strokeColor=#BE185D;fontStyle=1;align=center;" vertex="1" parent="1">
+          <mxGeometry x="600" y="650" width="280" height="100" as="geometry" />
+        </mxCell>
+
+        <!-- Cache HIT path -->
+        <mxCell id="hit" value="HIT: skip merge.&#10;Re-presign storage_url (60s).&#10;Return cached vault_download_id.&#10;Do NOT insert new audit row." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D1FAE5;strokeColor=#065F46;align=left;spacingLeft=10;spacingTop=8;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="920" y="640" width="300" height="120" as="geometry" />
+        </mxCell>
+
+        <!-- MISS path container -->
+        <mxCell id="miss-band" value="MISS path — _build_and_record" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F3FF;strokeColor=#6D28D9;fontStyle=1;verticalAlign=top;align=center;" vertex="1" parent="1">
+          <mxGeometry x="60" y="780" width="2480" height="700" as="geometry" />
+        </mxCell>
+
+        <!-- Step 5 -->
+        <mxCell id="s5" value="5. S3 get_object × N&#10;Download occupation_build.storage_url + each persona_build.storage_url.&#10;_read_zip() into name→bytes maps.&#10;Drop occupation vault.json (rewritten in step 7).&#10;Keep only personas/* paths from each persona zip; discard persona.json." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFEDD5;strokeColor=#C2410C;align=left;spacingLeft=10;spacingTop=8;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="80" y="820" width="640" height="140" as="geometry" />
+        </mxCell>
+
+        <!-- Step 6 -->
+        <mxCell id="s6" value="6. Merge subtrees&#10;merged = occupation_files (minus vault.json)&#10;       + each persona's personas/{handle}/{slug}/&#10;       (the persona builder always emits under that prefix)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#B45309;align=left;spacingLeft=10;spacingTop=8;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="740" y="820" width="540" height="140" as="geometry" />
+        </mxCell>
+
+        <!-- Step 7 -->
+        <mxCell id="s7" value="7. _merge_manifests + _re_resolve_links&#10;Re-run link resolution across the merged file surface.&#10;Persona &quot;base/&lt;slug&gt;&quot; links flip to resolved = true with&#10;target rewritten to actual &quot;domains/&lt;domain&gt;/&lt;slug&gt;&quot;.&#10;Drop persona-side stale &quot;vault.unresolved_link&quot; warnings the&#10;composer now resolves (Wave-5 polish 2).&#10;merged[&quot;vault.json&quot;] = write_manifest(composed_manifest)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D1FAE5;strokeColor=#065F46;align=left;spacingLeft=10;spacingTop=8;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="1300" y="820" width="600" height="140" as="geometry" />
+        </mxCell>
+
+        <!-- Step 8 -->
+        <mxCell id="s8" value="8. Per-buyer watermark on every .md&#10;_stamp_markdown_with_watermark&#10;→ delivery/watermark.append_watermark(text,&#10;     license_id=occupation_license_id, buyer_id=buyer_id)&#10;Appends after existing &lt;!-- skg-attribution: --&gt;:&#10;&lt;!-- license:HMAC buyer:HMAC ts:NOW --&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCE7F3;strokeColor=#9D174D;align=left;spacingLeft=10;spacingTop=8;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="1920" y="820" width="600" height="140" as="geometry" />
+        </mxCell>
+
+        <!-- Step 9 -->
+        <mxCell id="s9" value="9. Deterministic re-zip&#10;_write_zip(stamped) — sorted paths, EPOCH_TIMESTAMP per ZipInfo,&#10;DEFLATE compression.&#10;composed_hash = sha256(bundle).&#10;Patch manifest.build.composed_hash; re-zip; final_composed_hash = sha256(re-zipped)." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#B45309;align=left;spacingLeft=10;spacingTop=8;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="80" y="990" width="800" height="120" as="geometry" />
+        </mxCell>
+
+        <!-- Step 10 -->
+        <mxCell id="s10" value="10. S3 put_object&#10;delivery/vaults/{nonce}.zip&#10;(nonce = secrets.token_urlsafe(12))&#10;Lifecycle policy on prefix: delete after 1h." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFEDD5;strokeColor=#C2410C;align=left;spacingLeft=10;spacingTop=8;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="900" y="990" width="500" height="120" as="geometry" />
+        </mxCell>
+
+        <!-- Step 11 -->
+        <mxCell id="s11" value="11. INSERT vault_downloads&#10;(occupation_license_id, buyer_id,&#10; occupation_build_id, persona_build_ids,&#10; persona_license_ids, composed_hash,&#10; storage_url, user_agent_hash, ip_hash)&#10;-- the permanent audit row" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E0E7FF;strokeColor=#4338CA;align=left;spacingLeft=10;spacingTop=8;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="1420" y="990" width="500" height="140" as="geometry" />
+        </mxCell>
+
+        <!-- Step 12 -->
+        <mxCell id="s12" value="12. Cache the result for 24h&#10;cache.setex(cache_key,&#10;  {storage_url, composed_hash,&#10;   vault_download_id,&#10;   occupation_build_id,&#10;   persona_build_ids},&#10;  ttl=24h)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCE7F3;strokeColor=#BE185D;align=left;spacingLeft=10;spacingTop=8;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="1940" y="990" width="540" height="140" as="geometry" />
+        </mxCell>
+
+        <!-- Step 13 always -->
+        <mxCell id="s13" value="13. ALWAYS — presign fresh URL (cache hit OR miss)&#10;storage.presigned_url(storage_url, expires_in_seconds=60)&#10;return ComposedDownload(presigned_url, expires_at, composed_hash,&#10;cache_hit, vault_download_id, storage_url,&#10;occupation_build_id, persona_build_ids)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0EA5E9;strokeColor=#0369A1;fontColor=#FFFFFF;fontStyle=1;align=left;spacingLeft=10;spacingTop=8;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="60" y="1500" width="2480" height="100" as="geometry" />
+        </mxCell>
+
+        <!-- Drift note -->
+        <mxCell id="drift" value="CODE-vs-SPEC DRIFT 4: spec §10 implies a vault_downloads row is written on every compose call.&#10;Code only writes on cache MISS. Cache hits return the existing storage_url + presign a fresh 60s URL and&#10;do NOT add a new audit row. (Composer lines 720-727 are explicit about this design.)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEE2E2;strokeColor=#B91C1C;align=left;spacingLeft=10;spacingTop=8;verticalAlign=top;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="60" y="1620" width="2480" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- Constants block -->
+        <mxCell id="consts" value="Constants&#10;COMPOSE_CACHE_TTL_SECONDS = 24 * 3600 (24h)&#10;PRESIGNED_URL_TTL_SECONDS = 60&#10;delivery/vaults/ — 1h S3 lifecycle&#10;Determinism: EPOCH_TIMESTAMP = (2026,1,1,0,0,0)&#10;Composer constants live in composer.py top-of-file." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F1F5F9;strokeColor=#475569;align=left;spacingLeft=10;spacingTop=8;verticalAlign=top;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1660" y="20" width="540" height="100" as="geometry" />
+        </mxCell>
+
+        <!-- Edges -->
+        <mxCell id="e1" style="endArrow=classic;html=1;rounded=0;strokeColor=#0369A1;strokeWidth=2;" edge="1" parent="1" source="buyer" target="router">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" style="endArrow=classic;html=1;rounded=0;strokeColor=#B45309;strokeWidth=2;" edge="1" parent="1" source="router" target="composer">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" style="endArrow=classic;html=1;rounded=0;strokeColor=#5B21B6;" edge="1" parent="1" source="composer" target="db">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" style="endArrow=classic;html=1;rounded=0;strokeColor=#5B21B6;" edge="1" parent="1" source="composer" target="cache">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e5" style="endArrow=classic;html=1;rounded=0;strokeColor=#5B21B6;" edge="1" parent="1" source="composer" target="s3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e6" style="endArrow=classic;html=1;rounded=0;strokeColor=#5B21B6;" edge="1" parent="1" source="composer" target="watermark">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- vertical step chain -->
+        <mxCell id="ev12" style="endArrow=classic;html=1;rounded=0;strokeColor=#4338CA;" edge="1" parent="1" source="s1" target="s2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ev23" style="endArrow=classic;html=1;rounded=0;strokeColor=#4338CA;" edge="1" parent="1" source="s2" target="s3step">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ev34" style="endArrow=classic;html=1;rounded=0;strokeColor=#4338CA;" edge="1" parent="1" source="s3step" target="s4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ev4dec" style="endArrow=classic;html=1;rounded=0;strokeColor=#BE185D;strokeWidth=2;" edge="1" parent="1" source="s4" target="dec">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="echit" value="HIT" style="endArrow=classic;html=1;rounded=0;strokeColor=#065F46;strokeWidth=2;fontStyle=1;" edge="1" parent="1" source="dec" target="hit">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ecmiss" value="MISS" style="endArrow=classic;html=1;rounded=0;strokeColor=#5B21B6;strokeWidth=2;fontStyle=1;" edge="1" parent="1" source="dec" target="miss-band">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="em56" style="endArrow=classic;html=1;rounded=0;strokeColor=#9333EA;" edge="1" parent="1" source="s5" target="s6">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="em67" style="endArrow=classic;html=1;rounded=0;strokeColor=#9333EA;" edge="1" parent="1" source="s6" target="s7">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="em78" style="endArrow=classic;html=1;rounded=0;strokeColor=#9333EA;" edge="1" parent="1" source="s7" target="s8">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="em89" style="endArrow=classic;html=1;rounded=0;strokeColor=#9333EA;" edge="1" parent="1" source="s8" target="s9">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="em910" style="endArrow=classic;html=1;rounded=0;strokeColor=#9333EA;" edge="1" parent="1" source="s9" target="s10">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="em1011" style="endArrow=classic;html=1;rounded=0;strokeColor=#9333EA;" edge="1" parent="1" source="s10" target="s11">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="em1112" style="endArrow=classic;html=1;rounded=0;strokeColor=#9333EA;" edge="1" parent="1" source="s11" target="s12">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="emhit13" style="endArrow=classic;html=1;rounded=0;strokeColor=#0369A1;strokeWidth=2;" edge="1" parent="1" source="hit" target="s13">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="em1213" style="endArrow=classic;html=1;rounded=0;strokeColor=#0369A1;strokeWidth=2;" edge="1" parent="1" source="s12" target="s13">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

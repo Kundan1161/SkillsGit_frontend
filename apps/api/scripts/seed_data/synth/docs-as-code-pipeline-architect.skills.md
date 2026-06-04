@@ -1,0 +1,214 @@
+---
+id: skillsgit-curated/docs-as-code-pipeline-architect
+version: 1.0.0
+name: Docs-as-Code Pipeline Architect
+description: Design a docs-as-code pipeline — source repo layout, authoring lints, broken-link CI, build/preview/deploy, search indexing, analytics and feedback loop, and contributor experience.
+authors:
+  - name: skillsgit Curated
+    handle: skillsgit-curated
+    role: author
+category: productivity
+tags:
+  - niche:documentation-system-architecture
+  - docs-as-code
+  - ci-cd
+  - static-site-generator
+  - developer-experience
+  - linting
+  - preview-deploys
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6, claude-haiku-4-5, gpt-4o]
+  tools_required: []
+  min_context_tokens: 32000
+  estimated_tokens_per_invocation: 5000
+trigger_keywords:
+  - docs as code
+  - docs pipeline
+  - docs CI
+  - docs build
+  - preview deploy
+  - link checker
+  - markdown lint
+  - docs search index
+  - docs analytics
+  - docs contributor
+  - docs repo layout
+  - docs deploy
+example_invocations:
+  - "Design a docs-as-code pipeline for our team — repo layout, CI checks, preview deploys, production deploy."
+  - "Add a broken-link checker and prose lint to our existing docs CI."
+  - "Propose a search-indexing approach and a feedback widget for our docs site."
+  - "Reorganize our docs repo so external contributors can land a PR in an hour."
+  - "Set up content style enforcement on every PR to the docs repo."
+inputs:
+  - name: stack_summary
+    type: text
+    required: true
+    description: Current or planned generator (Docusaurus, MkDocs, Hugo, Antora, Sphinx, custom), CI provider (GitHub Actions, GitLab CI, CircleCI, Buildkite, Jenkins), and hosting target (Netlify, Vercel, Cloudflare Pages, S3+CloudFront, GitHub Pages, self-hosted).
+  - name: team_shape
+    type: text
+    required: false
+    description: Who writes the docs — engineers only, dedicated writers, mixed, external contributors. Number of contributors. Approval model.
+  - name: scale
+    type: text
+    required: false
+    description: Page count, locale count, version count, expected build time budget. Helps the skill choose between simple and aggressive optimizations.
+  - name: house_constraints
+    type: text
+    required: false
+    description: Existing style guides, prose linters in use (Vale, write-good, proselint), markdown linter config, brand or legal review gates, and any required compliance steps.
+outputs:
+  - name: pipeline_design
+    type: markdown
+    description: The full pipeline design — repo layout, CI stages, lint configuration, build/preview/deploy steps, search indexing approach, analytics and feedback loop, contributor experience.
+  - name: ci_config_sketch
+    type: markdown
+    description: A skeleton CI config in the user's provider (workflow YAML for GitHub Actions, etc.) showing the stages and their gates. Not production-ready; a starting point.
+  - name: rollout_plan
+    type: markdown
+    description: A staged rollout sequence — what to add first, what to add after volunteer adoption, what to add only once team buy-in exists.
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Initial release.
+---
+
+# Docs-as-Code Pipeline Architect
+
+## When to use
+
+Reach for this skill when a team is treating documentation as software but the pipeline around the docs has gaps — no link checking, no preview deploys, slow builds, painful contributor experience, no analytics, no search, or a frankenstein of one-off scripts. The skill produces a coherent pipeline design that covers the source repo, the authoring loop, the CI checks, the build and deploy steps, the search index, and the feedback loop back from readers.
+
+It is not the right tool when:
+
+- The user wants a generator chosen. Generator choice is a precondition; the skill is generator-aware but does not litigate the choice.
+- The user wants a single GitHub Actions workflow file written. The skill produces a design and a skeleton, not a production config.
+- The user wants the docs themselves authored. Docs-as-content is downstream; this skill is about the substrate that surrounds the content.
+- The user wants help with API reference auto-generation specifically. That is a sub-pipeline; if it dominates the request, it deserves its own skill.
+
+Engage the skill when the request mentions repo layout, CI for docs, preview deploys, link checking, prose linting, search indexing, docs analytics, feedback widgets, or contributor onboarding. Output is a design document and a config skeleton.
+
+## How to apply
+
+The methodology runs in seven phases. Phase outputs compose; later phases reference earlier ones.
+
+### Phase 1 — Repo layout
+
+1. **Decide between monorepo and dedicated docs repo.** Default: docs live next to the code in the same repo when the code and docs are tightly coupled (a library, an SDK). Default: dedicated docs repo when the docs span multiple products or services and ownership is shared. Mixed approaches (some docs in code repos, an aggregating docs repo) are possible but expensive; recommend only when the team already operates an Antora-style aggregator.
+2. **Place content under `/docs` or `/content`.** Both are conventional; pick one and use it everywhere. Subfolders mirror the top-level IA sections from the IA design. Each page is one markdown or MDX or AsciiDoc file. Slugs are derived from filenames; renames are breaking changes (see Phase 6 on redirects).
+3. **Place generator configuration at the repo root or in a `/website` or `/site` subfolder.** Keep configuration files out of `/docs` so a writer can grep the docs folder for prose without hitting config noise.
+4. **Pin every binary tool by exact version.** The generator, the Node version, the Python version, the linter versions. Pin in a manifest file (`package.json`, `requirements.txt`, `mise.toml`, `asdf` `.tool-versions`). Unpinned tools mean "the build worked last week" without anyone able to reproduce it.
+5. **Vendor or check in fixtures, not generated artifacts.** The build output never goes in the repo. Generated reference (from OpenAPI specs, from code symbols) goes in the repo only if it is committed as part of the release flow with a clear *do not edit* banner at file top.
+6. **Provide a one-command local dev loop.** `make docs` or `npm run docs:dev` or a `justfile` target. The command boots a local preview server with hot reload. A contributor who cannot run the docs locally in under five minutes will not contribute.
+
+### Phase 2 — Authoring lints
+
+7. **Run markdown lint on every PR.** Use a structural linter (markdownlint or similar) with a small, reviewed ruleset — heading nesting, list indentation, line length only if the team agrees, code-fence language tags required. Default rules disabled until reviewed; nothing is more annoying than a linter that fights house style.
+8. **Run prose lint on every PR.** A prose linter (Vale is the de-facto standard for technical writing teams) carries a style package: terminology, banned phrases, sentence-length warnings, passive voice in instructional sentences. Start with one published style package (the project's own house style, or a published one whose license permits use); allow per-page suppressions for justified exceptions.
+9. **Run terminology check on every PR.** A small CSV or YAML file lists *prefer X, not Y* terms. The linter flags any disallowed term. This is the single highest-value lint after structure; it stops vocabulary drift across two-hundred contributors.
+10. **Run spell check on every PR.** A spell checker with a project-specific dictionary committed to the repo. New product names land in the dictionary in their own commit, separately from the prose using them — that commit is a glossary update.
+11. **Run a doc-type check, if the team has adopted the four-shape model.** Custom lint: each page declares its doc type in front matter; a linter rejects how-to pages with concept-style headings, reference pages without parameter tables, etc. This is the most product-specific lint and the one with the highest ROI for teams that have committed to the doc-type split.
+12. **Surface lint output as PR comments, not as opaque CI failures.** A failed PR with a wall of red is a contributor lost. A failed PR with three inline comments naming the line and the fix is a contributor returned.
+
+### Phase 3 — Build and CI
+
+13. **Build the site on every PR.** A failed build blocks merge. Cache the dependencies aggressively; cache the generated output across runs only if the generator supports incremental builds reliably.
+14. **Run a broken-link check on every PR.** Internal links are checked on every PR; external links are checked on a nightly scheduled run, not per-PR — external link checks are flaky and slow and should not block a contributor.
+15. **Run an image and asset audit on every PR.** Flag images over a size threshold, images without alt text, missing favicons, and orphaned assets. A docs site with multi-megabyte hero images degrades the reading experience.
+16. **Run a build-output size budget on every PR.** Total bytes shipped to a reader per page should sit within a budget — a useful default for a content-heavy docs page is under two hundred kilobytes of HTML and under a megabyte of total assets including fonts. A PR that busts the budget gets a warning, not a block, with a comment naming the largest asset.
+17. **Run an accessibility lint on every PR.** At minimum: alt text on images, semantic heading nesting, sufficient color contrast in custom CSS, descriptive link text (not "click here"). A full a11y audit is a quarterly job, but the lint catches the regressions.
+18. **Make the CI deterministic and reproducible.** No network fetches at build time except the ones cached upstream. No timestamps in the output unless explicitly stamped at deploy. Build twice on the same input, get byte-identical output.
+
+### Phase 4 — Preview and deploy
+
+19. **Every PR gets a preview deploy at a stable URL.** The URL appears as a PR comment within a minute of build completion. The preview is the artifact reviewers actually read; reviewing markdown diff alone misses a class of layout and link issues. Netlify, Vercel, Cloudflare Pages all do this natively; for self-hosted, a small script pushing to a bucket and posting the URL is sufficient.
+20. **Preview deploys live two weeks and then expire.** Old previews accumulate cost and create indexing risk; expire them aggressively.
+21. **Production deploy is the merge to main.** The merge event triggers the build and the deploy; no manual button-pressing. The exception is a slow human-review gate for high-blast-radius changes — opt in to the gate per-PR, not by default.
+22. **Smoke-test production after every deploy.** Three URL probes: the home page returns 200, a known reference page returns 200, search returns results for a canary term. A failed smoke test rolls back automatically.
+23. **Set up Cloudflare or fastly cache rules that match the deploy cadence.** Long cache TTLs for static assets with content-hashed names; short or zero cache TTL for the HTML itself, so a deploy is reflected within seconds of the cache purge.
+24. **Maintain a `staging` environment for risky changes.** Big IA reshuffles, generator upgrades, plugin swaps land on staging first. Production deploys from staging on a merge after staging has soaked for a day.
+
+### Phase 5 — Search indexing
+
+25. **Decide between hosted search and self-hosted search.** Hosted: a third-party that crawls and serves results (low maintenance, recurring cost, privacy considerations). Self-hosted: an index generated at build time and served by a static client library (no recurring cost, more setup, slightly less featureful). For most teams up to a few thousand pages, the self-hosted option meets the bar.
+26. **Index by section weighting from the IA.** Reference and how-to pages rank high; concept pages rank middle; changelog and release notes rank low. Index headings with higher weight than body. Index code blocks lower than prose (code is dense and matches too easily).
+27. **Index per version separately, and route the reader to *their* version's index.** A reader on v2 docs should not see v3 results.
+28. **Expose search at the URL `/search?q=…`** with a permanent, indexable page. A search-fail page that names the term, links the top five pages, and offers a way to file an issue closes the loop.
+29. **Instrument search.** Top zero-result queries are the docs site's most valuable user-research artifact; they are *exactly* the gaps. Review them weekly during the first months of a docs site's life, then monthly.
+
+### Phase 6 — Redirects, versioning, and URL stability
+
+30. **Treat URLs as a public interface.** Once a URL has been published and indexed, removing it is a breaking change. Every rename or move ships with a redirect.
+31. **Maintain redirects in a single file in the repo.** A CSV or a generator-specific redirect map. CI lints it: no cycles, no chains over two hops, no redirect to a 404. The file is reviewed line-by-line on every PR that touches it.
+32. **Version selector URLs are path-prefixed, not query-stringed.** `/v3/guides/foo` not `/guides/foo?v=3`. Path prefixes survive copy-paste and link well.
+33. **Stable URL for *current* across versions.** Pages served at `/guides/foo` always reflect the current default version; `/v2/guides/foo` reflects v2. When v3 ships, the unprefixed URL flips to v3 atomically.
+34. **Build a sitemap.xml.** Auto-generated, with lastmod set from the source file's last git touch. Submit to search engines once; let them re-crawl on schedule.
+
+### Phase 7 — Feedback loop and analytics
+
+35. **Place a small feedback widget at the bottom of every content page.** Two buttons (was-this-helpful: yes / no) and an optional free-text field. The free text is the gold; the binary score is the headline metric.
+36. **Pipe feedback to a tracker that contributors can read.** Issues in the docs repo work fine; tagging by page slug helps. Aggregate weekly. A page with five no-votes in a week is on fire and gets reviewed before the next sprint.
+37. **Run analytics in a privacy-respecting way.** Aggregate page-view counts, traffic sources, search terms, and search-fail counts are enough for most decisions. Avoid full-session replay tools on docs sites; they generate cost and consent burden disproportionate to the value.
+38. **Hold a weekly docs-health review.** Five metrics: traffic by section, top zero-result searches, no-votes on the feedback widget, PR throughput in the docs repo, time-to-merge for outside contributions. Publish them; trends matter more than levels.
+39. **Close the loop.** When feedback drives a fix, link to the fix in the comment thread on the feedback issue. A reader who sees their feedback land will leave more feedback.
+40. **Plan the contributor experience explicitly.** The contributor's journey: find the *edit this page* link, land in the source, see the styleguide and a short PR template, get fast preview feedback, get prompt review. Time every step in onboarding; a one-page-typo PR should be merge-able in under twenty-four hours for the contributor to feel valued.
+
+## Inputs
+
+- **`stack_summary`** — required. The generator, the CI provider, and the hosting target. Without these, recommendations are too generic to act on.
+- **`team_shape`** — optional but recommended. The advice for an engineer-only team is different from the advice for a mixed team with dedicated writers, and again different for a team with heavy external contribution.
+- **`scale`** — optional. Page count and version count tilt the cache, build-time, and indexing decisions.
+- **`house_constraints`** — optional. Listing the prose linter in use, an existing style guide, or a required legal-review gate prevents the skill from recommending a tool the team has already rejected.
+
+## Outputs
+
+- **`pipeline_design`** — the full prose design document organized by the seven phases.
+- **`ci_config_sketch`** — a skeleton workflow file in the user's CI provider syntax. Stages are named, gates are stated, but specific actions/scripts are placeholders to be filled in by the implementing engineer.
+- **`rollout_plan`** — a staged rollout sequence. Phase one: structure and broken-link CI. Phase two: preview deploys and prose lint. Phase three: feedback widget and analytics. Phase four: full search and a11y. Each phase has a defined exit criterion.
+
+## Examples
+
+### Example 1 — Greenfield Docusaurus pipeline on GitHub Actions, Vercel
+
+**Input.** A team launching a new SDK is choosing Docusaurus, GitHub Actions, and Vercel. Engineer-authored docs, no dedicated writer. About fifty pages expected at launch, growing to two hundred.
+
+**Result.** Repo layout: docs in `/website/docs`, generator config in `/website`. Tools pinned with Volta. CI stages: install (cache hits), lint (markdownlint, Vale with a small ruleset, terminology CSV), build, link check (internal only), a11y lint, size budget check. Preview deploy via Vercel's GitHub integration; comment posted automatically. Production deploys on merge to main. Search: Algolia DocSearch (free tier for open source) or the bundled local-search plugin if not eligible. Feedback widget: a small React component shipping issues to the docs repo with a `docs-feedback` label. Analytics: privacy-friendly third-party (Plausible / Fathom). Rollout phased: structure plus build plus link check first week; lint and preview second week; search and feedback once content exists to use them.
+
+### Example 2 — MkDocs Material monorepo for a Python library
+
+**Input.** A maturing Python library with docs in the same repo under `/docs`. CI on GitHub Actions. Hosting on GitHub Pages via `mike` for versioning. Three versions live (1.x, 2.x, 3.x-dev). Heavy external contribution.
+
+**Result.** Repo layout already correct. CI stages: pre-commit (markdownlint, codespell), build with `mike`, broken-link check with `lychee`, build size check, a11y check on a sample of pages. Preview deploys: build the site, push to a `gh-pages-preview` branch under a subpath named after the PR number, comment URL on the PR. Search: built-in MkDocs Material search; instant search enabled. Versioning: `mike` aliases — *latest* points to 3.x once released, *stable* points to 2.x until then. Redirects file under `/docs/_redirects` consumed by a custom hook. Contributor experience: a `.github/PULL_REQUEST_TEMPLATE.md` with a four-line template; `docs/CONTRIBUTING.md` with the local-dev one-liner; a `good first issue` label on docs-only typo issues. Feedback: GitHub Discussions tagged by page slug, surfaced in-site via a small footer link rather than a widget (lighter, more in keeping with the library's culture).
+
+### Example 3 — Multi-repo Antora pipeline for a platform
+
+**Input.** A platform group with three product teams each owning their own product docs in their own repos. A central docs site aggregates. CI on GitLab. Self-hosted Kubernetes for production. Two locales: English, Japanese.
+
+**Result.** Antora playbook lives in a `docs-site` repo; each product repo contributes a `docs/` Antora module with its own component-version descriptor. CI in each product repo runs lint and link check on the module; the central `docs-site` repo runs the full aggregate build nightly and on demand. Preview deploys for the aggregate site land on a per-PR namespace in the staging cluster. Production deploys are a tagged release of the `docs-site` repo, deploying to the production cluster via Argo CD. Search: a self-hosted index built at aggregate-build time, served by a small client library. Versioning: Antora's component-version model; each product can publish multiple versions independently. Locales: Antora's *content branches* model — `main-en` and `main-ja` branches per module. Redirects: a redirects.json checked into `docs-site`, consumed by an nginx config. Feedback: a widget pointing to a triage queue in the org's project tracker, with auto-routing by source product based on the page slug prefix.
+
+## Limitations
+
+- The skill produces a design, not finished CI. Translating the design into a working workflow file is the user's job; CI varies enough between providers that a single canned config would mislead more than help.
+- The skill assumes a static-site generator is in use. Wiki-style and CMS-backed docs systems (Confluence, Notion, Document360) have different pipelines that this methodology does not cover.
+- Security and signing are out of scope. If the docs site needs to be cryptographically signed, served behind auth, or audited for confidentiality, layer those concerns on top.
+- Cost estimates are not produced. A pipeline including hosted search, preview deploys, analytics, and feedback widgets has predictable monthly costs in the low hundreds for most teams, but quotes are vendor-specific and change.
+- The skill recommends but cannot enforce. The single largest determinant of a healthy docs pipeline is whether the team treats failing CI as a real failure rather than a yellow light to ignore. The design document includes a *culture* note to that effect.
+
+## Sources reviewed
+
+The methodology in this skill was synthesized after reviewing the following projects. None of their prose, structure, or assets was copied. Each contributed a pattern or a constraint; the synthesis is original.
+
+- https://github.com/facebook/docusaurus — MIT (code), CC-BY-4.0 (docs)
+- https://github.com/squidfunk/mkdocs-material — MIT
+- https://gitlab.com/antora/antora — MPL-2.0
+- https://github.com/google/docsy — Apache-2.0
+- https://github.com/readthedocs/readthedocs.org — MIT
+- https://github.com/writethedocs/www — see repo LICENSE.md
+- https://github.com/evildmp/diataxis-documentation-framework — CC-BY-SA 4.0
+- https://github.com/errata-ai/vale — MIT (prose linter conventions)
+- https://github.com/DavidAnson/markdownlint — MIT (markdown lint conventions)

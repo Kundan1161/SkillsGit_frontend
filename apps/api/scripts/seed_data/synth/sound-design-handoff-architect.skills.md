@@ -1,0 +1,312 @@
+---
+id: skillsgit-curated/sound-design-handoff-architect
+version: 1.0.0
+name: Sound Design Handoff Architect
+description: Design a clean picture-to-sound handoff — track layout, AAF/OMF/XML export discipline, audio handles, dialog edit prep, production-sound separation, room tone capture, and ADR plan.
+authors:
+  - name: skillsgit Curated
+    handle: skillsgit-curated
+    role: author
+category: creative
+tags: [niche:video-editing-pipeline, sound-design, aaf, omf, dialog-edit, room-tone, adr, picture-lock, handoff]
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6, claude-haiku-4-5, gpt-4o]
+  tools_required: []
+  min_context_tokens: 32000
+  estimated_tokens_per_invocation: 5500
+trigger_keywords:
+  - sound design handoff
+  - audio handoff
+  - AAF export
+  - OMF export
+  - dialog edit
+  - ADR
+  - room tone
+  - picture lock
+  - audio turnover
+  - sound turnover
+  - track layout
+  - audio handles
+example_invocations:
+  - "We are about to lock picture — design the handoff packet for our sound designer."
+  - "Our sound designer keeps complaining about the audio handles. Set up a clean turnover."
+  - "Help me plan room tone and ADR for our short film before we ship the AAF."
+  - "Draft a track layout spec for handing off to a freelance dialog editor."
+inputs:
+  - name: project_profile
+    type: text
+    required: true
+    description: Project type (narrative, doc, branded, podcast-with-video), length, and intended delivery (theatrical, streaming, web, broadcast). Drives mix spec downstream.
+  - name: production_sound_setup
+    type: text
+    required: true
+    description: How sound was recorded on set — boom, lavs, plant mics, scratch only, mixed to camera, separate recorder, multitrack vs stereo mix. Whether room tone was captured per location.
+  - name: picture_edit_environment
+    type: text
+    required: false
+    description: The picture editor's application family and what export formats it supports natively. Determines AAF vs OMF vs XML vs EDL routing.
+  - name: sound_designer_environment
+    type: text
+    required: false
+    description: The sound designer's application family and any preferences or requirements they have communicated (handle length, track layout, embedded vs linked media).
+  - name: schedule
+    type: text
+    required: false
+    description: Time from picture lock to final mix delivery, including any test screening or producer review milestones.
+  - name: special_circumstances
+    type: text
+    required: false
+    description: Anything that complicates the handoff — missing room tone, performance issues that might need ADR, music with licensing pending, mixed languages, mixed frame rates.
+outputs:
+  - name: handoff_packet_spec
+    type: markdown
+    description: The exact contents of the turnover packet — reference render, AAF or OMF export with documented parameters, track layout, audio handles, supplementary files, and a notes document.
+  - name: track_layout
+    type: markdown
+    description: A track-by-track layout for the handoff — which dialog source on which track, music guides separated, sound effects pre-organized, with naming and routing conventions.
+  - name: room_tone_and_adr_plan
+    type: markdown
+    description: A list of room-tone needs (per location, per microphone configuration) and a candidate ADR list with timecodes, reasons, and priority.
+  - name: turnover_letter
+    type: markdown
+    description: A short cover document the picture editor sends with the packet — what is in the box, what is missing, what to be careful of, and contact for questions.
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Initial release.
+---
+
+# Sound Design Handoff Architect
+
+## When to use
+
+Use this skill when a project is approaching picture lock and the picture editor needs to hand audio off to a sound designer, dialog editor, mixer, or full sound team. A good handoff is the difference between a sound designer building a mix and a sound designer doing forensic archaeology on the picture editor's choices.
+
+Trigger this skill when the input describes:
+
+- Picture lock approaching or just declared.
+- An external sound designer, dialog editor, or post-sound facility receiving the cut.
+- A project that ran on temp music and needs replacement-aware turnover.
+- Phrases like "AAF," "OMF," "audio handles," "dialog edit," "ADR," "room tone," "turnover," "sound design handoff," "audio prep."
+
+Do not trigger this skill when the user wants:
+
+- The pipeline design before any of this happens (use the video-editing-pipeline-architect skill).
+- Sync mechanics for production audio against picture (use the multicam-and-proxy-workflow skill).
+- Decisions about where to cut a scene (use the cut-decision-methodology skill).
+- A finished mix specification — that is the sound designer's deliverable, not the editor's.
+
+If the project is a one-person edit where the same person is doing sound, the handoff is internal and most of this skill is overhead. Reduce the output to "future-me notes" — the same content, half the formality.
+
+## How to apply
+
+Work through the steps in order. The output is a packet, not an essay.
+
+### Step 1. Confirm picture is locked
+
+A turnover before picture lock is the most common cause of remix work. Confirm explicitly:
+
+- The locked cut's total frame count is documented.
+- All picture changes that were going to be made are made. "We might still trim that scene" disqualifies lock.
+- The lock has a name, a timestamp, and a hash or version of the project file.
+- A 24-hour or 48-hour cooling period is observed between declaring lock and sending the turnover, so any "wait, one more thing" surfaces before sound starts.
+
+If the input describes a "near-lock" or "we are locking next week," say so plainly: the handoff packet can be drafted now, but the export step waits for lock. Drafting the structure in advance saves a day at lock; running the export before lock guarantees rework.
+
+### Step 2. Choose the export format
+
+The format is dictated by the sound designer's environment and the picture editor's application:
+
+- **AAF.** Modern professional standard. Carries multichannel audio, rich metadata (clip names, source timecode, original take info, scene/take if logged), most fade types, and per-clip gain. Preferred for any narrative or premium documentary project.
+- **OMF.** Legacy. Stereo-per-clip ceiling, minimal metadata, no recent format development. Use only if the sound designer's application cannot accept AAF, which is rare. Document the loss list explicitly when forced to use OMF.
+- **XML.** Useful when the sound designer prefers to ingest the cut into a different application (a color-and-finishing-style flow), or when AAF support in the picture-edit application is unreliable for the project's specific media types.
+- **EDL.** Limited to a single audio track per export and minimal information. Useful only as a reference document, not as a primary turnover.
+
+Default to AAF unless something explicit rules it out. If the sound designer has not stated a preference, ask; do not guess.
+
+### Step 3. Design the track layout
+
+A picture editor's working timeline usually has audio scattered across whatever tracks were convenient. The turnover timeline must be reorganized into a layout the sound designer can ingest cleanly.
+
+A standard layout (adapt to the project):
+
+- **DX1, DX2, DX3 — dialog from boom, primary lav, secondary lav.** Each character on its own track if performance count is small; otherwise grouped by microphone source.
+- **DX-PFX — production effects from the dialog tracks** (footsteps, prop sounds, contact mic hits captured during dialog recording). Separated so the dialog editor can pull these out for the effects editor.
+- **GUIDE-MX — guide / temp music.** Single stereo track. Clearly labeled as guide; not the final cue.
+- **GUIDE-VO — narration or voice-over guide tracks** if applicable. Separated from production dialog.
+- **GUIDE-SFX — temp sound effects** the picture editor placed for spotting purposes.
+- **Optional — group tracks for crowd, ambience, or any specially captured production sound** the editor wants the sound designer to preserve.
+
+Each track has:
+
+- A clearly named track header (DX-BOOM, DX-LAV-A, GUIDE-MX, etc.).
+- A single audio source per clip (no nested compound clips that the sound designer cannot decompose).
+- Source-original media references where possible, not picture-editor renders.
+
+State the track layout in the handoff packet. The sound designer must know what each track is intended to contain before they open the AAF.
+
+### Step 4. Set the audio handles
+
+Handles are extra source audio on each side of every edit, so the sound designer can extend a clip if needed — for breath, for room-tone overlap, for dialog overlap.
+
+Standard handle lengths:
+
+- **One second** for a typical narrative project.
+- **Two seconds** for any project with crossfades the sound designer may want to redesign.
+- **Five seconds or longer** for projects where significant dialog re-cutting may happen downstream (a long-form documentary where the mix process may suggest line-level changes).
+
+Confirm the handle length with the sound designer. Document it on the turnover packet so they know they can rely on it.
+
+### Step 5. Plan room tone and presence captures
+
+Room tone is the ambient sound of each location with no one speaking. It is the connective tissue of a dialog edit. The sound designer needs at least thirty seconds of clean room tone per location, ideally a minute, captured with the same microphone configuration as the dialog.
+
+For each location in the project:
+
+- Was room tone captured on set? If yes, where in the source media is it?
+- If not, can it be captured before the sound designer needs it? Name a date and a person.
+- If it is unrecoverable, flag it — the sound designer will source or build a substitute, and the picture editor's handoff should not pretend otherwise.
+
+The handoff packet should include either a list of room-tone clip locations or a labeled "room tone missing for these locations" list.
+
+### Step 6. Build the ADR candidate list
+
+ADR (automated dialogue replacement, or additional dialogue recording) is re-recorded dialog in a controlled environment to replace lines that are unusable as recorded — performance, on-set noise, unintelligibility, late script changes.
+
+Walk the cut for ADR candidates and produce a list with:
+
+- **Timecode in and out** of each candidate line or moment.
+- **Character or speaker.**
+- **Reason** — performance, noise, unintelligibility, script change, language localization need.
+- **Priority** — required, recommended, optional. Required is "the audience cannot understand this." Optional is "we could do better."
+- **Notes** for the ADR session — the line as scripted, the line as performed if different, any relevant emotional direction.
+
+The sound designer or supervising sound editor is the right person to bless or trim this list — the picture editor's job is to surface candidates, not to declare them. Frame the list as a starting proposal.
+
+### Step 7. Document the temp music and licensing state
+
+Temp music is everywhere in modern post. The sound designer and music supervisor must know:
+
+- Every temp cue, with timecode in/out, source identification (track title, artist, album if known), and intended emotional function.
+- Whether the project intends to license each temp cue or replace with original or library music.
+- Any cues that are already licensed and locked.
+- Any cues the picture editor used "for inspiration only" — those need to be replaced, full stop.
+
+A temp-music document protects against the worst handoff failure: a sound designer mixing for a track that won't survive to delivery, then having to re-mix at the last minute.
+
+### Step 8. Prepare the reference render
+
+The reference render is the sound designer's truth. It must be:
+
+- The exact locked cut, rendered from the picture-edit application after lock and after all conform discipline.
+- At a sensible quality — typically H.264 1080p is enough; do not force the sound designer to download a 4K master they do not need.
+- With **burned-in timecode** matching the project's start timecode and the AAF's reference timecode. This is non-negotiable; the sound designer cannot work without it.
+- With a **stereo guide mix** baked in — the picture editor's current audio balance, so the sound designer can hear what the editor heard.
+- With a **version stamp and watermark** so this render cannot be confused with a deliverable.
+
+Spot-check the render head, mid, and tail before sending. Verify that the burn-in matches the AAF's expected timecode by ear-and-eye check on a single sync point.
+
+### Step 9. Write the turnover letter
+
+A short cover document the picture editor sends with the packet. Content:
+
+- **What is in the box.** AAF/OMF, reference render, room-tone clips, ADR candidate list, temp-music document.
+- **What is missing and when it arrives.** "Room tone for the warehouse location not captured; will record on June 3."
+- **What to be careful of.** "Cam 2's mic was wind-affected from minute 14 to minute 17; the boom is the usable source."
+- **Open questions.** "Scene 14 ending: should we extend the silence or pick up a sting? Awaiting director's preference."
+- **Contact.** Who to call with questions, and the picture editor's availability window.
+
+The letter is a few hundred words at most. It saves multiple back-and-forth emails by getting the boring stuff out of the way upfront.
+
+### Step 10. Verify the packet before sending
+
+Before the packet leaves:
+
+- Open the AAF in a separate session if possible (any DAW capable of importing AAF) and verify clip count and total length matches the locked cut.
+- Confirm the reference render's audio plays in sync with the AAF's audio — they should sound essentially identical, because they came from the same source.
+- Confirm every named track has at least one clip; empty tracks are noise.
+- Confirm handles are present by spot-checking one clip's pre-roll.
+- Confirm all referenced media is included (if the AAF is embedded media) or accessible (if linked).
+
+A 30-minute verification step at this stage saves the sound designer a day of forensic work.
+
+### Step 11. Plan for picture changes after lock
+
+Despite the cooling period, picture sometimes changes after turnover. Plan the response:
+
+- The picture editor exports a **change list** — a document listing every edit between the locked cut and the new cut, with timecode in/out for each change.
+- The sound designer applies the changes locally to their session rather than re-importing the AAF, when possible. Full re-imports lose all the work done in the meantime.
+- The picture editor sends an updated reference render with the same burn-in convention.
+- The change list is the document; verbal "oh I trimmed scene 14" is not acceptable.
+
+Even if no picture changes are planned, the change-list discipline must be established upfront. The first time changes happen, the discipline is what protects the relationship and the schedule.
+
+## Inputs
+
+- `project_profile` (required): project type, length, delivery target.
+- `production_sound_setup` (required): how sound was recorded.
+- `picture_edit_environment` (optional): the picture editor's application family.
+- `sound_designer_environment` (optional): the sound designer's application and preferences.
+- `schedule` (optional): time from lock to mix delivery.
+- `special_circumstances` (optional): complications that affect the handoff.
+
+## Outputs
+
+- `handoff_packet_spec`: the full packet contents.
+- `track_layout`: a track-by-track plan with naming and routing.
+- `room_tone_and_adr_plan`: a list of room-tone needs and ADR candidates.
+- `turnover_letter`: a cover document for the sound designer.
+
+## Examples
+
+### Example 1 — twenty-minute narrative short, two-location shoot
+
+Input: "A twenty-minute narrative short. Two locations — a small apartment interior and a rooftop. Three principal characters. Sound recorded with a boom and two lavs on a separate recorder, timecode-linked. Room tone captured on apartment but forgotten on the rooftop. One performance issue — actor B's third act line is muffled by wind. Going to a freelance sound designer who works in a professional DAW. Picture lock next Friday. Mix delivery four weeks later."
+
+Handoff packet spec: AAF export from the locked cut with two-second handles. Reference render H.264 1080p with timecode burn-in and stereo guide mix. Embedded media in the AAF for portability since the sound designer is freelance.
+
+Track layout: DX-BOOM, DX-LAV-A (actor A's lav), DX-LAV-B (actor B's lav), DX-LAV-C (actor C's lav), DX-PFX (footsteps and prop hits captured by the boom — labeled for the sound designer to separate), GUIDE-MX (single stereo temp music), GUIDE-SFX (the picture editor's temp door slam, wind, ambient layers).
+
+Room tone and ADR plan: apartment room tone captured, located at clip APT_RT_001 on the audio recorder's day 3 folder. Rooftop room tone missing — flagged as unrecoverable (production wrapped); the sound designer will need to build rooftop presence from clean stretches of the production audio or library. ADR candidate list has one required entry (actor B's third-act wind-affected line, timecode 00:14:32:00 to 00:14:38:12, original line "I can't go back there", performance was right — re-record cleanly) and two optional entries (an unclear word in scene 2, a director-noted moment in scene 7).
+
+Turnover letter: notes the missing rooftop room tone, the required ADR line, and flags that the temp music is intended for replacement (the cue is a current chart song and will not be licensed).
+
+### Example 2 — fifteen-minute documentary, multiple interview locations
+
+Input: "A fifteen-minute documentary. Six interview locations, two-camera setups on each, lav and boom on each subject. Voiceover narration recorded in a booth. Going to a sound designer at a small post house. Picture lock in two weeks. Temp music is all from a licensed library the producer pays for; cues will be replaced one-for-one with library tracks the sound designer chooses."
+
+Handoff packet spec: AAF with one-second handles (no significant re-cutting expected at mix). Reference render H.264 1080p, timecode burn-in, stereo guide mix.
+
+Track layout: DX-BOOM, DX-LAV (combined into one track since only one subject speaks at a time per scene), VO (voiceover from the booth — labeled as separate source), GUIDE-MX (temp library cues), AMB (any production ambience the picture editor wants the sound designer to know about — for instance, a coffee-shop interview's ambient noise that the editor wants to preserve under VO).
+
+Room tone and ADR plan: room tone for five of six interview locations was captured and is in the day-4 audio folder. One location's room tone is approximately 20 seconds rather than the desired 60 — note in the letter; the sound designer can decide whether to ask for a substitute or build from clean stretches. No ADR candidates; documentary policy is to keep what was said.
+
+Turnover letter: notes that all temp cues are licensed library; the sound designer is welcome to suggest replacements but the producer is comfortable with the temps if they survive the mix.
+
+## Limitations
+
+- The skill describes a generic professional handoff. Some sound designers have idiosyncratic preferences — track count, handle length, embedded vs linked media, file-naming conventions. Always confirm with the sound designer before exporting; the skill's standard is a defensible default, not a universal mandate.
+- AAF support varies between picture-edit applications. Some applications produce AAFs that other applications import imperfectly. Whenever crossing application families, do a small-scale AAF test before relying on the format for the real turnover.
+- This skill does not specify the mix itself — track count for the final mix, channel configuration for delivery, loudness targets. Those are the sound designer's and mixer's deliverables, driven by the platform's spec.
+- ADR planning here is a candidate list, not a recording session plan. The supervising sound editor produces the session plan, including studio booking, talent recall, and director presence.
+- Music licensing decisions are the music supervisor's and producer's job. This skill flags the state of temp music; it does not arbitrate clearance.
+- A handoff to an in-house sound team in the same facility is less formal than the packet described here. Reduce formality to fit the relationship; do not skip the change-list discipline regardless.
+
+## Sources reviewed
+
+The methodology synthesized here was informed by surveying public open-source video editor repositories and the post-production-sound editorial community's writing on handoff discipline. No content from any source was copied; all prose above is original. Trademarked product names are confined to URL citations and do not appear in the body.
+
+- https://github.com/KDE/kdenlive (GPL-3.0)
+- https://github.com/mltframework/shotcut (GPL-3.0)
+- https://github.com/olive-editor/olive (GPL-3.0)
+- https://github.com/OpenShot/openshot-qt (GPL-3.0)
+- https://soundgirls.org/post-production-basics-what-is-an-omf-or-aaf-and-why-does-it-matter/ (editorial article, read-only)
+- https://apriltucker.com/omf-aaf-audio/ (editorial article, read-only)
+- https://apriltucker.com/dialog-editing-part-5/ (editorial article, read-only)
+- https://www.forte-ai.com/blog/aaf-guide-for-audio-post-production (commercial documentation, read-only)
+- https://www.production-expert.com/production-expert-1/aaf-and-omfs-post-audio-expert-panel-on-the-good-the-bad-and-the-ugly (editorial article, read-only)

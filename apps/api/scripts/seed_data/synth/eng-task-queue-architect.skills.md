@@ -1,0 +1,362 @@
+---
+id: skillsgit-curated/task-queue-architect
+version: 1.0.0
+name: Task Queue Architect
+description: Design a background-job system — queue topology, idempotency, retries with backoff, priority classes, dead-letter queues, scheduling, rate limits, and drain procedures.
+authors:
+  - name: skillsgit Curated
+    handle: skillsgit-curated
+    role: author
+category: engineering
+tags:
+  - niche:queue-worker
+  - background-jobs
+  - task-queue
+  - retries
+  - dead-letter-queue
+  - idempotency
+  - scheduling
+  - worker-pool
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6, gpt-4o, gpt-4.1, gemini-1.5-pro]
+  tools_required: [file_io]
+  tools_optional: [web_search]
+  min_context_tokens: 28000
+  estimated_tokens_per_invocation: 7000
+trigger_keywords:
+  - background jobs
+  - task queue
+  - worker pool
+  - job retries
+  - dead letter queue
+  - scheduled jobs
+  - idempotent jobs
+  - priority queue
+  - job orchestration
+  - celery design
+  - asynq topology
+  - exponential backoff
+  - poison message
+  - delayed jobs
+  - cron jobs
+example_invocations:
+  - "Design a background-job system for sending emails, generating PDFs, and running nightly reports."
+  - "We have a job that fails intermittently and re-enqueues forever — design a proper retry and DLQ strategy."
+  - "Help me partition our queue into priority classes so urgent jobs do not get stuck behind big batches."
+inputs:
+  - name: workloads
+    type: text
+    required: true
+    description: The kinds of jobs the system will run — typical runtime, frequency, failure mode, payload size, freshness needs, ownership.
+  - name: scale_profile
+    type: text
+    required: false
+    description: Sustained jobs per second, peak jobs per second, average and worst-case job duration, total worker headroom available.
+  - name: existing_infra
+    type: text
+    required: false
+    description: Available queue substrates — Redis, RabbitMQ, SQS, Kafka — language and framework constraints.
+  - name: latency_classes
+    type: text
+    required: false
+    description: How fast each kind of job must run after enqueue — interactive (seconds), background (minutes), batch (hours).
+  - name: failure_tolerance
+    type: choice
+    required: false
+    description: Delivery semantics required from the system overall.
+    choices: [at-least-once, exactly-once-with-dedup, best-effort, strict-ordered]
+outputs:
+  - name: queue_design
+    type: markdown
+    description: Design document with topology, queue and worker layout, retry and DLQ policy, idempotency strategy, scheduling, observability, and drain procedure.
+  - name: job_catalog_seed
+    type: markdown
+    description: A starter table of job types with queue assignment, latency class, retry policy, idempotency strategy, and owner.
+  - name: runbook_seed
+    type: markdown
+    description: Operational procedures — drain a queue, replay a DLQ, pause a worker pool, handle a poison message, scale up under load.
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Initial release.
+---
+
+# Task Queue Architect
+
+## When to use
+
+Use this skill when a team is designing a background-job system, restructuring an existing one that has accumulated trouble, or specifically chasing problems like retry storms, stuck queues, missed schedules, or duplicate side effects. The output is a topology, a per-job policy table, a stated delivery model, and operator procedures for the situations that always come up in production.
+
+The skill applies to:
+
+- Worker-pool systems behind a broker (Redis, RabbitMQ, SQS) that consume from queues and run code.
+- Scheduled-job systems that fire on cron-like timers.
+- Mixed systems that combine immediate and delayed jobs, possibly with priority classes.
+- Migration from an ad-hoc background-job approach (a thread pool inside the web server, a cron line on a single box) to a properly designed queue.
+
+Do not use this skill for:
+
+- Event-bus topology and topic taxonomy for inter-service messaging — that is a different design with different concerns (eventing-architect skill).
+- Workflow orchestration systems that model long-running state machines explicitly — those have stronger primitives (durable state, history, signals).
+- Stream-processing topologies — those have continuous-flow semantics rather than discrete jobs.
+
+## Inputs
+
+- `workloads` (required) — A list of the job kinds with enough detail to choose retry, idempotency, and priority strategy.
+- `scale_profile` — Drives queue partitioning, worker count, and the choice between a single substrate and a tiered one.
+- `existing_infra` — Constrains the substrate; the skill produces designs that fit the team's operational footprint rather than recommending a new product.
+- `latency_classes` — Drives priority classes and the latency budget that retry backoff must respect.
+- `failure_tolerance` — Drives idempotency requirements and dead-letter policy.
+
+## How to apply
+
+The design proceeds substrate-up: queue topology first, then per-job policy, then the operator surface.
+
+### 1. Frame the system
+
+1.1. List every kind of job that will run. For each: what triggers it, what it does, how long it usually takes, how it can fail, what happens if it runs twice, what happens if it never runs. The answers determine almost everything.
+
+1.2. Group jobs by latency class:
+
+- **Interactive** — must run within seconds after enqueue (send a confirmation email, refresh a derived value the user is about to see).
+- **Background** — must run within minutes (resize an upload, regenerate a sitemap).
+- **Batch** — runs on a cadence, hours to days (nightly reports, monthly billing).
+
+1.3. Identify the small set of jobs whose latency matters most. Those drive the priority structure. Everything else can share a default queue.
+
+### 2. Pick the substrate
+
+2.1. The substrate is the durable store that holds jobs until a worker picks them up. Common shapes:
+
+- **Database-backed** — jobs are rows in a table; workers poll. Simple, transactional with the rest of the application, fine for low-to-moderate scale. Limits show up around hundreds of jobs per second sustained.
+- **Redis-backed** — jobs are entries in Redis lists or sorted sets. Very low latency, scales into thousands of jobs per second per process, but durability depends on Redis persistence configuration.
+- **AMQP-style broker** (RabbitMQ) — explicit queues, exchanges, bindings; rich routing; good for complex topologies.
+- **Cloud-native queues** (SQS) — durable, managed, decoupled from application processes; visibility timeouts replace explicit acks.
+- **Log-based** (Kafka, similar) — overkill for most job systems but appropriate for very high volume or when the same payload feeds many consumers.
+
+2.2. Pick by operational fit: the substrate the team already runs is usually right. Switching substrates because of a job-system shortcoming is rarely the right move.
+
+2.3. Confirm the substrate's durability matches the system's delivery target. At-least-once requires durable enqueue (the broker must not lose the job after acknowledging the producer). Best-effort allows in-memory queues.
+
+### 3. Decide delivery semantics
+
+3.1. **At-least-once** is the realistic default. The broker may redeliver after a worker crash, after a network glitch, after a visibility-timeout expiry. The system relies on idempotency to make redelivery safe.
+
+3.2. **Exactly-once** as a marketing claim is not a property; it is a combination of at-least-once delivery and idempotency at the application level. Design accordingly.
+
+3.3. **Best-effort** is appropriate only for jobs whose loss is recoverable from later activity (a cache prewarm, a periodic snapshot).
+
+3.4. **Strict-ordered** is expensive. Most systems do not need it. When required (per-entity ordering for a state machine), partition by entity id and process each partition serially.
+
+### 4. Design idempotency
+
+4.1. Every job that has user-visible side effects (send an email, charge a card, mutate a record) needs an idempotency story. Without one, retry on transient failure produces duplicate side effects.
+
+4.2. Patterns:
+
+- **Idempotency key** — the enqueuer supplies a unique key per logical operation. The worker checks a durable dedup table before performing the side effect; if the key has been seen, the worker exits silently.
+- **State check** — the worker checks the current state before acting (do not send the email if `email_sent_at` is set). Works when the state is centralized and observable.
+- **Conditional updates** — the side effect is itself an idempotent state transition (`UPDATE ... WHERE status = 'pending'`). The first execution flips the row; later executions match zero rows and do nothing.
+- **Natural keys** — the side effect's downstream system enforces uniqueness (e.g. an external API that accepts an idempotency key in its own request).
+
+4.3. The dedup table needs a TTL. A reasonable window is several multiples of the job's retry budget. After that, retention is wasted.
+
+4.4. Document, per job, which idempotency pattern it uses. A blanket "we use idempotency" is not a strategy.
+
+### 5. Design retries and backoff
+
+5.1. Classify failure modes for each job:
+
+- **Permanent failure** — the input is invalid; retrying will not help. Fail immediately, route to a dead-letter queue.
+- **Transient failure** — the downstream is briefly unavailable, the network blipped. Retry with backoff.
+- **Capacity failure** — the downstream is healthy but throttling. Retry with longer backoff and respect any returned retry-after hint.
+- **Ambiguous failure** — the job may have partially succeeded. Retry only if the operation is idempotent.
+
+5.2. Retry policy parameters:
+
+- **Maximum attempts** — typical range 3–10. Bigger is not always better; eventually a poisoned job needs to leave the live queue.
+- **Backoff** — exponential with full jitter. Initial delay 1–10 seconds; cap 1–60 minutes. Linear backoff causes retry waves; constant backoff is rarely right.
+- **Per-attempt timeout** — every retry should have a bounded execution time so a wedged worker does not block forever.
+- **Total retry budget** — sum of attempts plus backoff. The job's latency class bounds this. An interactive job cannot have a 10-attempt policy with hour-long backoff.
+
+5.3. Discriminate between retry strategies per error type. A 404 from a downstream is permanent; a 503 is transient; a 429 includes a retry-after.
+
+5.4. Cap retries with both attempt count and elapsed time. Either bound prevents pathological loops.
+
+### 6. Design the dead-letter queue
+
+6.1. After the retry budget is exhausted, the job moves to a dead-letter queue (DLQ). The DLQ is not a graveyard; it is a queue with humans as the consumer. Treat it as a first-class part of the design.
+
+6.2. The DLQ entry retains the original payload, the failure history, the last error message, and the worker identity. Without these, triage is guesswork.
+
+6.3. Plan **DLQ replay**: a documented procedure to inspect, fix the underlying cause, and re-enqueue. Replay should be a single operator action, not a manual script written under pressure.
+
+6.4. Alert on DLQ growth. A growing DLQ is the first sign of a downstream regression that retries are masking.
+
+6.5. Some jobs should not have a DLQ — for example, jobs whose failure is itself the answer (a fire-and-forget log shipment). Document the omission.
+
+### 7. Design priority and partitioning
+
+7.1. The simplest topology is one queue and one worker pool. Pick this when one is enough.
+
+7.2. When jobs of different latency classes share a queue, batch jobs cause head-of-line blocking. Split queues by latency class. A common split:
+
+- `high` — interactive, drained aggressively, oversized worker pool.
+- `default` — background, sized to keep up.
+- `low` — batch, sized to make progress overnight; can starve briefly.
+
+7.3. Workers can read from multiple queues with a priority preference (drain `high` first, then `default`, then `low`). Alternatively, dedicate separate worker pools per priority. Dedicated pools are easier to reason about; multi-queue workers are more efficient.
+
+7.4. **Per-tenant partitioning** — if a single tenant can saturate a queue, partition by tenant or apply a per-tenant fairness mechanism. Without one, a noisy tenant blocks the rest.
+
+7.5. **Per-entity ordering** — for state-machine-like work, partition by entity id (hash to a queue) and process each partition serially. Each partition is its own micro-queue; failures within a partition stall only that partition.
+
+### 8. Design rate limits
+
+8.1. Some jobs must respect downstream rate limits (an external API, a fragile database). Apply rate limiting at the worker pool, not at the enqueuer; the queue's job is to absorb bursts.
+
+8.2. Per-job-type rate limit is enough for many cases. Per-tenant rate limit is sometimes also required.
+
+8.3. Combine a token-bucket rate limiter with bounded concurrency. Token bucket controls the rate of starts; concurrency cap controls how many can run simultaneously.
+
+8.4. When the downstream returns 429 with a retry-after, the worker should reduce the local rate limit reactively for a short window, not just retry the single job.
+
+### 9. Design scheduling
+
+9.1. **Delayed jobs** — jobs enqueued now to run later (a reminder in 24 hours, a retry in 30 minutes). The substrate must support delayed delivery (Redis sorted sets, broker-level delayed delivery, a scheduler service that re-enqueues at the right time).
+
+9.2. **Recurring jobs** — cron-like triggers. Implement with a single scheduler that emits jobs on cadence rather than embedded cron in every worker. The scheduler must be HA (a single scheduler is a single point of failure).
+
+9.3. Recurring jobs should themselves be idempotent — the scheduler may fire twice during failover; the job should detect duplicate runs.
+
+9.4. **Skew avoidance** — if many recurring jobs are configured for `0 0 * * *`, the queue spikes at midnight. Spread schedules with jitter.
+
+### 10. Design observability
+
+10.1. Track per-queue: depth, enqueue rate, dequeue rate, processing rate, oldest job age. Depth growing with constant dequeue rate means the system is falling behind.
+
+10.2. Track per-job-type: runtime distribution, success rate, retry rate, DLQ rate. Sudden change in any is the first sign of a regression.
+
+10.3. Track per-worker: jobs in flight, average wait between jobs, restart count. A worker that restarts repeatedly may be hitting OOM or a panic on a specific job.
+
+10.4. Tracing: include the job id and the original enqueuer's trace context so the job's execution links back to the upstream request that scheduled it.
+
+10.5. Logging: every job logs structured fields — id, type, attempt, status, runtime, error if any. Free-form log messages are unsearchable when there are thousands of jobs per minute.
+
+10.6. Alert on:
+
+- Queue depth above a per-queue threshold sustained for several minutes.
+- Oldest-job age above the latency class budget.
+- DLQ growth.
+- Retry rate elevated against baseline.
+- Worker pool exhaustion (all workers busy, queue growing).
+
+### 11. Design the operator surface
+
+11.1. **Drain a queue** — stop enqueues for a target queue, let workers finish in-flight jobs, then redirect or pause workers. Used for maintenance and during incidents.
+
+11.2. **Pause a worker pool** — workers stop pulling new jobs but remain healthy. Used to relieve a struggling downstream without losing the queued backlog.
+
+11.3. **Cancel an in-flight job** — workers honor a cancellation signal at safe checkpoints. Hard kill is the last resort.
+
+11.4. **DLQ replay** — pull from the DLQ, inspect, re-enqueue. Should be parameterized by job-id range, type, or time window.
+
+11.5. **Force-retry** — restart the retry counter on a specific job. Used when an operator has manually fixed the failure cause.
+
+11.6. **Quarantine a poison message** — a job that crashes its worker every time should be pulled out automatically after N worker crashes attributable to it, not allowed to keep killing workers.
+
+11.7. **Scale workers** — both manual and automatic. Autoscale on queue depth and oldest-job age, with sensible upper limits.
+
+### 12. Plan the rollout
+
+12.1. For greenfield: deploy with a small worker pool and a generous test set. Verify retry behavior, DLQ behavior, and observability before raising traffic.
+
+12.2. For migration from an existing system: dual-publish during a window — emit to the old and new queues, run both worker pools, compare results. Cut over reads of the side effect once the new system has demonstrated parity.
+
+12.3. For a policy change (new retry policy, new DLQ wiring): roll out per job type, not globally. A single bad change can poison every worker pool at once if applied globally.
+
+12.4. Always keep a kill switch — a flag that puts enqueuers into "skip the queue, fail closed" mode. Useful when the queue substrate itself fails.
+
+### 13. Emit the design
+
+13.1. Lead with the topology diagram (in prose): queues, worker pools, brokers, schedulers, DLQs.
+
+13.2. Include the job catalog: one row per job type with queue, latency class, retry policy, idempotency strategy, timeout, owner.
+
+13.3. Include the failure-mode table: queue substrate down, worker pool unhealthy, downstream throttling, poison message, DLQ growing.
+
+13.4. Include the runbook seeds for the operator surface listed above.
+
+13.5. Include the observability surface: dashboards, alerts, traces.
+
+### Decision rules and heuristics
+
+- **Pick at-least-once and design idempotency.** Exactly-once is at-least-once plus idempotency in disguise.
+- **Every retry has a budget.** Attempts and elapsed time, both bounded.
+- **DLQs are queues, not graveyards.** Plan replay.
+- **One queue is enough until it is not.** Split by latency class first, by tenant second.
+- **Schedulers must be HA.** A cron on a single box is a single point of failure.
+- **Rate-limit at the worker, not at the enqueuer.** Let the queue absorb bursts.
+- **Backoff with jitter.** Without jitter, retry waves recreate the original overload.
+- **Cancel safely, not abruptly.** Mid-job kills cause partial side effects.
+- **Quarantine poison messages.** A job that crashes workers is more dangerous than the failure it represents.
+- **Plan the drain.** Operators need to stop the queue under control.
+
+### Edge cases
+
+- **Very short jobs** — sub-100ms jobs have overhead-dominated runtimes. Consider batching at the enqueue or the worker layer.
+- **Very long jobs** — multi-hour jobs do not fit the queue model well. Break into smaller jobs with checkpointed state.
+- **Sequenced jobs across services** — a chain of jobs across services is not a queue problem; it is a workflow problem. Reach for a workflow engine.
+- **Jobs that depend on external scheduling** (a webhook from a third party) — these are queue producers; design the receiver to be idempotent and the queue to absorb bursts.
+- **Jobs that scan a database** — pagination matters; use stable cursors, not offsets.
+- **Time-sensitive jobs across regions** — clock skew and cross-region delivery latency matter; budget for them.
+- **Multi-tenant rate limits** — a single tenant must not consume the global rate limit; tiered limits per tenant are usually required.
+- **Jobs with results** — if a producer needs the result of the job, the system has crossed from fire-and-forget to request/response. Reconsider whether a queue is the right shape.
+
+## Outputs
+
+- `queue_design` — Topology, delivery semantics, retry and DLQ policy, priority and partitioning plan, scheduling plan, rate-limit plan, observability surface, operator runbook entries.
+- `job_catalog_seed` — Per-job-type table mapping each kind of work to its queue, latency class, retry policy, idempotency mechanism, owner, and runtime budget.
+- `runbook_seed` — Step-by-step procedures for drain, pause, DLQ replay, force-retry, poison-message quarantine, and autoscale tuning.
+
+## Examples
+
+### Worked example
+
+Input excerpt:
+
+> Designing the job system for a SaaS product. Jobs: send transactional emails (target 30s after trigger), generate PDF receipts (target 5 min), refresh per-customer analytics every hour, run a nightly billing reconciliation. Stack: Python, PostgreSQL, Redis available. Sustained 50 jobs/sec, peak 500 jobs/sec during nightly billing. The email send hits an external API rate-limited to 10 requests per second per account.
+
+Expected output sketch:
+
+- Topology: three queues — `high` for transactional emails, `default` for PDFs and analytics, `low` for nightly billing. Redis as the broker; PostgreSQL holds idempotency keys.
+- Delivery: at-least-once. Every job has an idempotency strategy: emails use an external API idempotency key plus a local dedup table; PDFs use a state check on the receipt record; analytics use a conditional update on the materialized view; billing uses per-line-item idempotency keys.
+- Retry policy: emails — 6 attempts with exponential backoff 5s..10min, full jitter; PDFs — 4 attempts 30s..30min; analytics — 3 attempts 1min..15min; billing — 5 attempts 1min..1hr.
+- DLQ: one DLQ per logical area (`email_dlq`, `pdf_dlq`, `analytics_dlq`, `billing_dlq`). Replay procedure documented in the runbook.
+- Worker pools: emails on a small dedicated pool, sized at 2× the external rate limit; PDFs and analytics share the `default` pool; nightly billing runs in its own pool to keep the long batch from blocking analytics.
+- Rate limits: per-account token bucket for emails at the worker layer, populated from the account's plan tier.
+- Scheduling: hourly analytics fired by a single HA scheduler with ±30s jitter to avoid clock-aligned spikes. Nightly billing fired at 02:00 UTC; if the previous run is still in progress, skip with a logged warning.
+- Operator surface: drain, pause, DLQ replay, force-retry, quarantine. A kill switch on email enqueues lets the operator stop sends during an outage of the external API.
+- Observability: depth, dequeue rate, oldest-job age per queue; success rate, retry rate, DLQ rate per job type; per-account token-bucket utilization for emails.
+
+## Limitations
+
+- The skill produces a design from the description provided; tuning numbers (worker counts, exact backoff values) need adjustment after measurement.
+- It does not pick a specific broker product; recommendations apply across the common substrates.
+- It does not design durable workflows with multi-step state; for that, a workflow engine is the right tool.
+- The design assumes the team can operate the substrate; teams new to background-job operations should start with a managed queue if one is available.
+- Numbers in the worked example are illustrative; real values depend on the application's actual load and on downstream behavior.
+
+## Sources reviewed
+
+- https://github.com/celery/celery
+- https://github.com/hibiken/asynq
+- https://github.com/rq/rq
+- https://github.com/taskiq-python/taskiq
+- https://github.com/bee-queue/bee-queue
+- https://github.com/OptimalBits/bull

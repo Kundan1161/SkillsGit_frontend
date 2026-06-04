@@ -1,0 +1,131 @@
+<mxfile host="app.diagrams.net" agent="skillsgit-arch" version="24.7.17" type="device">
+  <diagram name="ER marketplace" id="er-marketplace-skillsgit">
+    <mxGraphModel dx="2400" dy="1400" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2400" pageHeight="1600" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- Title -->
+        <mxCell id="title" value="Marketplace ER — pricing + licensing layer (Cycle-1: composition_role + target_occupation_skill_id on licenses)&#10;Source: apps/api/src/{billing,reviews}/models.py" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=none;fontSize=18;fontStyle=1;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="40" y="20" width="1600" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- Anchor entities cluster (shared from core ER) -->
+        <mxCell id="g-anchors" value="Anchors (defined in er-skills-core.drawio)" style="rounded=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=14;fontStyle=1;verticalAlign=top;align=center;" vertex="1" parent="1">
+          <mxGeometry x="40" y="100" width="800" height="280" as="geometry" />
+        </mxCell>
+        <mxCell id="tbl-users" value="users&#10;━━━━━━━━━━━━&#10;id (PK)&#10;email (UK, citext)&#10;role (buyer|creator|admin)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;align=left;verticalAlign=top;spacingLeft=8;spacingTop=8;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="60" y="140" width="220" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="tbl-skills" value="skills&#10;━━━━━━━━━━━━&#10;id (PK)&#10;creator_id (FK → users)&#10;kind (skill|occupation|persona|memory_neuron)&#10;pricing_model (free|one_time|subscription|freemium)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;align=left;verticalAlign=top;spacingLeft=8;spacingTop=8;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="300" y="140" width="260" height="160" as="geometry" />
+        </mxCell>
+        <mxCell id="tbl-skill-versions" value="skill_versions&#10;━━━━━━━━━━━━&#10;id (PK)&#10;skill_id (FK → skills)&#10;version (semver)&#10;content_hash (char(64))" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;align=left;verticalAlign=top;spacingLeft=8;spacingTop=8;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="580" y="140" width="240" height="160" as="geometry" />
+        </mxCell>
+
+        <!-- Legend -->
+        <mxCell id="legend" value="Legend&#10;━━━━━━━━━━━━&#10;Anchors (blue) — defined elsewhere&#10;Orders + payments (orange)&#10;Licenses (yellow)&#10;Reviews + payouts (pink)&#10;━━━━━━━━━━━━&#10;Cycle-1 adds on licenses:&#10;  composition_role (enum)&#10;  target_occupation_skill_id (FK)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;align=left;verticalAlign=top;spacingLeft=10;spacingTop=10;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="900" y="100" width="320" height="240" as="geometry" />
+        </mxCell>
+
+        <!-- Orders cluster -->
+        <mxCell id="g-orders" value="Orders + Items (one-time payments)" style="rounded=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=14;fontStyle=1;verticalAlign=top;align=center;" vertex="1" parent="1">
+          <mxGeometry x="40" y="420" width="780" height="340" as="geometry" />
+        </mxCell>
+        <mxCell id="tbl-orders" value="orders&#10;━━━━━━━━━━━━&#10;id (PK)&#10;buyer_id (FK → users)&#10;stripe_payment_intent_id (UK)&#10;subtotal_cents&#10;platform_fee_cents&#10;creator_payout_cents&#10;currency (char(3))&#10;status (pending|paid|refunded|partially_refunded|failed)&#10;placed_at (timestamptz)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d79b00;align=left;verticalAlign=top;spacingLeft=8;spacingTop=8;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="60" y="460" width="320" height="260" as="geometry" />
+        </mxCell>
+        <mxCell id="tbl-order-items" value="order_items&#10;━━━━━━━━━━━━&#10;id (PK)&#10;order_id (FK → orders)&#10;skill_id (FK → skills)&#10;skill_version_id (FK → skill_versions)&#10;creator_id (FK → users, denormalized for payout)&#10;price_cents&#10;platform_fee_cents" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d79b00;align=left;verticalAlign=top;spacingLeft=8;spacingTop=8;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="420" y="460" width="360" height="240" as="geometry" />
+        </mxCell>
+
+        <!-- Subscriptions cluster -->
+        <mxCell id="g-subs" value="Subscriptions (recurring)" style="rounded=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=14;fontStyle=1;verticalAlign=top;align=center;" vertex="1" parent="1">
+          <mxGeometry x="860" y="420" width="420" height="340" as="geometry" />
+        </mxCell>
+        <mxCell id="tbl-subscriptions" value="subscriptions&#10;━━━━━━━━━━━━&#10;id (PK)&#10;buyer_id (FK → users)&#10;skill_id (FK → skills)&#10;stripe_subscription_id (UK)&#10;status (active|past_due|canceled|paused)&#10;price_cents (snapshot at signup)&#10;current_period_start (timestamptz)&#10;current_period_end (timestamptz)&#10;cancel_at_period_end (bool)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;align=left;verticalAlign=top;spacingLeft=8;spacingTop=8;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="880" y="460" width="380" height="260" as="geometry" />
+        </mxCell>
+
+        <!-- Licenses cluster -->
+        <mxCell id="g-licenses" value="Licenses (unifying entitlement record — Cycle-1 columns highlighted)" style="rounded=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=14;fontStyle=1;verticalAlign=top;align=center;" vertex="1" parent="1">
+          <mxGeometry x="1320" y="420" width="500" height="340" as="geometry" />
+        </mxCell>
+        <mxCell id="tbl-licenses" value="licenses&#10;━━━━━━━━━━━━&#10;id (PK)&#10;buyer_id (FK → users)&#10;skill_id (FK → skills)&#10;source (one_time|subscription|free|freemium|grant)&#10;source_id (logical FK: order_items.id OR subscriptions.id)&#10;granted_at (timestamptz)&#10;expires_at (timestamptz)&#10;max_version (semver ceiling)&#10;support_tier (none|basic|priority)&#10;status (active|expired|revoked)&#10;composition_role (occupation|persona|standalone) ← Cycle-1&#10;target_occupation_skill_id (FK → skills) ← Cycle-1&#10;   set ONLY for composition_role=persona" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;align=left;verticalAlign=top;spacingLeft=8;spacingTop=8;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="1340" y="460" width="460" height="280" as="geometry" />
+        </mxCell>
+
+        <!-- Reviews + payouts cluster -->
+        <mxCell id="g-misc" value="Reviews + Payouts" style="rounded=1;fillColor=#fce7f3;strokeColor=#be185d;fontSize=14;fontStyle=1;verticalAlign=top;align=center;" vertex="1" parent="1">
+          <mxGeometry x="40" y="800" width="1780" height="320" as="geometry" />
+        </mxCell>
+        <mxCell id="tbl-reviews" value="reviews&#10;━━━━━━━━━━━━&#10;id (PK)&#10;skill_id (FK → skills)&#10;author_id (FK → users)&#10;license_id (FK → licenses) — must own to review&#10;rating (1-5)&#10;status (visible|hidden|flagged)&#10;UK (skill_id, author_id)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#be185d;align=left;verticalAlign=top;spacingLeft=8;spacingTop=8;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="80" y="840" width="320" height="220" as="geometry" />
+        </mxCell>
+        <mxCell id="tbl-payouts" value="payouts&#10;━━━━━━━━━━━━&#10;id (PK)&#10;creator_id (FK → users)&#10;stripe_transfer_id (UK)&#10;amount_cents&#10;currency (char(3))&#10;period_start (timestamptz)&#10;period_end (timestamptz)&#10;status (pending|paid|failed)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#be185d;align=left;verticalAlign=top;spacingLeft=8;spacingTop=8;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="440" y="840" width="320" height="220" as="geometry" />
+        </mxCell>
+
+        <!-- Notes -->
+        <mxCell id="notes" value="Notes&#10;• licenses is the single source of truth for &quot;does the buyer have access?&quot;.&#10;• source + source_id let billing trace any license back to the order_item or subscription that created it.&#10;• Cycle-1 columns are the indexed key the vault composer uses to answer&#10;  &quot;which persona licenses does this buyer hold against occupation X?&quot; in one query&#10;  (covered by ix_licenses_buyer_target_occupation_status, migration 0009).&#10;• payouts is fed by joining order_items.creator_id over a payout period.&#10;• reviews requires an active license — the license_id FK enforces &quot;verified purchase only&quot;." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;align=left;verticalAlign=top;spacingLeft=10;spacingTop=10;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="800" y="840" width="1000" height="200" as="geometry" />
+        </mxCell>
+
+        <!-- ===== Edges ===== -->
+        <!-- users -> orders / subs / licenses / reviews / payouts -->
+        <mxCell id="rel-1" value="places" style="endArrow=ERmany;startArrow=ERone;edgeStyle=entityRelationEdgeStyle;strokeColor=#6c8ebf;html=1;" edge="1" parent="1" source="tbl-users" target="tbl-orders">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel-2" value="subscribes via" style="endArrow=ERmany;startArrow=ERone;edgeStyle=entityRelationEdgeStyle;strokeColor=#6c8ebf;html=1;" edge="1" parent="1" source="tbl-users" target="tbl-subscriptions">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel-3" value="owns" style="endArrow=ERmany;startArrow=ERone;edgeStyle=entityRelationEdgeStyle;strokeColor=#6c8ebf;html=1;" edge="1" parent="1" source="tbl-users" target="tbl-licenses">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel-4" value="writes" style="endArrow=ERmany;startArrow=ERone;edgeStyle=entityRelationEdgeStyle;strokeColor=#6c8ebf;html=1;" edge="1" parent="1" source="tbl-users" target="tbl-reviews">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel-5" value="receives" style="endArrow=ERmany;startArrow=ERone;edgeStyle=entityRelationEdgeStyle;strokeColor=#6c8ebf;html=1;" edge="1" parent="1" source="tbl-users" target="tbl-payouts">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- skills -> order_items / subs / licenses / reviews -->
+        <mxCell id="rel-6" value="purchased as" style="endArrow=ERmany;startArrow=ERone;edgeStyle=entityRelationEdgeStyle;strokeColor=#82b366;html=1;" edge="1" parent="1" source="tbl-skills" target="tbl-order-items">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel-7" value="subscribed to" style="endArrow=ERmany;startArrow=ERone;edgeStyle=entityRelationEdgeStyle;strokeColor=#82b366;html=1;" edge="1" parent="1" source="tbl-skills" target="tbl-subscriptions">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel-8" value="grants entitlement to" style="endArrow=ERmany;startArrow=ERone;edgeStyle=entityRelationEdgeStyle;strokeColor=#82b366;html=1;" edge="1" parent="1" source="tbl-skills" target="tbl-licenses">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel-9" value="reviewed as" style="endArrow=ERmany;startArrow=ERone;edgeStyle=entityRelationEdgeStyle;strokeColor=#82b366;html=1;" edge="1" parent="1" source="tbl-skills" target="tbl-reviews">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel-10" value="target_occupation_skill_id (persona role only)" style="endArrow=ERmany;startArrow=ERone;edgeStyle=entityRelationEdgeStyle;strokeColor=#82b366;dashed=1;html=1;" edge="1" parent="1" source="tbl-skills" target="tbl-licenses">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- skill_versions -> order_items -->
+        <mxCell id="rel-11" value="version snapshot at sale" style="endArrow=ERmany;startArrow=ERone;edgeStyle=entityRelationEdgeStyle;strokeColor=#6c8ebf;dashed=1;html=1;" edge="1" parent="1" source="tbl-skill-versions" target="tbl-order-items">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- orders -> order_items -->
+        <mxCell id="rel-12" value="contains (1..*)" style="endArrow=ERmany;startArrow=ERmandOne;edgeStyle=entityRelationEdgeStyle;strokeColor=#d79b00;strokeWidth=2;html=1;" edge="1" parent="1" source="tbl-orders" target="tbl-order-items">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- licenses -> reviews / payouts -->
+        <mxCell id="rel-13" value="verifies authorship" style="endArrow=ERmany;startArrow=ERone;edgeStyle=entityRelationEdgeStyle;strokeColor=#82b366;html=1;" edge="1" parent="1" source="tbl-licenses" target="tbl-reviews">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel-14" value="feeds (via order_items.creator_id)" style="endArrow=ERmany;startArrow=ERone;edgeStyle=entityRelationEdgeStyle;strokeColor=#82b366;dashed=1;html=1;" edge="1" parent="1" source="tbl-licenses" target="tbl-payouts">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

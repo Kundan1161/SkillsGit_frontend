@@ -1,0 +1,290 @@
+---
+id: skillsgit-curated/imported-voltagent-expo-native-data-fetching
+version: 1.0.0
+name: Expo Native Data Fetching
+description: Network requests, API calls, caching, offline support, and Expo Router data loaders for Expo apps — fetch API, React Query, SWR, auth, and error handling.
+authors:
+  - name: Expo
+    handle: expo
+    role: author
+  - name: skillsgit Curated
+    handle: skillsgit-curated
+    role: maintainer
+category: engineering
+tags: [imported, source-voltagent, expo, react-native, fetch, react-query, networking, offline]
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6, gpt-4o]
+  min_context_tokens: 32000
+  estimated_tokens_per_invocation: 6000
+trigger_keywords: [expo fetch, react query, swr, expo networking, offline data, secure store]
+example_invocations:
+  - Add React Query to my Expo app and fetch users
+  - Implement token refresh with expo-secure-store
+  - Make my app work offline with React Query and NetInfo
+inputs: []
+outputs: []
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Imported from VoltAgent/awesome-agent-skills under MIT.
+---
+
+# Expo Networking
+
+**You MUST use this skill for ANY networking work including API requests, data fetching, caching, or network debugging.**
+
+## When to Use
+
+Use this skill when:
+
+- Implementing API requests
+- Setting up data fetching (React Query, SWR)
+- Using Expo Router data loaders (`useLoaderData`, web SDK 55+)
+- Debugging network failures
+- Implementing caching strategies
+- Handling offline scenarios
+- Authentication/token management
+- Configuring API URLs and environment variables
+
+## How to apply
+
+Use `fetch` (avoid axios — prefer `expo/fetch`). Wrap with error handling. Add React Query for app-wide cache. Store tokens in `expo-secure-store`, never `AsyncStorage`. Use `NetInfo` + React Query's `onlineManager` for offline-first behavior. Use `EXPO_PUBLIC_*` env vars for client-safe URLs only.
+
+## Preferences
+
+- Avoid `axios`, prefer `expo/fetch`.
+
+## 1. Basic Fetch
+
+```tsx
+const fetchUser = async (userId: string) => {
+  const response = await fetch(`https://api.example.com/users/${userId}`);
+  if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+  return response.json();
+};
+
+const createUser = async (userData: UserData) => {
+  const response = await fetch("https://api.example.com/users", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(userData),
+  });
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message);
+  }
+  return response.json();
+};
+```
+
+## 2. React Query (TanStack Query)
+
+```tsx
+// app/_layout.tsx
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: { staleTime: 1000 * 60 * 5, retry: 2 },
+  },
+});
+
+export default function RootLayout() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <Stack />
+    </QueryClientProvider>
+  );
+}
+```
+
+```tsx
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+
+function UserProfile({ userId }: { userId: string }) {
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: ["user", userId],
+    queryFn: () => fetchUser(userId),
+  });
+
+  if (isLoading) return <Loading />;
+  if (error) return <Error message={error.message} />;
+  return <Profile user={data} />;
+}
+
+function CreateUserForm() {
+  const queryClient = useQueryClient();
+
+  const mutation = useMutation({
+    mutationFn: createUser,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["users"] }),
+  });
+
+  return <Form onSubmit={mutation.mutate} isLoading={mutation.isPending} />;
+}
+```
+
+## 3. Error Handling
+
+```tsx
+class ApiError extends Error {
+  constructor(message: string, public status: number, public code?: string) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
+const fetchWithErrorHandling = async (url: string, options?: RequestInit) => {
+  try {
+    const response = await fetch(url, options);
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new ApiError(error.message || "Request failed", response.status, error.code);
+    }
+    return response.json();
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    throw new ApiError("Network error", 0, "NETWORK_ERROR");
+  }
+};
+
+const fetchWithRetry = async (url: string, options?: RequestInit, retries = 3) => {
+  for (let i = 0; i < retries; i++) {
+    try { return await fetchWithErrorHandling(url, options); }
+    catch (error) {
+      if (i === retries - 1) throw error;
+      await new Promise((r) => setTimeout(r, Math.pow(2, i) * 1000));
+    }
+  }
+};
+```
+
+## 4. Authentication
+
+```tsx
+import * as SecureStore from "expo-secure-store";
+
+const TOKEN_KEY = "auth_token";
+
+export const auth = {
+  getToken: () => SecureStore.getItemAsync(TOKEN_KEY),
+  setToken: (token: string) => SecureStore.setItemAsync(TOKEN_KEY, token),
+  removeToken: () => SecureStore.deleteItemAsync(TOKEN_KEY),
+};
+
+const authFetch = async (url: string, options: RequestInit = {}) => {
+  const token = await auth.getToken();
+  return fetch(url, {
+    ...options,
+    headers: { ...options.headers, Authorization: token ? `Bearer ${token}` : "" },
+  });
+};
+```
+
+Token refresh with a single-flight pattern:
+
+```tsx
+let isRefreshing = false;
+let refreshPromise: Promise<string> | null = null;
+
+const getValidToken = async (): Promise<string> => {
+  const token = await auth.getToken();
+  if (!token || isTokenExpired(token)) {
+    if (!isRefreshing) {
+      isRefreshing = true;
+      refreshPromise = refreshToken().finally(() => {
+        isRefreshing = false;
+        refreshPromise = null;
+      });
+    }
+    return refreshPromise!;
+  }
+  return token;
+};
+```
+
+## 5. Offline Support
+
+```tsx
+import NetInfo from "@react-native-community/netinfo";
+import { onlineManager } from "@tanstack/react-query";
+
+function useNetworkStatus() {
+  const [isOnline, setIsOnline] = useState(true);
+  useEffect(() => NetInfo.addEventListener((state) => setIsOnline(state.isConnected ?? true)), []);
+  return isOnline;
+}
+
+// Sync React Query with network status
+onlineManager.setEventListener((setOnline) =>
+  NetInfo.addEventListener((state) => setOnline(state.isConnected ?? true))
+);
+```
+
+## 6. Environment Variables
+
+```bash
+# .env
+EXPO_PUBLIC_API_URL=https://api.example.com
+EXPO_PUBLIC_API_VERSION=v1
+```
+
+```tsx
+const API_URL = process.env.EXPO_PUBLIC_API_URL;
+```
+
+- Only `EXPO_PUBLIC_*` is exposed to the client bundle.
+- Never put secrets in `EXPO_PUBLIC_*` — they're visible in the built app.
+- Inlined at **build time**, not runtime.
+- Restart the dev server after changing `.env`.
+- For server-side secrets in API routes, use non-prefixed env vars.
+
+```tsx
+// types/env.d.ts
+declare global {
+  namespace NodeJS {
+    interface ProcessEnv {
+      EXPO_PUBLIC_API_URL: string;
+      EXPO_PUBLIC_API_VERSION?: string;
+    }
+  }
+}
+export {};
+```
+
+## 7. Request Cancellation
+
+```tsx
+useEffect(() => {
+  const controller = new AbortController();
+  fetch(url, { signal: controller.signal })
+    .then((r) => r.json())
+    .then(setData)
+    .catch((error) => { if (error.name !== "AbortError") setError(error); });
+  return () => controller.abort();
+}, [url]);
+```
+
+React Query automatically cancels on unmount / invalidation.
+
+## Common Mistakes
+
+- **No error handling** — always check `response.ok`.
+- **Tokens in AsyncStorage** — use `expo-secure-store` for sensitive data.
+
+## Attribution
+
+This skill was imported from `VoltAgent/awesome-agent-skills` under the MIT license, originating from the `expo/skills` repository under the MIT license. Original content authored by the listed contributor(s) at the source repository. Modifications by skillsgit: frontmatter normalization to fit marketplace spec; addition of attribution and sources sections.
+
+## Sources reviewed
+
+- https://github.com/VoltAgent/awesome-agent-skills (MIT)
+- https://github.com/expo/skills/tree/main/plugins/expo/skills/native-data-fetching (MIT)

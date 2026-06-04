@@ -1,0 +1,254 @@
+---
+id: skillsgit-curated/sbom-program-architect
+version: 1.0.0
+name: SBOM Program Architect
+description: Design an end-to-end SBOM program covering format choice, in-build generation, validation, signing, distribution, and consumer-side ingestion with vulnerability correlation.
+authors:
+  - name: Wave-3 Methodology Synthesis
+    handle: wave3-supplychain
+    role: author
+category: engineering
+tags:
+  - niche:supply-chain-security
+  - sbom
+  - cyclonedx
+  - spdx
+  - vex
+  - vulnerability-management
+  - syft
+  - trivy
+license_type: free
+ai:
+  required_models:
+    - claude-opus-4-7
+    - claude-sonnet-4-6
+  compatible_models:
+    - gpt-4o
+    - gpt-4.1
+    - gemini-1.5-pro
+  min_context_tokens: 32000
+  tools_optional:
+    - web_search
+  estimated_tokens_per_invocation: 6500
+trigger_keywords:
+  - sbom
+  - software bill of materials
+  - cyclonedx
+  - spdx
+  - vex
+  - dependency inventory
+  - vulnerability correlation
+  - syft
+  - trivy
+example_invocations:
+  - "Design an SBOM program for our container-based product."
+  - "Should we standardize on SPDX or CycloneDX?"
+  - "How do we make SBOMs actually useful for vulnerability response?"
+  - "Plan SBOM distribution to enterprise customers."
+inputs:
+  - name: product_shape
+    type: text
+    required: true
+    description: What you ship — container images, binaries, OS packages, libraries, mobile apps, embedded firmware, hosted SaaS.
+  - name: build_ecosystem
+    type: text
+    required: true
+    description: Languages and package managers in scope (Go, Python, JavaScript, Java, Rust, .NET, Ruby, Linux distro, etc.).
+  - name: consumer_context
+    type: text
+    required: true
+    description: Who consumes the SBOM and why (internal vulnerability response, enterprise procurement, regulators, end users).
+  - name: existing_tooling
+    type: text
+    required: false
+    description: SBOM tools / scanners already in use.
+  - name: distribution_constraints
+    type: text
+    required: false
+    description: Confidentiality requirements (publish openly, share under NDA, embed in artifact only).
+outputs:
+  - name: program_design
+    type: markdown
+    description: A program design covering format choice, generation, signing, validation, distribution, ingestion, and operational metrics.
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Initial release.
+---
+
+# SBOM Program Architect
+
+## When to use
+
+Use this skill when an organization needs to design or substantially upgrade its Software Bill of Materials program — not just produce a file, but operationalize SBOMs so they drive vulnerability response and satisfy downstream consumers. Typical situations:
+
+- A customer (often government, financial, or critical-infrastructure) requires SBOMs as a contract deliverable.
+- The team produces SBOMs but no one uses them — they sit in a bucket.
+- A new product line needs an SBOM strategy from day one.
+- A vulnerability disclosure (a Log4Shell-class event) exposed that the team cannot answer "are we affected?" quickly because dependency data is fragmented.
+- Regulators (EU CRA, US executive-order regimes, sectoral rules) introduce SBOM obligations.
+
+This skill produces a program design, not an implementation. It chooses formats, names tools, designs flows, and defines metrics. Implementation belongs to platform / appsec / build teams.
+
+**Scope guardrail.** This is methodology guidance. Regulatory obligations vary by jurisdiction and contract. Always validate format / field requirements against the specific regulation or contract in scope before standardizing.
+
+## How to apply
+
+Walk the seven phases below in order. The most common failure mode is to skip directly to "generate the file" before deciding what the SBOM is *for*; that produces compliant artifacts no one uses.
+
+### Phase 1 — Define the SBOM's job
+
+Before choosing format or tool, write down which jobs your SBOM must do. The job dictates everything else.
+
+Common jobs (an SBOM program should explicitly choose which ones it serves):
+
+- **Internal vulnerability response.** "When CVE-X drops, which of our deployed artifacts contain the affected component?"
+- **Procurement / compliance.** "Can we hand a customer or auditor a document that satisfies their contract clause?"
+- **License compliance.** "What licenses are in this artifact, and do any violate distribution rules?"
+- **Provenance.** "Where did this binary come from — what repo, what build, signed by whom?" (often handled by attestations alongside the SBOM.)
+- **End-user transparency.** "Can a customer or regulator inspect what's inside a release?"
+
+Each job changes what fields you need, how the SBOM is distributed, and how it is consumed. Vulnerability response demands PURL/CPE-grade identifiers and a vulnerability-data correlation pipeline. License compliance demands SPDX license expressions. Procurement demands the format the buyer's tooling can ingest. Transparency demands public hosting and human-readable rendering.
+
+State the jobs explicitly. If you can't write the use cases, the program will sprawl.
+
+### Phase 2 — Choose a format (and which sub-profile)
+
+The two production formats are **CycloneDX** and **SPDX**. Both are well-supported, and most modern tools can emit both. The choice rarely matters more than the discipline applied to fields.
+
+Pick CycloneDX when:
+- Primary job is vulnerability response (CycloneDX has stronger out-of-the-box vulnerability and VEX integration).
+- You will publish attestations and want a single ecosystem (CycloneDX has BOM-Link and richer attestation flows).
+- Consumers are using AppSec tools that prefer CycloneDX (most modern SCA tooling).
+
+Pick SPDX when:
+- Primary job is license compliance / open-source distribution (SPDX's license-expression model is more mature).
+- A contractual or regulatory requirement names SPDX explicitly.
+- You already participate in OS-distribution ecosystems that standardize on SPDX.
+
+Pick **both** (emit in parallel) when:
+- Different consumer audiences demand different formats and conversion-at-the-edge is too brittle.
+
+Sub-profile choices to lock down:
+
+- **Component identification.** Require **Package URL (PURL)** for all components where ecosystem supports it. PURL is the lingua franca that lets vulnerability databases (OSV, NVD via CPE mapping) actually match. Without PURL or CPE, vulnerability correlation collapses to fuzzy string matching.
+- **Hashes.** SHA-256 minimum on every component file or archive. Without hashes, SBOM cannot verify integrity at consumption time.
+- **License expressions.** SPDX-format license expressions even in CycloneDX SBOMs. Plain strings ("Apache 2.0", "Apache-2.0", "apache2") break downstream consumers.
+- **Component relationships.** Capture dependency edges (DEPENDS_ON / dependsOn). A flat list of components without relationships is much less useful for blast-radius analysis.
+- **Build metadata.** Capture the build tool, build time, source repo, source commit, and signing identity in the SBOM's metadata section so the SBOM is bound to a specific build.
+
+### Phase 3 — Generate in build, not after
+
+A post-hoc scan of a final artifact will produce *an* SBOM, but it will miss layers a runtime-only scan cannot see (vendored sources, statically-linked native deps, compile-time generated code, dev dependencies that should be excluded). The right place to generate is *inside the build*, at the moments the build itself resolves dependencies.
+
+Generation patterns:
+
+- **Per-stage SBOMs in container builds.** Generate at each stage of a multi-stage Dockerfile (builder stage, runtime stage). The runtime SBOM is what ships; the builder SBOM helps detect build-time supply-chain risk.
+- **Source-level + binary-level.** Scan the source tree for declared dependencies (lockfiles) and the final artifact for present dependencies. The diff catches bundled / vendored content.
+- **Per-artifact, not per-repo.** One SBOM per shipped artifact, not one per source repo. A monorepo that ships ten images produces ten SBOMs.
+- **Reproducible generation.** Pin the SBOM tool by version + content digest. Different generator versions produce subtly different output; consumers that diff SBOMs over time need this to be stable.
+- **Test the generator.** Maintain a fixture image with known contents and assert the SBOM lists them. Regenerate on tool upgrades.
+
+Tooling: **Syft** (Apache-2.0, broad ecosystem coverage), **Trivy** (Apache-2.0, scanner that also emits SBOMs), **CycloneDX CLI** (Apache-2.0, validation and conversion). Language-native tools (cyclonedx-py, cyclonedx-node, cyclonedx-go, etc.) are useful for source-level SBOMs in their respective ecosystems.
+
+### Phase 4 — Sign, attest, and bind to the artifact
+
+An unsigned SBOM is a courtesy, not evidence. Production programs bind the SBOM to the artifact cryptographically.
+
+- **Attach as an attestation.** Use an attestation framework (in-toto / Sigstore) to bind the SBOM to the subject artifact's digest. The attestation is signed by the builder identity.
+- **Workload-identity signing.** The signing identity is the build platform's workload identity (OIDC), not a human key. This makes the signature *attributable to the builder*, not transferable.
+- **Transparency log.** Record the signed attestation in a transparency log so silent re-signing is detectable.
+- **Discoverability.** Consumers retrieve the SBOM via a deterministic path: registry attestation API for OCI artifacts, a signed manifest endpoint for OS packages, a documented URL pattern for source releases.
+
+If the SBOM is going to be useful in incident response, it must be retrievable in seconds, not requested from a person.
+
+### Phase 5 — Validate before distribution
+
+Producing a malformed SBOM is worse than producing none — it creates the illusion of compliance. Add validation gates in CI:
+
+- **Schema validation.** Validate against the published JSON Schema (CycloneDX) or shape rules (SPDX). Fail the build on schema violations.
+- **Required-field policy.** Beyond the schema, enforce *your* program requirements: every component has a PURL, every component has at least one hash, every component has a license expression, build metadata is populated.
+- **Coverage check.** Compare SBOM component count against the build's resolved dependency count (from lockfiles). A large diff suggests missed transitive dependencies.
+- **Known-bad screens.** Reject SBOMs that list components with placeholder names, "unknown" versions, or empty hashes. These are the leading indicators of a broken generator config.
+- **Conversion round-trip (optional).** If you emit both formats, validate that CycloneDX ↔ SPDX conversion does not drop information you depend on.
+
+### Phase 6 — Distribute by audience
+
+Different consumers want different access paths.
+
+- **Internal vulnerability response.** Push every SBOM into a central index (an ASN-like service: ingest, parse, index by PURL, query by CVE). Without indexing, "are we affected?" devolves into grep across thousands of files.
+- **Enterprise procurement.** A portal where a verified customer can download SBOMs for the versions they've licensed. NDA-gated distribution is common; design the access model up front.
+- **Regulators / public.** A documented endpoint per product, possibly anchored in a transparency log. Define retention: how long are SBOMs for past versions kept?
+- **Embedded in artifact (defense in depth).** Keep a copy of the SBOM inside the artifact (e.g., a known path in the OCI image) so air-gapped consumers have access without retrieving an external file. Treat the external attestation as the source of truth; the embedded copy is a convenience.
+
+### Phase 7 — Operate vulnerability correlation
+
+This is where most programs fail. The SBOM is useful only if a new vulnerability triggers automatic, evidence-backed answers.
+
+Build the correlation pipeline:
+
+- **Vulnerability data source.** Use OSV.dev as the canonical source for ecosystem CVEs (it speaks PURL natively and aggregates ecosystem advisories). Supplement with NVD/CPE where ecosystem coverage is thin (older OS packages).
+- **Continuous re-scan.** Re-correlate every published SBOM nightly (or on every vulnerability-database update) against the current vulnerability set. New CVEs against old artifacts must surface without a fresh build.
+- **VEX (Vulnerability Exploitability eXchange).** For each finding, publish a VEX statement: "affected", "not_affected", "fixed", "under_investigation", with justification. VEX is what stops customers from filing tickets for known-not-affected components. CycloneDX and OpenVEX both work; choose one.
+- **Triage SLA.** Critical-severity findings reviewed within N hours, high within N days, etc. Tie SLA to severity, not to a fixed cadence.
+- **Customer notification flow.** When a CVE affects a shipped version, customers consuming the affected version are notified per SLA. The notification references the SBOM and includes a VEX statement.
+- **Metric: time-to-correlate.** From CVE publication to "we know which artifacts are affected" — measure this. Sub-hour is achievable for a healthy program; multi-day means the correlation pipeline is broken.
+
+### Phase 8 — Define program metrics
+
+The program is healthy when these metrics are stable:
+
+- **SBOM coverage.** % of shipped artifacts with a current, signed SBOM. Target: 100%.
+- **Field completeness.** % of components with PURL + hash + license. Target: > 98%; the missing tail is usually proprietary or pre-built binaries with no PURL ecosystem.
+- **Time-to-correlate.** P50 / P95 from CVE publication to internal affected-artifact list.
+- **Customer correlation gap.** Lag between internal correlation and customer-facing notification.
+- **VEX issuance rate.** % of findings with a published VEX statement within SLA. Without VEX, customer noise is unbounded.
+- **Generator drift.** Number of SBOMs failing required-field policy in a given week. Spikes indicate a generator regression.
+
+## Inputs
+
+- **Product shape.** What you ship.
+- **Build ecosystem.** Languages and package managers.
+- **Consumer context.** Who reads the SBOMs and why.
+- **Existing tooling.** Avoid prescribing a rip-and-replace if not warranted.
+- **Distribution constraints.** Public vs gated.
+
+## Outputs
+
+A markdown program design with:
+
+1. **Job statement.** Which jobs the SBOM serves, in priority order.
+2. **Format decision.** With sub-profile choices (PURL, hashes, licenses, relationships).
+3. **Generation plan.** Where in the build, with which tools, validation gates.
+4. **Signing and attestation flow.** Identity, transparency-log policy, retrieval paths.
+5. **Distribution model.** Per audience.
+6. **Vulnerability correlation pipeline.** Data sources, re-scan cadence, VEX policy, triage SLA.
+7. **Metrics dashboard.** With initial targets.
+8. **Rollout plan.** Sequencing, owners, dependencies.
+
+## Examples
+
+**Example A — Container-shipping SaaS, vulnerability response is primary job.**
+
+Standardize on CycloneDX with PURL on every component and SHA-256 on every layer. Generate SBOMs with Syft in CI, one per built image. Validate against the CycloneDX schema plus an internal "every component has PURL+hash+license" gate. Sign as an in-toto attestation bound to the image digest, with workload identity from CI. Push to internal correlation service indexed by PURL. Use OSV.dev as the vulnerability source; re-scan nightly. Publish OpenVEX statements for affected/not-affected components. Customer access via portal, NDA-gated.
+
+**Example B — On-prem appliance vendor, procurement-driven.**
+
+Customer contracts demand SPDX 2.3 deliverables. Emit SPDX in build via Syft; emit CycloneDX in parallel for internal use. License expressions are first-class — drive the license-compliance pipeline off the SPDX output. Distribute SPDX via signed downloads tied to the release version; embed a copy inside the appliance image for air-gapped deployments. Correlation runs internally on the CycloneDX copies; customer notifications include the SPDX SBOM and a VEX document.
+
+## Limitations
+
+- SBOMs describe known components. They do not describe behavior, configuration, or runtime composition.
+- Vulnerability correlation depends on vulnerability databases naming components in a way that matches SBOM PURLs/CPEs. Mismatches cause silent false negatives. Mitigate with multiple data sources and manual curation for high-impact components.
+- This skill does not address SBOM authenticity at deeply embedded firmware or supply-chain layers below the OS package manager (e.g., proprietary bootloaders, FPGA bitstreams). Those layers need their own provenance design.
+- VEX is still a maturing area; downstream tooling support varies. Validate that the formats you emit are consumed by the tooling your customers actually use before standardizing.
+- Regulatory requirements evolve. The format and field choices in this skill reflect current industry practice; check current regulations at the time of program design.
+
+## Sources
+
+- https://github.com/anchore/syft
+- https://github.com/aquasecurity/trivy
+- https://github.com/CycloneDX/cyclonedx-cli
+- https://github.com/CycloneDX/specification
+- https://github.com/google/osv-scanner
+- https://github.com/pypa/pip-audit

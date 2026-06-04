@@ -1,0 +1,242 @@
+---
+id: skillsgit-curated/sap-integration-pattern-picker
+version: 0.1.0
+name: SAP Integration Pattern Picker
+description: Choose between IDoc, RFC, OData, SOAP, event mesh, and file transfer for a given SAP integration scenario.
+authors:
+  - name: Wave-3 Synthesis Agent
+    handle: wave3synth
+    role: author
+category: enterprise-software
+tags:
+  - niche:sap-integration
+  - idoc
+  - rfc
+  - odata
+  - event-mesh
+  - cap
+  - btp
+license_type: free
+ai:
+  required_models:
+    - claude-opus-4-7
+    - claude-sonnet-4-6
+  compatible_models:
+    - gpt-4o
+    - gpt-4.1
+  min_context_tokens: 32000
+  tools_required: []
+  estimated_tokens_per_invocation: 5000
+trigger_keywords:
+  - sap integration
+  - idoc vs odata
+  - rfc vs odata
+  - event mesh
+  - integration suite
+  - cpi
+  - sap interface design
+  - integration pattern
+example_invocations:
+  - "Should I use IDoc or OData to send sales orders from a partner system into S/4?"
+  - "Pick an integration pattern for high-volume nightly material master sync."
+  - "We need real-time stock change events out of S/4 to a non-SAP warehouse - what fits?"
+  - "Compare RFC vs OData for a low-latency synchronous lookup from an external app."
+inputs:
+  - name: scenario
+    type: text
+    required: true
+    description: Free-text description of the integration. Include direction, source, target, latency, payload, frequency, error-handling tolerance, security boundary.
+  - name: direction
+    type: choice
+    required: false
+    description: Data direction relative to the SAP system.
+    choices:
+      - inbound-to-sap
+      - outbound-from-sap
+      - bidirectional
+  - name: latency_class
+    type: choice
+    required: false
+    description: How fresh the data must be on the receiving side.
+    choices:
+      - realtime-sub-second
+      - near-realtime-seconds
+      - minutes
+      - hourly-or-batch
+  - name: target_landscape
+    type: choice
+    required: false
+    description: SAP target stack constrains which patterns are available.
+    choices:
+      - ecc-6
+      - s4-on-premise
+      - s4-private-cloud
+      - s4-public-cloud
+      - btp-abap-only
+outputs:
+  - name: recommendation
+    type: markdown
+    description: Primary pattern, runner-up, and a rationale grounded in the inputs.
+  - name: decision_table
+    type: markdown
+    description: Side-by-side scoring of all candidate patterns on the relevant axes.
+changelog:
+  - version: 0.1.0
+    date: 2026-05-14
+    notes: Initial release. Synthesised from SAP Integration Suite samples, Event Mesh samples, CAP samples, and abap-openapi.
+---
+
+# SAP Integration Pattern Picker
+
+## When to use
+
+Use this skill at integration design time, before any code is written, to pick an SAP integration pattern. Typical triggers:
+
+- A new partner system needs to send / receive data with SAP.
+- A non-SAP application needs to read or update master data, transactional documents, or events in S/4HANA, ECC, or BTP.
+- A team is deciding whether to keep an existing IDoc / RFC interface or modernise it to OData or events as part of an S/4 migration.
+- An architect needs a defensible rationale (in writing, for an architecture review board) for choosing one pattern over the others.
+
+Do not use it to write the actual flow in SAP Integration Suite, design CDS view consumption models, or pick a middleware vendor. It picks the protocol family and posture; build details belong to channel-specific skills.
+
+## How to apply
+
+Always work through the same five steps and emit the same artefacts. Do not skip the decision table: reviewers want to see what was considered and rejected, not only the winner.
+
+### Step 1 - Restate the scenario in canonical form
+
+Extract from the input, asking the user only for any field that is missing:
+
+| Axis | Possible values |
+| --- | --- |
+| Direction | inbound-to-sap, outbound-from-sap, bidirectional |
+| Trigger | event-driven, request-response, scheduled, on-change |
+| Frequency | per-second, per-minute, per-hour, daily, ad-hoc |
+| Payload size | small (< 10 KB), medium (10 KB - 1 MB), large (> 1 MB), bulk (> 100 MB) |
+| Volume | < 1k/day, 1k-100k/day, > 100k/day |
+| Latency budget | sub-second, seconds, minutes, hourly, overnight |
+| Coupling tolerance | tight (synchronous), loose (async / queued) |
+| Error semantics | at-most-once, at-least-once, exactly-once-ish |
+| Security boundary | inside corp LAN, cross-DMZ, public internet, partner B2B |
+| Target SAP stack | ECC, S/4 on-prem, S/4 private cloud, S/4 public cloud, BTP-only |
+| Existing partner capability | REST, SOAP, file/SFTP, AS2, EDIFACT, none |
+
+### Step 2 - Filter by landscape constraints (hard exits)
+
+Some patterns simply do not exist on some targets. Apply these gates first.
+
+- **S/4 public cloud / BTP-only.** Native RFC is not exposed; classic ABAP-side file access via `OPEN DATASET` is unavailable. IDoc via the cloud-edition partner channels exists in restricted form. The realistic options collapse to OData, SOAP web services, REST APIs through Communication Arrangements, and SAP Event Mesh / Advanced Event Mesh.
+- **ECC.** OData is possible (NetWeaver Gateway) but the catalogue is sparse. IDoc, BAPI/RFC, and ALE are the well-trodden paths.
+- **S/4 on-prem / private cloud.** Everything is on the table; pick on merits.
+- **Cross-DMZ / public internet.** RFC and ALE require SAP Cloud Connector or a VPN; OData and event mesh travel over HTTPS naturally and reduce firewall scope.
+
+### Step 3 - Score each candidate pattern
+
+For every pattern that survived step 2, score it on the seven axes below. Use a 1-5 scale where 5 is "fits this scenario well" and 1 is "actively wrong".
+
+1. **Latency fit** - matches the latency budget.
+2. **Payload fit** - handles the typical and worst-case payload size.
+3. **Volume fit** - handles the daily volume without operational pain.
+4. **Reliability** - acknowledgements, retries, dead-letter behaviour.
+5. **Monitoring** - quality of out-of-the-box monitoring (WE02 / SXMB_MONI / Integration Suite Monitoring / CPI message processing log / OData traces).
+6. **Coupling** - alignment with desired synchronous vs asynchronous coupling.
+7. **Build / run cost** - effort to stand up and maintain.
+
+### Step 4 - Apply the pattern-by-pattern heuristics
+
+Use these as starting biases. They are heuristics, not laws; the score from step 3 wins if it strongly disagrees.
+
+**IDoc (ALE / EDI)**
+
+- Strong fit: outbound from SAP, async, medium volume, document-shaped business objects (sales order, delivery, invoice, master data), partner already speaks EDI.
+- Weak fit: sub-second latency, very large payloads, query-style reads, modern public APIs.
+- Strengths: rock-solid mature monitoring (WE02, BD87), well-known mappings (ORDERS05, INVOIC02, MATMAS05), at-least-once semantics, replay-friendly.
+- Watch-outs: per-IDoc overhead is high; batching matters for volume. Customer-extension Z-segments lock partners in.
+
+**RFC / BAPI (synchronous and tRFC / qRFC / bgRFC)**
+
+- Strong fit: SAP-to-SAP, behind the firewall, programmatic call where the caller wants a function-call shape and a typed signature.
+- Weak fit: external integrations across DMZ, public APIs, S/4 public cloud.
+- Strengths: typed, transactional, well-monitored (SM58, SMQ1/SMQ2), supports asynchronous queued variants for ordering.
+- Watch-outs: tight coupling, version drift between caller and BAPI, network egress requires SAP Cloud Connector when calls cross trust zones.
+
+**OData (V2 and V4)**
+
+- Strong fit: external app needs to read or write SAP data with REST semantics, request-response, near-real-time, structured tabular results, granular authorisation.
+- Weak fit: massive bulk loads, event-driven push, EDI-style partner exchange.
+- Strengths: HTTP-native, plays with API gateways, auth via OAuth2 / SAML, draft handling and ETag concurrency baked in for V4, CDS-driven exposure on S/4 keeps the contract close to the data model.
+- Watch-outs: server-side aggregation is limited; `$expand` on deep graphs is a known performance trap; OData V2 and V4 are not source-compatible.
+
+**SOAP / Enterprise Services**
+
+- Strong fit: legacy partner already on SOAP, formal contract via WSDL needed, regulated industries that require WS-Security.
+- Weak fit: greenfield work, mobile clients, lightweight integrations.
+- Strengths: strong typing, mature SAP catalogue of enterprise services, supported on every SAP release.
+- Watch-outs: verbose; tooling momentum has moved on; mappings get baroque.
+
+**SAP Event Mesh / Advanced Event Mesh / cloud events**
+
+- Strong fit: outbound notifications ("invoice posted", "stock changed", "purchase order released") to many consumers, loose coupling, near-real-time, decoupled scaling, multi-tenant SaaS.
+- Weak fit: synchronous query-response, large file payloads, ordered transactional updates that need exactly-once semantics.
+- Strengths: pub-sub, retained durability, schema registry, integrates with CAP and SAP-managed BTP services.
+- Watch-outs: requires a re-think of consumer error handling (consumers must be idempotent). Topology and topic naming need governance up-front.
+
+**File transfer (SFTP, AS2, file mount)**
+
+- Strong fit: very large bulk loads, partner cannot or will not change their export, scheduled hand-offs, EDIFACT/X12 documents.
+- Weak fit: any near-real-time scenario; debugging individual records is painful.
+- Strengths: dirt simple, every system speaks it, replay is trivial.
+- Watch-outs: end-to-end monitoring is weak unless wrapped in middleware; PII in plaintext on disk is a recurring audit finding.
+
+**REST / OpenAPI on BTP (CAP)**
+
+- Strong fit: greenfield extension app on BTP, bespoke contract, public API for external developers.
+- Weak fit: replacing established SAP-internal integration paths; do not invent a REST shim around an OData service that already exists.
+- Strengths: CAP gives you OData and REST for free, with the same model; deploy alongside event mesh consumers.
+- Watch-outs: ownership and lifecycle of the BTP service must be staffed.
+
+### Step 5 - Emit the recommendation
+
+Produce:
+
+1. **Primary pattern** with one paragraph of rationale that cites the most influential scenario axes (typically latency, volume, coupling, target stack).
+2. **Runner-up** with the one or two scenarios where it would have won.
+3. **Decision table** showing every candidate that survived step 2 with its 1-5 scores on the seven axes and a final weighted total.
+4. **Operational checklist.** Three to seven concrete next steps for the chosen pattern. Examples: "Define IDoc partner profile in WE20", "Publish OData service via Communication Arrangement SAP_COM_xxxx", "Create event topic namespace and dead-letter queue", "Add SAP Cloud Connector mapping for the RFC destination".
+
+## Inputs
+
+- `scenario` - required free-text. Encourage the user to include the full canonical-form axes; if anything is missing, ask one round of clarifying questions before answering.
+- `direction`, `latency_class`, `target_landscape` - optional structured fields that override or supplement what the parser pulls from the scenario text.
+
+## Outputs
+
+- `recommendation` - markdown with the primary pattern, runner-up, rationale, and operational checklist.
+- `decision_table` - markdown table with the scoring matrix.
+
+## Examples
+
+> "Partner system on the public internet needs to push 5000 sales orders per day into S/4 on-prem. Latency tolerance is a few minutes. Partner exports as JSON over HTTPS."
+
+Recommendation (abridged): **OData (V4) write endpoint exposed via Communication Arrangement**, JSON-native, REST-friendly, authenticated by mTLS or OAuth2 client credentials through Cloud Connector / Edge Integration Cell. Runner-up: **IDoc ORDERS05 via SAP Integration Suite** if the partner can be coaxed onto a B2B channel, which buys mature monitoring at the cost of more glue.
+
+> "S/4 public cloud needs to notify a non-SAP warehouse whenever a stock level drops below a threshold; multiple downstream consumers; sub-minute."
+
+Recommendation: **SAP Event Mesh with a stock-change cloud event**. Runner-up: **OData webhook** if only one consumer ever exists. IDoc and RFC are eliminated at step 2 because the target is S/4 public cloud.
+
+## Limitations
+
+- The picker assumes the SAP stack matters; if the problem is really about partner onboarding or organisational politics, no protocol choice will fix it.
+- Cost estimates are not produced. Licensing for SAP Integration Suite and Advanced Event Mesh is significant and may dominate the decision in practice; consult procurement.
+- Latency estimates are heuristics, not benchmarks. For sub-100ms requirements, prototype before committing.
+- Industry-specific accelerators (banking IDocs, retail PFCG roles, etc.) may pre-empt a generic choice. Defer to a published reference architecture if one exists for the industry.
+- The skill cannot inspect the target system to verify which Communication Scenarios are activated.
+
+## Sources synthesised (all permissive)
+
+- `SAP-samples/cloud-cap-samples-java`, `cap-sflight`, `btp-cap-demo-usecases` - Apache-2.0; OData and CAP patterns.
+- `SAP-samples/cloud-abap-event-mesh-api`, `event-mesh-client-java-samples`, `event-mesh-client-nodejs-samples`, `btp-sf-extension-adv-event-mesh`, `btp-event-driven-multi-tenant-architecture` - Apache-2.0; event-mesh trade-offs and dead-letter patterns.
+- `abap-openapi/abap-openapi` - Apache-2.0; OData / OpenAPI surface and the IDoc-to-REST transition rationale.
+- `SAP-archive/C4CODATAAPIDEVGUIDE` - referenced for OData V2 patterns (archive; methodology only).
+- `SAP/open-ux-odata` - Apache-2.0; OData metadata and annotation conventions.
+- `SAP-samples/abap-platform-ccm-workshops` - Apache-2.0; landscape constraints (S/4 cloud vs on-prem).

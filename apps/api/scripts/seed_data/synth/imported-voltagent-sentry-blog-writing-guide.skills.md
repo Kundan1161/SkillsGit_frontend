@@ -1,0 +1,101 @@
+---
+id: skillsgit-curated/imported-voltagent-sentry-blog-writing-guide
+version: 1.0.0
+name: Sentry Blog Writing Guide
+description: Write technical blog posts in the Sentry engineering voice — direct, opinionated, no corporate filler, numbers behind every claim, "the post you wish existed when solving the problem."
+authors:
+  - name: Sentry
+    handle: getsentry
+    role: author
+  - name: skillsgit Curated
+    handle: skillsgit-curated
+    role: maintainer
+category: marketing
+tags: [imported, source-voltagent, sentry, technical-writing, engineering-blog, content]
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6, gpt-4o]
+  min_context_tokens: 32000
+  estimated_tokens_per_invocation: 6000
+trigger_keywords: [sentry blog, engineering blog, technical writing, dev content, would-i-share-this]
+example_invocations:
+  - Draft a Sentry-style blog post about my N+1 fix
+  - Rewrite this intro in the senior-dev-at-a-conference voice
+  - Check this post against the "Would I Share This?" test
+inputs: []
+outputs: []
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Imported from VoltAgent/awesome-agent-skills under Apache-2.0.
+---
+
+# Sentry Blog Writing Guide
+
+## When to use
+
+Use this skill when creating technical content for Sentry's engineering blog or any blog adopting its voice — direct, opinionated, technically precise.
+
+## How to apply
+
+Sound like a senior developer at a conference afterparty — technically precise, opinionated, and direct. Ban corporate language: no "seamless," "leverage," "we're excited to announce." Every technical claim needs a number. Every code block must run.
+
+## Critical Standards
+
+- Openings state either the problem or the conclusion within 2–3 sentences.
+- Structure follows reader questions: **problem → how it works → trade-offs → implementation**.
+- Paragraphs break at contrast points for readability.
+- All technical claims require numbers.
+- Code must be tested.
+- Titles make specific claims, not vague announcements.
+- Every post needs a real person's byline.
+
+## The "Would I Share This?" Test
+
+Posts must contain at least one of:
+
+- Original insights
+- A real debugging story
+- Honest trade-off analysis
+- Actionable guidance worth a developer's time
+
+Shallow posts are the bigger risk than overly detailed ones. Aim for "the post you wish existed when solving this problem."
+
+## Banned Phrases
+
+- "Seamless"
+- "Leverage"
+- "We're excited to announce"
+- "Revolutionary"
+- "Synergy"
+- "Best-in-class"
+- "Empower"
+
+## Structure Template
+
+1. **Hook** (2-3 sentences) — Problem or conclusion stated.
+2. **Context** — What the reader needs to know to follow along.
+3. **How it works** — Mechanism, with numbers and code.
+4. **Trade-offs** — What you lose, where this fails.
+5. **Implementation** — Concrete code or steps the reader can copy.
+6. **What's next** — Open problems, related links.
+
+## Voice Cues
+
+- Use "we" or "I" — own decisions.
+- Cite specific systems, versions, and benchmarks.
+- Show real graphs, real stack traces, real numbers.
+- Don't apologize for opinions; do show your work.
+
+## Attribution
+
+This skill was imported from `VoltAgent/awesome-agent-skills` under the MIT license, originating from the `getsentry/skills` repository under the Apache-2.0 license. Original content authored by the listed contributor(s) at the source repository. Modifications by skillsgit: frontmatter normalization to fit marketplace spec; addition of attribution and sources sections.
+
+## Sources reviewed
+
+- https://github.com/VoltAgent/awesome-agent-skills (MIT)
+- https://github.com/getsentry/skills/tree/main/skills/blog-writing-guide (Apache-2.0)

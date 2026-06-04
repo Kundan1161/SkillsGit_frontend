@@ -1,0 +1,345 @@
+---
+id: skillsgit-curated/med-risk-of-bias-assessor
+version: 1.0.0
+name: Medical Risk-of-Bias Assessor
+description: Apply a study-design-appropriate risk-of-bias instrument to individual medical studies — per-domain judgments, signaling-question reasoning, and supporting evidence quotes drawn from each paper.
+authors:
+  - name: skillsgit Curated
+    handle: skillsgit-curated
+    role: author
+category: healthcare
+tags: [niche:systematic-review-methodology, risk-of-bias, critical-appraisal, randomized-trials, non-randomized-studies, diagnostic-accuracy, prognostic-studies]
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6, gpt-4o, gpt-4.1, gemini-1.5-pro]
+  tools_required: [file_io]
+  tools_optional: [web_search]
+  min_context_tokens: 32000
+  estimated_tokens_per_invocation: 12000
+trigger_keywords:
+  - risk of bias
+  - rob 2
+  - robins-i
+  - quadas-2
+  - quips
+  - prognostic risk of bias
+  - critical appraisal
+  - bias domain
+  - signaling questions
+  - selection bias
+  - performance bias
+  - detection bias
+  - attrition bias
+  - reporting bias
+  - confounding assessment
+example_invocations:
+  - "Assess risk of bias for this open-label randomized trial of a behavioral intervention."
+  - "Apply a non-randomized-study bias tool to this cohort study of post-operative outcomes."
+  - "Run a diagnostic-accuracy risk-of-bias appraisal on this index-test-vs-reference-standard study."
+inputs:
+  - name: study_text
+    type: text
+    required: true
+    description: Full text or detailed structured summary of the study being appraised — design, eligibility, randomization, blinding, follow-up, outcome measurement, analysis, and reported limitations.
+  - name: study_design
+    type: choice
+    required: true
+    description: Design family. Determines which instrument family applies.
+    choices: [randomized_trial, cluster_randomized_trial, crossover_trial, non_randomized_intervention, observational_cohort, case_control, diagnostic_accuracy, prognostic_factor, prognostic_model, qualitative]
+  - name: review_question
+    type: text
+    required: true
+    description: The structured question the review is answering (population, intervention/exposure, comparator, outcome, time horizon). Bias judgments are made relative to a target effect and population.
+  - name: target_outcome
+    type: text
+    required: false
+    description: The specific outcome for which bias is being judged. If multiple outcomes have different blinding or follow-up patterns, run the appraisal per outcome.
+  - name: effect_of_interest
+    type: choice
+    required: false
+    description: Whether the appraisal targets the effect of assignment (intention-to-treat-like) or the effect of adherence (per-protocol-like). For intervention trials this changes how deviations are judged.
+    choices: [effect_of_assignment, effect_of_adherence, not_applicable]
+outputs:
+  - name: per_domain_assessment
+    type: markdown
+    description: For each bias domain, the signaling-question answers, the proposed judgment (low / some concerns / high or analogous), the supporting evidence paraphrased from the study, and the assessor's reasoning.
+  - name: overall_judgment
+    type: markdown
+    description: The overall risk-of-bias rating for the study-outcome combination with the algorithm that produced it.
+  - name: extraction_notes
+    type: markdown
+    description: Items the methodology lead must verify before the rating is locked — ambiguities, missing information that may warrant author contact, and any deviations from the instrument's default rules.
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Initial release. Synthesized from open-access methodology references with original instructional prose.
+---
+
+# Medical Risk-of-Bias Assessor
+
+## When to use
+
+Use this skill once a study has passed full-text screening and the review team is ready to judge how much that study's design and execution should be trusted for the target outcome. Risk-of-bias judgments live at the study-outcome level, not the study level alone: the same trial can be low-risk for a hard endpoint and high-risk for a subjective endpoint measured by an unblinded assessor.
+
+**This skill produces methodology guidance only. Outputs are not clinical recommendations. Every conclusion about treatment efficacy or safety must be reviewed by qualified clinical/research staff and confirmed against current clinical practice guidelines and primary literature.**
+
+Typical triggers:
+
+- A reviewer is sitting down with an included study and needs to walk through the appraisal in a structured way rather than relying on a global impression.
+- Two reviewers have disagreed on an overall rating and need to surface where in the domain-level reasoning the disagreement actually lives.
+- A methods chapter is being drafted and the team wants the per-study judgments to be reproducible months later.
+- An external reviewer has asked the team to make their bias reasoning explicit, including the textual basis for each judgment.
+
+Do not use this skill for:
+
+- Selecting which instrument to use without a stated design — the skill expects `study_design` to be set; if it is not, route to a protocol-design or study-classification activity first.
+- Producing a body-of-evidence certainty rating — that is a separate downstream activity that consumes these per-study ratings.
+- Clinical interpretation of the underlying study results — bias appraisal is independent of whether the result is large, small, or null.
+
+## Inputs
+
+- `study_text` (required) — The full text of the study or a careful structured summary covering at least: design type, eligibility, sequence generation and concealment if applicable, blinding of participants/personnel/assessors, follow-up completeness, deviations from protocol, outcome measurement procedure, analysis approach, pre-registered protocol or statistical analysis plan if cited, and any author-reported limitations. Bias judgments rest on textual evidence; without text, the skill must report `No information` for the affected signaling question.
+- `study_design` (required) — One of the supported design families. The skill routes to the matching instrument family. If the design is mixed (e.g., a trial with an embedded observational extension), run the appraisal twice with the relevant design selected each time.
+- `review_question` (required) — The review's structured question. Judgments such as indirectness-via-population or differential measurement risk depend on the target.
+- `target_outcome` — The specific outcome being judged. For trials with both objective and subjective outcomes, the per-outcome rating may differ in the measurement domain.
+- `effect_of_interest` — For intervention studies, whether the assessment targets the effect of being assigned to the intervention (closer to an intention-to-treat framing) or the effect of receiving the intervention as planned (closer to per-protocol). This changes how protocol deviations are evaluated.
+
+## How to apply
+
+Apply the steps in order. Where the study text is silent on a signaling question, mark the answer `No information` rather than guessing; surface a recommendation to attempt author contact in `extraction_notes` when the missing item is decisive.
+
+### 1. Pick the instrument family from the study design
+
+Route by design family. Each family has its own bias domains and signaling questions:
+
+- **Randomized trial (parallel-group):** five domains covering the randomization process, deviations from the intended interventions, missing outcome data, measurement of the outcome, and selection of the reported result.
+- **Cluster-randomized trial:** the parallel-group domains plus an extra layer on cluster identification, recruitment of participants into clusters, and baseline cluster imbalance.
+- **Crossover trial:** the parallel-group domains plus considerations for period and carry-over effects.
+- **Non-randomized study of interventions:** seven domains spanning confounding, selection of participants into the study, classification of the intervention, deviations from intended interventions, missing data, measurement of the outcome, and selection of the reported result. Confounding is the dominant axis and starts with the assumption that some confounding exists; the question is how well it was handled.
+- **Observational cohort / case-control for harms or prognosis-adjacent questions:** apply the non-randomized intervention framework when the question is causal, or a prognosis-specific framework when the question is about predictors rather than interventions.
+- **Diagnostic-accuracy study:** four domains covering patient selection, the index test, the reference standard, and the flow and timing between index and reference assessments. Applicability concerns are tracked separately from risk-of-bias concerns.
+- **Prognostic-factor study:** six domains spanning study participation, study attrition, prognostic-factor measurement, outcome measurement, study confounding, and statistical analysis and reporting.
+- **Prognostic-model study:** four domains covering participants, predictors, outcome, and analysis, with extra attention to over-fitting and external validation when applicable.
+- **Qualitative study:** a tailored appraisal centered on credibility, dependability, confirmability, and transferability rather than on bias as defined for quantitative designs.
+
+Note in the output which instrument family was selected and why, so a second reviewer can audit the routing decision.
+
+### 2. Walk every signaling question in order
+
+For each domain, work through the signaling questions one at a time. Each signaling question has a small set of allowed answers — `Yes`, `Probably yes`, `Probably no`, `No`, and `No information` — and answers map to a proposed judgment through the instrument's algorithm. The skill must:
+
+2.1. State the signaling question in plain language without copying the instrument's exact wording.
+
+2.2. Answer with one of the allowed values.
+
+2.3. Quote (paraphrased, not verbatim) one to three short evidence snippets from the study that support the answer. The paraphrase preserves meaning but uses the assessor's own words; this protects against inadvertent reproduction of long passages.
+
+2.4. Flag any answer that depends on an assumption (e.g., "we assume blinded outcome assessment because the protocol describes a central adjudication committee, though the methods section does not state assessor masking explicitly").
+
+2.5. Use `No information` honestly. A `No information` answer is informative; it tells the synthesis team that the study did not report the relevant detail and that the rating reflects uncertainty rather than confirmed soundness.
+
+### 3. Derive the per-domain judgment
+
+After all signaling questions in a domain are answered, propose the domain-level judgment. The default rules for the common instruments are:
+
+- **Low risk** when the answers across the domain are consistent with the study being well-conducted in that respect, with no items flagging concern.
+- **Some concerns** when one or more answers indicate uncertainty or a deviation that is not clearly serious.
+- **High risk** when at least one answer flags a serious problem (e.g., un-concealed allocation in a small unblinded trial of a subjective outcome, substantial differential loss to follow-up with no plausible adjustment, post-hoc outcome substitution).
+
+For instruments that use a four-level scale (low / moderate / serious / critical, often used for non-randomized studies), the threshold rises with each level. `Critical` is reserved for problems that make the study uninformative for the target effect; rare but possible (e.g., a cohort study of a harm where the outcome was ascertained only in exposed participants).
+
+State the proposed judgment, then state in one or two sentences why it is the right judgment given the signaling-question pattern. If the assessor would override the algorithmic default, state the override and the rationale.
+
+### 4. Assemble the overall study-outcome judgment
+
+Combine the per-domain judgments using the instrument's overall algorithm. The common pattern is:
+
+- **Overall low risk** — every domain is judged low risk.
+- **Overall some concerns** — at least one domain is some concerns, no domain is high risk.
+- **Overall high risk** — at least one domain is high risk, or multiple domains are some concerns in a way that compounds.
+
+For non-randomized studies the analogous rule applies but with four levels; an overall `Critical` is propagated up if any domain is `Critical`.
+
+Document the overall judgment with the algorithm path: which domains drove it, and (if multiple domains were elevated) which one was the binding constraint.
+
+### 5. Tailor to the effect of interest
+
+For intervention studies, the same trial can warrant different judgments depending on whether the effect of assignment or the effect of adherence is being estimated.
+
+- For the **effect of assignment**, deviations from the intended intervention that reflect normal practice (e.g., patients stopping a drug because of side effects) are typically not penalized — they are part of the question. Analytic approaches that estimate the effect of assignment with intention-to-treat principles are appropriate.
+- For the **effect of adherence**, the same deviations may threaten validity if the analysis has not appropriately handled non-adherence. Instrumental-variable or per-protocol analyses with explicit assumptions are typically required for a low-risk rating.
+
+State the chosen target explicitly and run the deviations domain accordingly.
+
+### 6. Handle subjective and objective outcomes separately
+
+A single trial can have two outcomes with different risk profiles. Reasons:
+
+- **Measurement blinding** — an objective outcome (all-cause mortality from registry linkage) may be low risk even when the trial is open-label, while a patient-reported outcome is high risk under the same design.
+- **Selective reporting** — a primary outcome registered in a protocol is at lower risk than a secondary outcome added at analysis stage.
+- **Outcome ascertainment frequency** — outcomes ascertained at every visit are at lower risk of detection bias than outcomes assessed only at end-of-study.
+
+If the review extracts multiple outcomes per study, run the appraisal once per outcome. Surface this requirement in `extraction_notes` even if the current invocation covers only one outcome.
+
+### 7. Distinguish risk-of-bias concerns from applicability concerns
+
+For some instrument families (notably diagnostic accuracy), applicability is a separate axis from bias. A study can be low risk of bias but high applicability concern because the population, the index test version, or the reference standard differs from the review's question. Keep these axes separate in the output so the synthesis team can use them differently — bias judgments feed into a study limitations downgrade; applicability judgments feed into an indirectness downgrade at the body-of-evidence stage.
+
+### 8. Quote evidence parsimoniously and paraphrase
+
+For each domain, retain the brief paraphrased evidence quotes that justify the answer. Two to four short paraphrased snippets per domain are usually enough. Verbatim copying of long passages from the study should be avoided; assessors should rephrase each snippet in their own words. The purpose of evidence quotes is auditability, not reproduction of the underlying paper.
+
+### 9. Flag items that warrant author contact
+
+If a high-leverage signaling question is answered `No information`, suggest in `extraction_notes` that the team consider contacting the study authors. Examples:
+
+- Allocation concealment in a small open-label trial of a subjective outcome.
+- Whether the analysis was pre-specified or driven by the data, when the protocol is not publicly registered.
+- Number and reasons for losses to follow-up by arm, when only an overall percentage is reported.
+
+Author contact is not always feasible; the recommendation is for the methodology lead to weigh.
+
+### 10. Calibrate before the full corpus
+
+Recommend a calibration step before independent appraisal proceeds across all included studies. The standard pattern is:
+
+10.1. All reviewers appraise the same three to five studies independently.
+
+10.2. The team meets to discuss disagreements at the signaling-question level, not the overall rating level.
+
+10.3. The instrument's interpretation rules are documented (e.g., "for this review we treat patient-reported pain on a numerical rating scale as a subjective outcome regardless of how it was administered").
+
+10.4. Reviewers proceed with independent appraisal of the remaining studies, using the documented rules.
+
+10.5. Disagreements are adjudicated by a third reviewer; the adjudication rule is stated in the review protocol.
+
+### 11. Internal validation before emit
+
+Before producing the final output, check:
+
+- Instrument family matches the declared `study_design`; routing decision is documented.
+- Every signaling question in every domain has an answer, including `No information` where appropriate.
+- Every non-`No information` answer is supported by at least one paraphrased evidence snippet.
+- Per-domain judgments follow the algorithm or document an override with rationale.
+- Overall judgment follows from per-domain judgments with the algorithm path stated.
+- The appraisal is anchored to a specific outcome where `target_outcome` is provided.
+- The chosen `effect_of_interest` is reflected in the deviations domain.
+- Applicability concerns (where the instrument tracks them separately) are kept distinct from bias.
+- `extraction_notes` lists any ambiguities and the recommended next step.
+
+### 12. Emit
+
+Produce `per_domain_assessment` with domain-by-domain reasoning, `overall_judgment` with the algorithmic derivation, and `extraction_notes` with open items.
+
+### Decision rules and heuristics
+
+- **Anchor judgments to text, not to study reputation.** A high-impact-journal trial can still be high risk of bias on a specific domain; a small trial can be low risk.
+- **Per-outcome appraisal beats per-study appraisal.** If you have to pick one, pick the critical outcome.
+- **`No information` is a judgment.** Do not upgrade a study because its problems are hidden by under-reporting.
+- **Document the algorithm path.** When the algorithm produces a borderline overall rating, the path is the audit trail.
+- **Resist halo and reverse-halo effects.** A well-blinded trial can still have selective reporting. A poorly-reported trial can still have sound randomization.
+- **Confounding is the starting line for non-randomized studies.** The question is not whether confounding is plausible — it almost always is — but whether the design and analysis have handled it credibly.
+- **Pre-registered protocols are weighty evidence on selective reporting.** Their absence is also weighty.
+
+### Edge cases
+
+- **Pilot or feasibility trials.** Often small and open-label. Bias appraisal is appropriate but the result should rarely drive a clinical recommendation regardless of the rating.
+- **Cluster-randomized trials with few clusters.** Even with sound randomization, baseline imbalance is more likely; the cluster-specific domain is the binding constraint.
+- **Stepped-wedge designs.** Treat as cluster-randomized with time confounding requiring explicit analytic handling.
+- **N-of-1 trials.** Apply a crossover framing; carry-over and washout are typically the binding constraints.
+- **Single-arm or before-after studies.** Often the design itself is high or critical risk for causal questions; the appraisal documents this rather than masking it.
+- **Pragmatic trials.** Performance and contamination across arms are more likely than in explanatory trials; the deviations domain warrants careful attention to the effect-of-interest distinction.
+- **Diagnostic case-control with healthy controls.** Patient selection is typically a high-risk domain regardless of other quality features.
+- **Prognostic-model validation studies that lack external data.** Often high risk in the analysis domain because of optimism.
+- **Studies retracted after publication.** Note retractions in `extraction_notes` and recommend exclusion or sensitivity analysis with the team's lead.
+
+## Outputs
+
+- `per_domain_assessment` — Markdown with one section per bias domain: signaling questions answered, paraphrased evidence snippets, the proposed domain judgment, and the reasoning.
+- `overall_judgment` — Markdown with the overall study-outcome rating and the algorithm path that produced it.
+- `extraction_notes` — Markdown listing any `No information` items that may warrant author contact, any deviations from default instrument rules, and any per-outcome reruns the team should schedule.
+
+## Examples
+
+### Worked example (abbreviated)
+
+Input:
+
+> Study: open-label parallel-group trial of a digital cognitive-behavioral intervention for adolescents with moderate depression, 12-week duration, n=180, primary outcome patient-reported depression score, secondary outcome adverse-event rate. Allocation by central web randomization with concealment. Assessors of outcome were not blinded. 15% loss to follow-up; reasons described per arm. Protocol registered six months before enrollment. Effect of interest: assignment.
+
+Routing: parallel-group randomized trial framework.
+
+Per-domain (abbreviated):
+
+```
+Domain: Randomization process
+  Q1 — Was the allocation sequence random? Yes. Evidence: central web randomization described.
+  Q2 — Was allocation adequately concealed? Yes. Evidence: same.
+  Q3 — Baseline imbalances suggestive of a problem? No. Evidence: baseline table balanced on age, sex, and depression severity.
+  Judgment: Low risk.
+
+Domain: Deviations from intended interventions (effect of assignment)
+  Q — Were participants/personnel aware of assignment? Yes (open-label). Evidence: design statement.
+  Q — Were there deviations beyond what would be expected in usual care? Probably no. Evidence: similar discontinuation rates by arm.
+  Q — Was analysis appropriate for the effect of assignment? Yes (intention-to-treat principle described).
+  Judgment: Low risk for effect of assignment.
+
+Domain: Missing outcome data
+  Q — Data available for most randomized participants? Yes (85%). Evidence: flow diagram.
+  Q — Plausibility of missingness related to outcome? Probably no. Evidence: reasons documented, balanced by arm.
+  Judgment: Low risk.
+
+Domain: Measurement of the outcome (primary outcome — patient-reported depression score)
+  Q — Method of measurement appropriate? Yes. Evidence: validated instrument used.
+  Q — Could measurement differ between arms? Probably yes — patient-reported outcome, participants unblinded.
+  Q — Were outcome assessors blinded? No. Evidence: open-label design extends to self-report.
+  Judgment: High risk for the patient-reported primary outcome.
+
+Domain: Measurement of the outcome (secondary outcome — adverse-event rate, ascertained by clinician interview)
+  Q — Could measurement differ between arms? Probably yes — clinician aware of assignment.
+  Judgment: Some concerns for the AE outcome.
+
+Domain: Selection of the reported result
+  Q — Were results assessed in line with a pre-specified plan? Yes. Evidence: registered protocol predating enrollment.
+  Judgment: Low risk.
+
+Overall (for the patient-reported primary outcome): High risk, driven by measurement domain.
+Overall (for the AE outcome): Some concerns, driven by measurement domain.
+```
+
+Extraction notes (abbreviated):
+
+```
+- Per-outcome appraisal performed for primary and AE outcome; consider running again for any
+  additional secondary outcomes used in the synthesis.
+- Open-label design is structural; no remedy beyond noting at the synthesis stage.
+- The team should confirm whether central blinded adjudication of any safety events occurred;
+  the published methods are ambiguous on this point. Author contact recommended if AE outcome
+  is critical to the review.
+```
+
+## Limitations
+
+- Bias appraisal is design-specific. Misclassifying the design routes to the wrong instrument and invalidates the rating.
+- Many studies under-report key methodological details. `No information` is honest but reduces the precision of the appraisal.
+- Per-outcome appraisal is the standard but is more expensive than per-study; teams should budget time accordingly.
+- The skill produces a structured rating from study text; it does not run statistical re-analysis of the underlying data.
+- Risk-of-bias judgments are independent of the magnitude or direction of the study's results; if the assessor's reasoning seems to track the result rather than the methods, recalibrate.
+- The skill does not replace the role of a methodology lead or a second independent reviewer.
+
+## Sources reviewed
+
+- PRISMA 2020 reporting framework, prisma-statement.org (open-access reporting guidance referenced for terminology only)
+- Cochrane Handbook chapters on bias assessment for intervention reviews (CC-BY for some editions; methodology read, not text copied)
+- RoB 2 working-group documentation for randomized trials, methods.cochrane.org (methodology read)
+- ROBINS-I documentation for non-randomized studies of interventions (methodology read)
+- QUADAS-2 documentation for diagnostic-accuracy studies (methodology read)
+- QUIPS framework for prognostic-factor studies (methodology read)
+- PROBAST framework for prognostic-model studies (methodology read)
+- AMSTAR 2 documentation for appraising existing systematic reviews (read for context; this skill targets primary-study appraisal rather than review appraisal)
+- https://www.equator-network.org/ (reporting-guideline registry)
+- https://github.com/mcguinlu/robvis (open-source visualization for bias tables; MIT licensed)

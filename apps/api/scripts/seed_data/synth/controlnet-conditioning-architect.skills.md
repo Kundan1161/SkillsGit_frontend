@@ -1,0 +1,252 @@
+---
+id: skillsgit-curated/controlnet-conditioning-architect
+version: 1.0.0
+name: ControlNet Conditioning Architect
+description: Design spatial-conditioning stacks for diffusion models — canny, depth, openpose, scribble, lineart, normal-map preprocessors, multi-control stacking, masks, control weights, and start/end ramps.
+authors:
+  - name: skillsgit Curated
+    handle: skillsgit-curated
+    role: author
+category: creative
+tags: [niche:ai-image-generation, spatial-conditioning, controlnet, depth-conditioning, pose-conditioning, mask-discipline, control-weight, multi-controlnet]
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6, gpt-4o, gpt-4.1, gemini-1.5-pro]
+  tools_required: []
+  tools_optional: [web_search, file_io]
+  min_context_tokens: 28000
+  estimated_tokens_per_invocation: 6000
+trigger_keywords:
+  - controlnet
+  - spatial conditioning
+  - depth conditioning
+  - openpose
+  - canny edge
+  - scribble conditioning
+  - lineart conditioning
+  - normal map diffusion
+  - multi-controlnet
+  - control weight
+  - control start end
+  - mask discipline
+example_invocations:
+  - "Design a multi-ControlNet stack to lock composition and pose for a product hero shot."
+  - "We have a depth pass from Blender and a pose rig; show me how to layer them for SDXL."
+  - "Plan control weights and start/end ramps so the model uses pose only in the first half of denoising."
+inputs:
+  - name: scene_intent
+    type: text
+    required: true
+    description: What the contributor wants the conditioned generation to lock — composition, pose, geometry, edges, surface normals — and which attributes should remain free for the prompt.
+  - name: available_signals
+    type: text
+    required: false
+    description: What inputs the contributor has available — reference photo, line drawing, 3D depth pass, pose rig, normal map, segmentation map.
+  - name: model_and_runtime
+    type: text
+    required: false
+    description: Target model family (SD 1.5, SDXL, SD 3.x, Flux-class), backend, VRAM budget, batch size.
+  - name: failure_modes
+    type: text
+    required: false
+    description: Previous attempts and their failure profile — over-constrained output, wrong pose, ghost edges, doubled subjects, melted geometry.
+outputs:
+  - name: control_stack_plan
+    type: markdown
+    description: Plan covering preprocessor choice, model selection per control, weights, start/end ramps, mask discipline, conflict resolution, and a diagnostic checklist.
+  - name: stack_json
+    type: json
+    description: Structured plan with `controls` (list with type, preprocessor, model, weight, start, end, mask), `conflict_policy`, `ramp_schedule`, `diagnostics`, `risk_notes`.
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Initial release.
+---
+
+# ControlNet Conditioning Architect
+
+## When to use
+
+Use this skill when a contributor wants to *lock* specific spatial attributes of a diffusion generation — composition, pose, geometry, edges, depth, surface normals — while leaving the rest of the image free for the prompt. Spatial conditioning is the right tool when prompts alone cannot reproduce the wanted layout, when an external reference (a 3D depth pass, a hand drawing, a posed rig, a segmentation map) must be honoured, or when a series of images must share a structural backbone.
+
+The plan covers preprocessor choice (canny, depth, openpose, scribble, lineart, normal map, segmentation, tile, reference, soft-edge), the matched control-model selection per preprocessor, the per-control weight, the start and end ramp (when in the denoising schedule the control is active), the mask discipline (regional control versus full-frame), the conflict-resolution policy when multiple controls disagree, and the diagnostic ladder for when the stack produces over-constrained or under-constrained output.
+
+The skill is downstream of `ai-image-prompt-designer` (which composes the prompt) and is parallel to `lora-and-finetune-methodology` (which biases style and subject). It is appropriate for SD 1.5, SDXL, and the increasing pool of Flux-class and SD 3.x compatible control adapters; preprocessors are largely shared, but the control-model weights and availability differ.
+
+**Mandatory safety disclaimer.** This skill produces methodology guidance for diffusion-based image generation. The skill does not address the copyright status of training data or generated outputs in any jurisdiction; consult counsel for commercial use. The skill does not produce or recommend NSFW, defamatory, infringing, or person-impersonating content; usage must respect platform policy and applicable law.
+
+## Inputs
+
+| Input | Required | Purpose |
+| --- | --- | --- |
+| `scene_intent` | yes | Decides which attributes are locked and which are free. |
+| `available_signals` | no | Decides which preprocessors are reachable without manual rebuilding. |
+| `model_and_runtime` | no | Selects compatible control models, weights, and VRAM-aware stacking. |
+| `failure_modes` | no | Targets the diagnostics and ramp adjustments. |
+
+## How to apply
+
+The skill walks a twelve-stage pipeline. Early stages frame intent and choose controls. Middle stages compose the stack, weights, and ramps. Late stages handle masks, conflicts, diagnostics, and the deliverable.
+
+### Stage 1 — Restate scene intent in terms of *attributes locked* vs *attributes free*
+
+1. From `scene_intent` extract the list of attributes that must be reproduced exactly (composition, subject pose, large-form geometry, specific edge structure, depth ordering, surface orientation) and the list of attributes that must remain free for the prompt (style, lighting, colour, material, fine detail).
+2. The strongest tell that controls are being misused is "I want the controls to do the styling." Controls do not style; they lock structure. Style is a prompt-and-LoRA problem.
+3. Identify the *anchor structural attribute*. If composition is the anchor, depth or canny is primary. If pose is the anchor, openpose is primary. If freehand layout is the anchor, scribble or lineart is primary. If surface orientation is the anchor (think product/material rendering), normal map is primary.
+4. Identify the *acceptable bend*. How much can the control bend before it stops being honoured? A pose lock that bends 10% is fine; a pose lock that bends 40% defeats the purpose. The acceptable bend drives the weight and the end ramp.
+
+### Stage 2 — Choose the preprocessor family
+
+5. *Canny edge.* Strong at preserving fine edge structure. Use when the reference has clear contours and the generation should follow them. Sensitive to noise; thresholds matter. Use a low threshold of 100 and high of 200 as a starting point; for clean line drawings use lower thresholds.
+6. *Soft-edge / HED / PiDiNet.* Softer alternative to canny. Less brittle to high-frequency noise; useful when the reference is photographic and canny would over-fire on textures.
+7. *Lineart and lineart-anime.* Designed for line drawings and anime-style content; produces clean line conditioning that handles ink-style strokes better than canny. Often the right choice for hand-drawn references.
+8. *Scribble.* Tolerates loose, hand-drawn shapes. Use when the reference is a rough sketch rather than a finished drawing; the model fills in detail.
+9. *Depth (MiDaS, Zoe, Depth Anything).* Locks depth ordering and large-form geometry. The strongest "composition lock" for most scenes — the subject, background, mid-ground stay where they were. Use Depth Anything for monocular depth from a photo; use a Blender or game-engine depth pass when the source is 3D.
+10. *Openpose.* Locks human (and where supported, animal) skeletal pose. Two variants matter: full-body keypoints, and face/hand keypoints. Hands are notoriously fragile; combining openpose-hand with mediapipe hand or with a hand-specific control increases robustness.
+11. *Normal map.* Locks surface orientation. Use for product shots, architectural renders, or any case where light interaction with surfaces must be predictable. Source from a 3D pipeline or estimate from a depth pass.
+12. *Segmentation (semantic).* Locks per-region semantics (sky here, road here, building here). Useful for layout-heavy work but coarse; usually paired with depth or canny.
+13. *Tile.* Conditions on a low-resolution version of the target. Use for upscaling-via-diffusion and for "polish this draft" workflows. Tile is the workhorse of high-resolution diffusion upscaling.
+14. *Reference (reference-only, IP-Adapter-like).* Conditions on a style reference rather than a structural one. Lower fidelity than a trained LoRA but no training required. Useful for one-off style transfer where the goal is "in the spirit of" rather than "exactly like."
+15. *Inpaint-conditioning.* A control that takes a masked region as conditioning and leaves the unmasked region as latent reference. The downstream skill `inpainting-outpainting-workflow` covers inpaint-conditioning in depth.
+
+### Stage 3 — Match preprocessors to control models
+
+16. Preprocessor and control model must agree. A canny preprocessor only meaningfully conditions a canny-trained control model; pointing a canny preprocessor at a depth control model produces noise. The plan lists, per control, the preprocessor and the matching trained model.
+17. SD 1.5 has the broadest control-model catalogue. SDXL control models are now mature for canny, depth, openpose, lineart, scribble, soft-edge, tile, segmentation. Flux-class and SD 3.x control adapters are growing fast; availability per control should be confirmed at planning time.
+18. Within a family, prefer the *latest revision* of a control model unless a specific older revision is required for a known-good behaviour. Control-model revisions are not always strictly better; the plan calls out version pinning where it matters.
+
+### Stage 4 — Choose per-control weight
+
+19. The weight controls how strongly the control's gradient is added to denoising. The default is 1.0; the useful range is roughly 0.4 to 1.5.
+20. *Below 0.5.* The control is a hint; the model freely deviates. Useful when the contributor wants the control to "guide" composition without locking it.
+21. *0.6 to 1.0.* The control is honoured. The model produces output close to the conditioned signal with prompt freedom for non-structural attributes.
+22. *Above 1.0.* The control is over-emphasised. Outputs become rigid; image quality drops; colour and texture flatten. Use sparingly and only for short ramps.
+23. The first weight to set is the anchor control's weight; secondary controls scale down from there. Two controls at 1.0 each fight; the secondary's weight is usually 0.5-0.7 of the anchor's.
+24. For preprocessors with sparse output (openpose, scribble), higher weights are usually safe. For dense outputs (canny, depth), higher weights compress dynamic range faster.
+
+### Stage 5 — Choose start and end ramps
+
+25. The start and end values bound which portion of the denoising schedule a control is active for. Default is 0.0 to 1.0 (active throughout). The useful range is partial — applying a control for only part of the schedule lets the model use it where it matters and ignore it where it constrains.
+26. *Start late, end on time.* Apply pose only after 20-30% of denoising to let the model develop global structure first. Sometimes produces better gesture and worse limb-anchoring; test both.
+27. *Start on time, end early.* Apply depth or canny in the first 50-70% of denoising and release for the last steps. The model develops the locked structure and then refines texture and detail without the control's flattening pressure. This pattern resolves many "over-constrained" complaints.
+28. *Start late, end late.* Used when the control is a polish (tile, reference). The model develops the image freely and is nudged by the control near the end.
+29. The ramp choice is per-control and is recorded in the plan with a one-line rationale. "Depth start 0.0 end 0.65" plus "canny start 0.0 end 0.55" plus "pose start 0.0 end 0.9" is a normal multi-control schedule for a product scene with a character.
+
+### Stage 6 — Multi-control stacking
+
+30. The plan composes the stack as an ordered list with the *anchor control first*. The anchor is the one structural attribute the contributor refuses to bend on.
+31. Stack the secondary controls that resolve the remaining structural needs. Typical pairings:
+    - Depth (composition anchor) + canny (edge fidelity) for product/architectural shots.
+    - Openpose (pose anchor) + depth (background composition) for character work.
+    - Lineart (drawing anchor) + reference (style hint) for illustration work.
+    - Normal map (material orientation anchor) + depth (background) for material/product rendering.
+32. Avoid stacking redundant controls (depth + segmentation often duplicate; canny + soft-edge often duplicate). Stacking redundant controls multiplies VRAM and compute without adding lock.
+33. Verify the backend supports the number of stacked controls at the chosen resolution. SDXL with three controls at 1024 short edge consumes meaningful VRAM; the plan flags expected VRAM and offers a fallback (lower resolution, fewer controls, reduced batch).
+34. Document the *minimum* stack — the controls that, if any are dropped, the generation no longer meets the brief. The minimum stack is the negotiation floor when VRAM is constrained.
+
+### Stage 7 — Mask discipline (regional control)
+
+35. By default, a control is applied to the entire frame. For regional control, apply the control through a mask so it only constrains a portion of the image.
+36. *Foreground-only pose lock.* Mask the subject; pose conditions inside the mask; the background is free for the prompt to compose.
+37. *Background-only composition lock.* Mask everything except the subject; the depth or segmentation locks the environment while the subject is free to be regenerated.
+38. *Per-character pose lock.* In multi-character scenes, separate masks per character carry separate openpose conditioning each. Avoids cross-character pose bleed.
+39. Mask edges. Soft-feathered masks (3-15 pixel feather, depending on resolution) avoid hard seam artefacts. Hard masks are appropriate for explicit cut-line work (silhouette preservation, etc.).
+40. Document mask sources. Hand-painted, SAM (Segment Anything)-derived, or imported alpha. SAM-derived masks are fast and reliable for objects and people; complex compositional masks may need manual cleanup.
+
+### Stage 8 — Conflict resolution
+
+41. When two controls disagree (depth says foreground here, pose says foreground there), the model resolves the conflict by weighted gradient sum. The visible effect is degraded image quality or split-the-difference outputs that satisfy neither control.
+42. The plan declares a *conflict-resolution policy* up front. Options:
+    - Weight asymmetry: anchor at 1.0, conflicting secondary at 0.4.
+    - Region masking: split the disagreement into non-overlapping masks.
+    - Ramp separation: anchor early, secondary late.
+    - Drop a control: when the secondary's contribution is marginal, dropping it is often the right call.
+43. Provide a diagnostic for whether a defect is a conflict defect. Symptom: stacked controls produce worse output than the anchor alone. Diagnostic: turn off all secondaries; if anchor-only output is fine, the secondaries are conflicting. Re-introduce one at a time.
+
+### Stage 9 — Diagnostics
+
+44. *Over-constrained output.* Symptoms: rigid composition, flat textures, "ControlNet glow" around edges, low diversity across seeds. Treatments in order: drop anchor weight by 0.1, shorten the end ramp by 0.1, increase steps slightly, swap canny for soft-edge.
+45. *Under-constrained output.* Symptoms: control attributes not honoured, output drifts. Treatments: raise anchor weight by 0.1, extend the end ramp, confirm preprocessor output (display the preprocessed map to confirm the signal is correct), confirm the matching control model is loaded.
+46. *Ghost edges or doubled subjects.* Symptoms: secondary outline of canny edges, mirrored subjects. Treatments: lower canny weight, ensure preprocessor thresholds match the reference's edge density, regenerate the canny pass with different thresholds.
+47. *Melted geometry.* Symptoms: shapes that should be discrete blur into one another. Treatments: introduce or raise depth control, shorten end ramps so detail refinement is not over-conditioned.
+48. *Pose corruption.* Symptoms: misshapen limbs, wrong joint count. Treatments: confirm openpose preprocessor produced the correct skeleton (display it), prefer the dwpose or rtmpose-derived preprocessor when available, add a hand-specific control for hand fidelity.
+49. *VRAM blowout.* Symptoms: out-of-memory during generation. Treatments: reduce stacked control count to the minimum stack, lower resolution, enable backend's control-model offloading, switch to a single-pass schedule.
+
+### Stage 10 — Per-model defaults
+
+50. *SD 1.5.* The most permissive control ecosystem; canny+depth+openpose is the workhorse stack; default weights 1.0/0.7/0.9 are reasonable starting points; native at 512 short edge.
+51. *SDXL.* Slightly lower default weights (0.8/0.6/0.8) — SDXL is more obedient and over-constrains more easily; native at 1024 short edge.
+52. *SD 3.x.* Control adapters are newer; favour fewer simultaneous controls (anchor + one); check adapter availability per preprocessor.
+53. *Flux-class.* Distinct adapter families (Union-style adapters, IP-Adapter variants). The plan calls out that "ControlNet" as a term is sometimes generalised across families; specific adapter compatibility must be confirmed.
+
+### Stage 11 — Verification on a control pass before full generation
+
+54. Always run the preprocessor and display its output before running generation. A bad preprocessor pass (wrong skeleton, missing edges, broken depth) wastes a generation budget.
+55. Confirm the preprocessor signal matches the contributor's expectation of which structural attribute is locked. If the openpose pass shows a wrong skeleton, fix the preprocessor (different reference, different preprocessor variant) before tuning weights.
+56. For depth, normal, and segmentation preprocessors, the *resolution* of the preprocessor pass matters. Underresolved depth produces stairstepped composition; oversized depth wastes compute. Match preprocessor resolution to the generation resolution.
+
+### Stage 12 — Compose the deliverable
+
+57. Open with a one-paragraph *control intent* statement: what is locked, what is free, against what reference, on what model.
+58. Render the plan as a markdown document covering the chosen preprocessors, the matched control models, per-control weights, per-control ramps, the multi-control stack order, the mask discipline, the conflict-resolution policy, the diagnostics, and the verification protocol.
+59. Emit `stack_json` with: `controls` (list of `type`, `preprocessor`, `preprocessor_params`, `control_model`, `weight`, `start`, `end`, `mask_source`, `mask_feather`), `stack_order`, `conflict_policy`, `ramp_schedule`, `diagnostics`, `vram_estimate`, `fallback_stack`, `risk_notes`.
+60. Close with the mandatory safety disclaimer and a "what this skill does not cover" note pointing the contributor at `ai-image-prompt-designer` (prompt composition), `lora-and-finetune-methodology` (style/subject lock that controls do not provide), and `inpainting-outpainting-workflow` (regional regeneration distinct from control-via-mask).
+
+## Outputs
+
+The skill returns:
+
+1. `control_stack_plan` (markdown) — the structured control-design document.
+2. `stack_json` (JSON) — structured plan suitable for hand-off to a graph-based runner.
+
+## Examples
+
+**Input (placeholder):**
+
+`scene_intent`: "Product hero — a ceramic kettle on a wooden countertop, soft natural light from a window. Composition is fixed by a 3D render I have a depth pass for. The kettle's lid position must not change. Style should be photographic, warm."
+
+`available_signals`: "3D depth pass (16-bit PNG), canny-clean line render of the kettle and its lid, no pose required."
+
+`model_and_runtime`: "SDXL with a photographic checkpoint; 24GB GPU; batch 2."
+
+`failure_modes`: "Earlier prompt-only attempts moved the lid and added a second handle; canny-only attempts produced rigid output with flat materials."
+
+**Plan (abbreviated):**
+
+- Intent: lock composition via the imported depth pass and lock edge geometry via the canny pass on the kettle and lid; leave material, lighting, and surface texture free for the prompt.
+- Anchor control: depth (composition), weight 0.85, start 0.0, end 0.65 (release for material polish).
+- Secondary control: canny (edge of kettle and lid only via a mask), weight 0.65, start 0.0, end 0.55, mask is the silhouette of kettle+lid with 6-pixel feather.
+- Stack order: depth, canny. Mask-scoped canny avoids over-constraining the wood-grain background.
+- Conflict policy: depth dominates background composition; canny dominates kettle outline only.
+- VRAM estimate: ~14 GB at 1024x1024 batch 2; fits comfortably. Fallback stack: depth-only at 1024 if VRAM regresses.
+- Diagnostics: verify depth preprocessing produces the expected ordering (kettle foreground, countertop mid, window light field background); verify canny edges show only the kettle silhouette; if rigid output appears, drop canny weight to 0.5 or shorten end to 0.45; if lid drifts, raise canny weight to 0.75 and confirm lid is included in the canny mask.
+- Verification protocol: run preprocessor pass first; display depth as colour map and canny as outline overlay; confirm with contributor before generation batch.
+
+**Output excerpt:** the markdown plan plus a JSON object whose `controls` enumerates the two control entries with their full configuration, whose `stack_order` lists `[depth, canny]`, whose `conflict_policy` describes the dominance and mask scoping, whose `diagnostics` enumerates failure-mode treatments, and whose `fallback_stack` records the VRAM contingency.
+
+## Limitations
+
+- The skill plans the conditioning stack; it does not run preprocessors, load control models, or render images.
+- Preprocessor and control-model compatibility shifts by model family; the plan calls out the most stable pairings and recommends verifying adapter availability for newer families (SD 3.x, Flux-class) at planning time.
+- Multi-control stacking can compound VRAM and time costs; the plan provides a fallback stack but does not enforce a VRAM ceiling.
+- Pose conditioning at the hand and face level is fragile. The plan recommends supplementary hand-specific or face-specific controls but cannot guarantee anatomically correct output.
+- Controls do not style; using a control to force a style choice usually fails. The plan flags this and hands styling concerns to the LoRA/fine-tune skill.
+- ControlNet-style adapters are not uniformly available across all newer model families; specific adapter packs may be gated by licence, by training-data provenance, or by community maintenance state. The plan does not endorse any specific adapter for commercial use.
+- Reference-style controls (reference-only, IP-Adapter as a control) condition on a style or identity reference and can replicate recognisable people or copyrighted imagery; the plan refuses to recommend using them for impersonation or unlicensed style transfer.
+- The skill does not address the copyright status of training data or generated outputs in any jurisdiction; consult counsel for commercial use.
+
+## Sources reviewed
+
+- https://github.com/lllyasviel/ControlNet (Apache-2.0; weights under separate model licence)
+- https://github.com/lllyasviel/ControlNet-v1-1-nightly (Apache-2.0; weights under separate model licence)
+- https://github.com/Fannovel16/comfyui_controlnet_aux (study only; license per repo)
+- https://github.com/huggingface/diffusers (Apache-2.0)
+- https://github.com/tencent-ailab/IP-Adapter (Apache-2.0)
+- https://github.com/comfyanonymous/ComfyUI (GPL-3.0; methodology study only; no code or trademarked names used)
+- https://github.com/AUTOMATIC1111/stable-diffusion-webui (AGPL-3.0; methodology study only)
+- https://github.com/invoke-ai/InvokeAI (Apache-2.0)
+- https://github.com/lllyasviel/stable-diffusion-webui-forge (AGPL-3.0; methodology study only)

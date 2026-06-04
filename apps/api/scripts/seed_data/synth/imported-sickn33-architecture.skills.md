@@ -1,0 +1,70 @@
+---
+id: skillsgit-curated/imported-sickn33-architecture
+version: 1.0.0
+name: Architecture Decision Framework
+description: Architectural decision-making framework for requirements analysis, trade-off evaluation, and ADR documentation when making architecture decisions or analyzing system design.
+authors:
+  - name: sickn33 community
+    handle: sickn33
+    role: author
+  - name: skillsgit-curated
+    handle: skillsgit-curated
+    role: maintainer
+category: engineering
+tags: [imported, source-sickn33, architecture, adr, system-design]
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6, gpt-4o]
+  min_context_tokens: 32000
+  estimated_tokens_per_invocation: 6000
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Imported from sickn33/antigravity-awesome-skills under MIT (code) / CC BY 4.0 (content).
+---
+
+# Architecture Decision Framework
+
+## Overview
+
+This framework guides systematic architecture decisions through requirements analysis, trade-off evaluation, and documentation via Architecture Decision Records (ADRs).
+
+## When to use
+
+Use this skill when making a significant architectural decision (technology choice, pattern selection, system boundary), preparing an ADR for review, or evaluating whether an existing design will scale to next-stage requirements.
+
+## How to apply
+
+The framework organizes guidance across five workstreams:
+
+- **Context discovery** - Initial project assessment and classification questions
+- **Trade-off analysis** - ADR templates and structured trade-off methodology
+- **Pattern selection** - Decision trees to evaluate patterns and avoid anti-patterns
+- **Examples** - Reference implementations for MVP, SaaS, and enterprise contexts
+- **Patterns reference** - Quick-lookup pattern comparison table
+
+## Core Principle
+
+*"Simplicity is the ultimate sophistication."* Start minimal and introduce complexity only when requirements demand it. Removing unnecessary complexity proves far more difficult than adding justified patterns later.
+
+## Validation Requirements
+
+Before finalizing architectural decisions, confirm:
+- Requirements are clearly understood
+- Constraints are explicitly identified
+- Trade-off analysis supports each decision
+- Simpler alternatives were considered
+- Significant decisions are documented via ADRs
+- Team capabilities align with chosen patterns
+
+## Attribution
+
+This skill was imported from `sickn33/antigravity-awesome-skills` under the MIT license (code) and CC BY 4.0 license (content/documentation). Original community author. Modifications by skillsgit: frontmatter normalization; addition of attribution and sources sections.
+
+## Sources reviewed
+
+- https://github.com/sickn33/antigravity-awesome-skills/tree/main/skills/architecture (MIT / CC BY 4.0)

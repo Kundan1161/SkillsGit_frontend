@@ -1,0 +1,191 @@
+---
+id: skillsgit-curated/legal-clause-modernization-pass
+version: 1.0.0
+name: Clause Modernization Pass
+description: Review an in-house contract template against modern community standards — modular structure, defined-terms hygiene, balanced default risk allocation, parallel-construction discipline.
+authors:
+  - name: skillsgit Curated
+    handle: skillsgit-curated
+    role: author
+category: legal
+tags: [niche:contract-clause-library, template-modernization, defined-terms, drafting-hygiene, modular-contract, risk-allocation, legacy-review]
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6, gpt-4o]
+  tools_required: []
+  tools_optional: [file_io]
+  min_context_tokens: 64000
+  estimated_tokens_per_invocation: 12000
+trigger_keywords:
+  - modernize our contract template
+  - template audit
+  - defined terms hygiene
+  - modular contract refactor
+  - balance our contract risk allocation
+  - legacy template review
+  - parallel construction contract
+  - clause modernization
+  - contract drafting hygiene
+  - standardize our msa template
+example_invocations:
+  - "Audit our in-house MSA template against modern modular standards and tell me what to fix."
+  - "Review our SaaS template for defined-terms drift and unbalanced risk allocation."
+  - "Modernization pass on our legacy contract — modular structure, hygiene, balanced defaults."
+inputs:
+  - name: template_text
+    type: text
+    required: true
+    description: Full text of the in-house template to review. Strip pagination noise but preserve clause numbering and any inline comments or instructions.
+  - name: template_type
+    type: choice
+    required: true
+    description: Document family the template belongs to. Drives which modern reference patterns apply.
+    choices: [msa, saas, dpa, nda, order_form, sow, professional_services, vendor_msa, partner_addendum, other]
+  - name: party_polarity
+    type: choice
+    required: true
+    description: Whose paper the template represents. Reverses the polarity on balanced-defaults assessment.
+    choices: [customer_facing, vendor_facing, mutual_balanced]
+  - name: focus
+    type: choice
+    required: false
+    description: Which aspect to weight most heavily. Defaults to all four.
+    choices: [all, modular_structure, defined_terms, balanced_defaults, parallel_construction]
+outputs:
+  - name: modernization_report
+    type: markdown
+    description: Findings organised by dimension — modular structure, defined-terms hygiene, balanced default risk allocation, parallel-construction discipline. Each finding ranked by impact, with a proposed remediation and an estimate of refactor effort.
+  - name: findings_json
+    type: json
+    description: Findings array — finding_id, dimension, section_ref, severity, current_state_summary, proposed_change_summary, effort_estimate, dependencies[], rationale_short.
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Initial release.
+---
+
+# Clause Modernization Pass
+
+## When to use
+
+**Mandatory legal disclaimer.** This skill produces methodology guidance only. Clause-library decisions affect contractual liability. Every output must be reviewed by qualified counsel before incorporation into any agreement. The skill does not provide legal advice and use does not create an attorney-client relationship.
+
+Run this skill when an in-house contract template has accumulated drift — clauses added at different times by different drafters, defined terms used inconsistently, risk allocations that have crept one direction over years of one-sided redlines without rebalancing, structural inconsistencies between similar clauses that should be parallel. The hallmark of a template ready for a modernisation pass is the one that prompts the same questions in every deal: "did we actually mean X here?", "this term is defined in section three and used differently in section twelve", "this paragraph contradicts the next one." Modernisation is not redrafting from scratch; it is a structural pass focused on coherence and hygiene.
+
+Typical triggers: a template untouched for three or more years; a template that grew from a different document family (a vendor MSA repurposed as a customer MSA, an NDA expanded into a confidentiality exhibit); a template that survived a corporate transaction and inherited a counterparty's drafting style without reconciliation; a template about to be ported into a CLM where structural inconsistency will surface as data-modelling pain; a template that has become difficult for junior counsel to learn because it lacks the structural cues modern modular standards provide.
+
+It is not appropriate as a substitute for substantive clause review (the modernization pass concerns *form* — does the template hang together; substantive review concerns *content* — are the positions still right), for jurisdiction-specific redrafting, or for documents that have legal or regulatory mandates over their structure (certain financial-services agreements, certain government forms) that override modernisation preferences.
+
+## How to apply
+
+A modernisation pass examines a template along four dimensions: modular structure, defined-terms hygiene, balanced default risk allocation, and parallel-construction discipline. The dimensions are largely independent — a template can be excellent on defined-terms hygiene and poor on modular structure — but the remediation often interacts (rebalancing risk allocation may require changing defined terms; refactoring to modular structure may surface unparallel clauses).
+
+1. **Catalogue the template's current structure before judging it.** Build a section tree: numbered sections, sub-sections, exhibits, schedules, defined-term locations. Note the location of every recital, every "notwithstanding" reference, every cross-reference, and every exhibit incorporation. Templates that have accumulated drift typically show this structure as a flat numbered list of sections of wildly varying weight — a one-line miscellaneous clause sitting at the same heading level as the entire risk-allocation framework. A structural map is the first deliverable; remediation is the second.
+
+2. **Modular structure — assess separation of cover page and standard terms.** Modern standardised forms separate a cover page (deal-specific variables — parties, dates, scope, pricing, term, contact information) from a body of standard terms (the contract mechanics that do not change deal to deal). The benefits are operational: the deal team edits only the cover page; the standard terms are referenced by version. Audit the template for: variables embedded in the body that should live on a cover page (any data point a sales person types in is a candidate); body content duplicated across document families that should be hosted once and referenced by both; exhibits used as a graveyard for clauses too sensitive to expose on the front page (a sign the exhibit should be promoted into the body and explained, not hidden).
+
+3. **Modular structure — assess incorporation of cross-document content.** A modern template references other documents by clean incorporation clauses (data-processing addendum, security exhibit, service-level exhibit). Audit for: clauses that duplicate content from the DPA or security exhibit (resolve with deletion plus a precise incorporation reference); references to exhibits that do not exist or are misnamed; exhibits incorporated by phrase rather than by an explicit attachment or URL with version. An exhibit incorporated as "Vendor's standard security policy" without a version reference is a moving target the counterparty can re-host without notice.
+
+4. **Modular structure — assess section sequencing.** A modern template sequences clauses in an order a reader can predict: definitions, services, fees, term and termination, IP, confidentiality and data protection, warranties, liability, indemnification, miscellaneous. The exact order varies, but predictability is the point. Audit for clauses out of canonical sequence (a payment clause buried in section seventeen between two boilerplate paragraphs is a finding) and for sub-section splits that scatter logically grouped content across the template.
+
+5. **Modular structure — assess optionality handling.** Modern templates handle optional terms by explicit toggles (the optional term lives in the body, gated by a cover-page selection). Templates that handle optionality with bracketed alternatives in line, manual deletion instructions, or "[firm to confirm]" placeholders are fragile. Audit for in-line optionality that should be moved to cover-page-driven toggles, especially for high-velocity variables (auto-renewal yes/no, governing-law selection, indemnity reciprocity).
+
+6. **Defined terms — assess the definitions block.** Modern templates concentrate definitions in a single block, alphabetised, with consistent formatting. Audit for: definitions scattered across the body (a term first defined inline in section nine and then referenced in section three, which precedes section nine — a reading-order failure); duplicate definitions (the same term defined twice with materially different scope); near-duplicate definitions (terms that should be the same — "Customer Data," "Client Data," "Personal Data of Customer" — collapsed into a single definition with clear scope). Note: legitimately distinct terms must remain distinct; the audit flags collapses only where the body uses them synonymously.
+
+7. **Defined terms — assess capitalisation discipline.** A defined term used outside the definitions block must be capitalised exactly as defined. Audit for: capitalised words that are not defined ("the Services" used capitalised but never defined, which makes the reference legally ambiguous); defined terms used lowercase in the body (loses the connection to the definition); inconsistent capitalisation of the same term across sections.
+
+8. **Defined terms — assess usage scope.** A defined term should be used everywhere it applies and nowhere it does not. Audit for: defined terms used in only one section (consider whether the definition is needed at all or whether the term should be replaced inline); defined terms whose body usage exceeds the scope of the definition (a definition limited to "personal data of customer's employees" used in a body clause about all personal data — a scope mismatch); defined terms used as both noun and verb forms with no separate definition for each.
+
+9. **Defined terms — assess time-bounded and counterparty-bounded definitions.** Some terms have evolved meaning: "personal data," "affiliate," "intellectual property." Audit for definitions that pre-date current usage in the field and may now mean something different to a counterparty than the template intends. Definitions that incorporate by reference to a statute should reference the statute as in effect from time to time (or as of a specific date, with rationale). A definition referencing a repealed statute is a finding.
+
+10. **Balanced defaults — calibrate to polarity.** From `party_polarity`, fix the orientation. A customer-facing template held by a vendor should have defaults that lean modestly customer-favourable on hygiene clauses (confidentiality, data protection) and modestly vendor-favourable on risk-allocation clauses (liability, indemnification). A mutual-balanced template should have symmetric defaults on bilateral clauses. The audit's task is not to swing the template to "neutral" — it is to identify where the defaults have crept *past* the intended polarity over time.
+
+11. **Balanced defaults — assess the risk-allocation triangle.** Three clauses operate as a system: limitation of liability, indemnification, and damages exclusions. Audit the system, not each clause alone. Common drift patterns: a customer-facing vendor template where the cap has crept down to three months while the indemnity carve-outs remain broad — the cap and the carve-outs no longer match commercially; a vendor-facing customer template where the customer's indemnity has grown narrow while the vendor's has not — symmetry has been lost; an exclusion of consequential damages that is unilateral when historical intent was mutual. Flag patterns that do not match the intended polarity by more than one ladder-step's worth of drift.
+
+12. **Balanced defaults — assess termination symmetry.** Termination for cause should usually be mutual with the same cure period for both sides; termination for convenience is asymmetric by design and the asymmetry should match the document's polarity. Audit for: cure periods that differ between the parties without commercial reason; termination-for-convenience rights that have crept to both sides on a template intended to favour one; auto-renewal mechanics where the non-renewal notice window differs between parties.
+
+13. **Balanced defaults — assess data and IP polarity.** Data ownership, training-data rights, feedback licences, and customer-data-for-product-improvement clauses are the modern equivalent of the historical IP-ownership battleground. Audit for vendor-favourable defaults that have crept past the intended polarity (a customer template that allows the vendor to retain customer data for "product improvement" indefinitely; a vendor template that gives the customer a perpetual licence to vendor improvements). Flag both directions.
+
+14. **Parallel construction — assess matched clauses.** Many contract structures contain pairs that should be parallel: party A's representations and party B's representations; party A's indemnification and party B's indemnification; party A's termination rights and party B's termination rights. Audit for: paired clauses whose structure is asymmetric without commercial reason (one side's reps run six lines, the other's run two); paired clauses where one references a defined term and the other inlines the same concept; paired clauses where one has a cure period and the other does not.
+
+15. **Parallel construction — assess paragraph structure within sections.** Within a single section, sub-paragraphs governing related concepts should be parallel in length, voice, and structure. Audit for: a section whose first sub-paragraph is three sentences and whose second sub-paragraph is one sentence covering an equally important concept (a sign that drafting attention was uneven); sub-paragraphs whose voice shifts mid-section (third-person passive in one, second-person active in the next); enumerations whose items are structurally different (some are nouns, some are full sentences).
+
+16. **Parallel construction — assess voice consistency.** A template authored by multiple drafters across years often shifts voice unpredictably. Audit for shifts between "Customer shall," "the Customer will," "you must," and "Customer is obligated to." Pick one voice and apply it uniformly. Voice consistency is the most visible single signal of template quality to a sophisticated counterparty.
+
+17. **Synthesise the findings into a prioritised remediation backlog.** Each finding gets a severity (critical / high / medium / low) and an effort estimate (small refactor / medium refactor / structural rewrite). Surface the top five findings the company should address first, balancing severity against effort. A common pattern: defined-terms hygiene findings cluster as small refactors with medium severity and should usually be batched into a single edit pass; modular structure findings cluster as larger refactors with high severity and may require a versioned template release; balanced-defaults findings often have small individual effort but require the position owner's approval per change.
+
+18. **Estimate the refactor cost and propose a release plan.** Modernisation cannot ship in one commit. Propose a wave plan: hygiene fixes in week one (defined-terms cleanup, voice unification, sequence reordering); structural changes in weeks two to four (cover-page separation, optionality toggles, exhibit incorporations); balance rebalancing in weeks four to eight, paired with playbook position re-authoring. Each wave is a versioned template release with a change log.
+
+19. **Acknowledge what was not assessed.** A modernisation pass does not assess: enforceability of clauses under specific jurisdictions; substantive correctness of positions (a perfectly parallel and well-defined unconscionable liability cap is still unconscionable); regulatory compliance for specific industries; counterparty-acceptance friction (a more modular template may surface contention that the legacy template hid). List these as explicit out-of-scope items.
+
+20. **Self-check before returning.** Verify: each finding cites a specific section reference; severity calls are consistent (no high-severity defined-terms finding alongside critical-severity findings of the same class); the polarity is consistent across balance findings (a customer-facing-template review does not contain a finding that complains about a clause being too customer-favourable unless the drift is genuinely past the intended polarity).
+
+## Inputs
+
+- `template_text` (required, text) — full in-house template text with clause numbering preserved.
+- `template_type` (required, choice) — drives applicable modern reference patterns.
+- `party_polarity` (required, choice) — fixes the orientation for balanced-defaults assessment.
+- `focus` (optional, choice) — narrows the audit to a single dimension or covers all four.
+
+## Outputs
+
+- `modernization_report` (markdown) — findings by dimension, prioritised remediation backlog, refactor cost estimate, release plan, out-of-scope acknowledgments.
+- `findings_json` (JSON) — structured findings with section references, severities, and effort estimates.
+
+## Examples
+
+### Example 1 — legacy customer-facing SaaS MSA
+
+**Input excerpt summary:** ten-year-old MSA, customer-facing (vendor's paper), forty-three sections, no separate cover page, embedded variables ("[INSERT FEE]"), defined terms scattered across the body, three different cure periods for breach in different sections.
+
+**Modernization report (excerpt):**
+
+> **Structural findings:** No cover-page separation. Fifteen variables embedded in the body (deal name, parties, fees, term length, governing law, contact addresses). Recommend extracting to a cover page in a wave-one release. Eleven exhibits referenced; three exhibit names do not match the body references. Two exhibits ("Annex C" and "Exhibit 3") are referenced but do not appear at the end of the template — definitional gap.
+>
+> **Defined-terms findings:** Forty-one defined terms scattered across body; only twelve in a definitions section. Three near-duplicates of "Confidential Information" used inconsistently. "Customer Data" defined once and then never referenced again — body uses "Client Data" with no definition. Recommend consolidating into a definitions block, alphabetising, and unifying the customer-data terminology.
+>
+> **Balanced defaults findings:** Liability cap at three months (drifted from prior twelve months over four redlines). Indemnification carve-outs include only IP — confidentiality and security have been lost. Termination cure period for customer is fifteen days but for vendor is thirty days, with no commercial rationale documented. Polarity drift past intent: medium-to-high.
+>
+> **Parallel construction findings:** Customer representations run twelve lines; vendor representations run three. Auto-renewal mechanics use "Customer must notify" (active) but non-renewal mechanics use "notice shall be provided by the non-renewing party" (passive impersonal). Eleven shifts between "shall," "will," and "must" across the template.
+>
+> **Top five recommendations:** Extract cover page (high severity / medium effort). Consolidate definitions block (high / small). Rebalance the liability-indemnity-damages triangle (critical / medium, requires position-owner approval). Unify cure period to thirty days mutual (medium / small). Unify voice to "will" (low / small, but high readability impact).
+>
+> **Release plan:** Wave one — hygiene (definitions, voice) — two weeks. Wave two — structure (cover page, exhibits) — four weeks. Wave three — balance rebalancing — eight weeks, paired with playbook re-author.
+
+### Example 2 — mutual NDA review
+
+**Modernization report (excerpt):**
+
+> **Structural findings:** Cover-page separation not applicable — NDAs are short enough to embed variables in line. No exhibit issues.
+>
+> **Defined-terms findings:** Three near-duplicates around "Confidential Information" / "Proprietary Information" / "Information." Consolidate into a single definition.
+>
+> **Balanced defaults findings:** Polarity is mutual; observed: party B's permitted-disclosure carve-outs are broader than party A's — silent asymmetry. Recommend matching.
+>
+> **Parallel construction findings:** Confidentiality term clause is symmetric. Return-of-information clause is one-way (only party B has a return obligation). Recommend mutualising.
+
+## Limitations
+
+- **Not legal advice.** Findings are structural and hygiene observations. Substantive rebalancing requires position-owner approval and qualified counsel.
+- **Form, not content.** The skill does not evaluate substantive clause correctness, enforceability, or alignment with the company's actual risk appetite — only structural coherence.
+- **Jurisdiction-blind.** The audit does not surface jurisdiction-specific drafting requirements. A template that is hygienic but missing a state-mandated disclosure is still defective.
+- **Counterparty-blind.** Modernised templates may surface friction that legacy templates hid. The skill does not predict counterparty reception; that requires deal-team judgement.
+- **Single-template scope.** The audit examines one template at a time. A template-portfolio modernisation is a sequence of single-template passes plus a cross-template consistency review beyond this skill's scope.
+- **Heuristic polarity calls.** The "drift past intent" finding depends on the user accurately stating the intended polarity. A template that has drifted to its intended polarity will be flagged as drifted when it should not be; the user should treat polarity findings as candidates for owner judgement, not conclusions.
+
+## Sources reviewed
+
+Methodology informed by public methodology references on modular standardised contracts, defined-terms drafting hygiene, and contract drafting style. Industry standardised forms released under CC BY 4.0 were consulted for the *structural pattern* (cover-page separation, standard-terms versioning, exhibit incorporation) only. No clause text, no source-specific drafting examples, and no source-specific risk explanations were copied or close-paraphrased.
+
+- https://bonterms.com/ (CC BY 4.0 — modular structure pattern only)
+- https://commonpaper.com/standards/cloud-service-agreement/ (CC BY 4.0 — modular structure pattern only)
+- https://github.com/accordproject/template-archive (Apache-2.0 — clause modularity patterns)
+- https://github.com/Open-Source-Legal/OpenContracts (MIT — clause taxonomy patterns)
+- https://www.adamsdrafting.com/ (industry reference for drafting hygiene)
+- https://www.contractnerds.com/ (industry reference)
+- Practical Law SaaS template commentary (industry reference)
+- https://handbook.gitlab.com/handbook/legal/ (CC BY-SA 4.0 — handbook structure only)

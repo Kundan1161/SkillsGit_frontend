@@ -1,0 +1,13 @@
+{
+  "name": "short",
+  "description": "Minimal viable input; should still extract.",
+  "title": "One-liner",
+  "situation_md": "Alert fatigue on team.",
+  "decision_md": "Cut paging tier from p2 to p3 for known-noisy alert family X.",
+  "outcome_md": "Pages dropped 40 percent week-over-week.",
+  "context_md": null,
+  "candidate_link_targets": [
+    "base/observability/alert-fatigue-reviewer"
+  ],
+  "expected_pii_severities": []
+}

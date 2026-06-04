@@ -1,0 +1,81 @@
+---
+id: skillsgit-curated/imported-sickn33-alpha-vantage
+version: 1.0.0
+name: Alpha Vantage Financial Data
+description: Access 20+ years of global financial data including equities, options, forex, crypto, commodities, economic indicators, and 50+ technical indicators via a market data API.
+authors:
+  - name: K-Dense Inc.
+    handle: sickn33
+    role: author
+  - name: skillsgit-curated
+    handle: skillsgit-curated
+    role: maintainer
+category: finance
+tags: [imported, source-sickn33, market-data, api-integration, fintech]
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6, gpt-4o]
+  min_context_tokens: 32000
+  estimated_tokens_per_invocation: 6000
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Imported from sickn33/antigravity-awesome-skills under MIT (code) / CC BY 4.0 (content).
+---
+
+# Alpha Vantage Financial Data
+
+## Overview
+
+Access a comprehensive financial data API providing 20+ years of global financial data: equities, options, forex, crypto, commodities, economic indicators, and 50+ technical indicators.
+
+## When to use
+
+Use this skill when integrating market data into an analysis pipeline, backtesting a trading strategy on historical equities or crypto, or pulling macroeconomic indicators for a research note.
+
+## How to apply
+
+### Setup
+
+1. Obtain a free API key from the Alpha Vantage website.
+2. Configure the key as an environment variable (e.g., `ALPHA_VANTAGE_API_KEY`).
+3. Make HTTP requests to the documented endpoints.
+
+### Primary Capabilities
+
+- **Stock data**: Real-time quotes and historical time series at multiple intervals (1min through monthly)
+- **Fundamentals**: Income statements, balance sheets, cash flows, earnings
+- **Foreign exchange**: Currency conversion and FX time series
+- **Cryptocurrencies**: Digital asset pricing and trading data
+- **Commodities**: Precious metals, energy products, agricultural data
+- **Economic indicators**: GDP, inflation, unemployment, treasury yields
+- **Technical analysis**: 40+ indicators including SMA, EMA, RSI, MACD, Bollinger Bands
+
+### Rate Limiting
+
+The free tier allows 25 requests/day. Premium subscription options exist for higher limits. Implement delays between requests; respect rate-limit headers.
+
+### Best Practices
+
+- Check API responses for error messages, rate limit notices, and informational warnings before processing data
+- Cache responses locally to avoid burning quota during development
+- Handle API outages with exponential backoff
+- Validate data freshness; rely on the API's timestamp fields rather than wall clock
+
+## Limitations
+
+- The free tier's daily quota is restrictive for production workloads
+- Do not treat the output as a substitute for environment-specific validation, testing, or expert review
+- Market data is provided "as-is"; this skill is not investment advice
+
+## Attribution
+
+This skill was imported from `sickn33/antigravity-awesome-skills` under the MIT license (code) and CC BY 4.0 license (content/documentation). Original skill author: K-Dense Inc. Modifications by skillsgit: frontmatter normalization; addition of attribution and sources sections.
+
+## Sources reviewed
+
+- https://github.com/sickn33/antigravity-awesome-skills/tree/main/skills/alpha-vantage (MIT / CC BY 4.0)

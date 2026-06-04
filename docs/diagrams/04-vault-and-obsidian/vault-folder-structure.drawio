@@ -1,0 +1,195 @@
+<mxfile host="app.diagrams.net" agent="skillsgit-arch" version="24.7.17" type="device">
+  <diagram name="vault-folder-structure" id="skg-vault-folder-structure">
+    <mxGraphModel dx="2400" dy="1800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2600" pageHeight="2200" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <mxCell id="title" value="Vault folder structure — occupation zip, persona zip, and composed bundle" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=none;fontSize=18;fontStyle=1;align=left;" vertex="1" parent="1">
+          <mxGeometry x="40" y="20" width="1500" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="subtitle" value="Code refs: vault/builder.py:_load_occupation_files → domains/&lt;domain&gt;/&lt;slug&gt;.md · _load_persona_files → personas/&lt;handle&gt;/&lt;slug&gt;/neurons/&lt;section&gt;/&lt;slug&gt;.md · composer.py:_build_and_record (composed shape)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=none;fontSize=11;align=left;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="40" y="60" width="2400" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="drift" value="CODE-vs-SPEC DRIFT: spec team/03-vault-generation.md §1 writes the occupation tree under base/&lt;domain&gt;/&lt;slug&gt;.md. The shipped builder writes domains/&lt;domain&gt;/&lt;slug&gt;.md (no base/ prefix). docs/vault-format.md agrees with the code. Persona neurons emit links to base/&lt;slug&gt; by convention and the composer rewrites those to the actual domains/&lt;domain&gt;/&lt;slug&gt; path (composer._link_resolver_for_paths — Wave-5 'polish 2' fix)." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEE2E2;strokeColor=#B91C1C;align=left;spacingLeft=10;spacingTop=8;verticalAlign=top;fontSize=11;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="40" y="100" width="2400" height="100" as="geometry"/>
+        </mxCell>
+
+        <!-- Occupation zip -->
+        <mxCell id="g-occupationZip" value="Occupation vault zip — vaults/{skill_id}/{version}/{hash}.zip" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#B45309;verticalAlign=top;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="220" width="1200" height="940" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-occRoot" value="ai-devops-engineer-v1.0.0/&#10;(zip root)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0EA5E9;strokeColor=#0369A1;fontColor=#ffffff;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="80" y="280" width="340" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-occReadme" value="README.md&#10;occupation overview + how-to-open" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#4338CA;" vertex="1" parent="1">
+          <mxGeometry x="500" y="270" width="320" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-occIndex" value="00-index.md&#10;TOC grouped by domain + role" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#4338CA;" vertex="1" parent="1">
+          <mxGeometry x="860" y="270" width="320" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-occManifest" value="vault.json&#10;(VaultManifest schema_version=1)" style="shape=cylinder3;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#059669;fontStyle=1;align=center;" vertex="1" parent="1">
+          <mxGeometry x="500" y="350" width="320" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-occObsidian" value=".obsidian/graph.json&#10;color-by-tag preset&#10;injected post-build by build_devops_vault.py" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#6D28D9;" vertex="1" parent="1">
+          <mxGeometry x="860" y="350" width="320" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-occDomains" value="domains/&#10;(7 folders, one per occupation.domains entry)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#B45309;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="80" y="430" width="1100" height="60" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="n-dCi" value="ci-cd/" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#B45309;" vertex="1" parent="1">
+          <mxGeometry x="80" y="510" width="160" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-dCi1" value="ci-pipeline-architect.md" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#4338CA;" vertex="1" parent="1">
+          <mxGeometry x="280" y="490" width="280" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-dCi2" value="gha-workflow-optimizer.md" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#4338CA;" vertex="1" parent="1">
+          <mxGeometry x="280" y="540" width="280" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-dCi3" value="k8s-manifest-reviewer.md" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#4338CA;" vertex="1" parent="1">
+          <mxGeometry x="280" y="590" width="280" height="40" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="n-dObs" value="observability/" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#B45309;" vertex="1" parent="1">
+          <mxGeometry x="600" y="510" width="180" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-dObs1" value="observability-dashboard-architect.md" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#4338CA;" vertex="1" parent="1">
+          <mxGeometry x="820" y="490" width="360" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-dObs2" value="alert-policy-architect.md" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#4338CA;" vertex="1" parent="1">
+          <mxGeometry x="820" y="540" width="360" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-dObs3" value="slo-designer.md" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#4338CA;" vertex="1" parent="1">
+          <mxGeometry x="820" y="590" width="360" height="40" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="n-dInc" value="incident/" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#B45309;" vertex="1" parent="1">
+          <mxGeometry x="80" y="660" width="160" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-dInc1" value="ops-incident-commander.md" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#4338CA;" vertex="1" parent="1">
+          <mxGeometry x="280" y="640" width="280" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-dInc2" value="ops-runbook-generator.md" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#4338CA;" vertex="1" parent="1">
+          <mxGeometry x="280" y="690" width="280" height="40" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="n-dIac" value="iac/" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#B45309;" vertex="1" parent="1">
+          <mxGeometry x="600" y="660" width="180" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-dIac1" value="terraform-module-reviewer.md" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#4338CA;" vertex="1" parent="1">
+          <mxGeometry x="820" y="660" width="360" height="40" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="n-dSec" value="security/" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#B45309;" vertex="1" parent="1">
+          <mxGeometry x="80" y="780" width="160" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-dCost" value="cost/&#10;cloud-cost-audit.md, kubernetes-cost-optimizer.md, …" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#B45309;align=left;spacingLeft=10;" vertex="1" parent="1">
+          <mxGeometry x="280" y="780" width="600" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-dPlat" value="platform/&#10;internal-platform-strategy-author.md, …" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#B45309;align=left;spacingLeft=10;" vertex="1" parent="1">
+          <mxGeometry x="80" y="870" width="800" height="60" as="geometry"/>
+        </mxCell>
+
+        <!-- Persona zip -->
+        <mxCell id="g-personaZip" value="Persona vault zip — vaults/{skill_id}/{version}/{hash}.zip (overlay only; merged at composition time)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#1E40AF;verticalAlign=top;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1280" y="220" width="1280" height="940" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-perRoot" value="incident-veteran-v1.0.0/&#10;(zip root)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0EA5E9;strokeColor=#0369A1;fontColor=#ffffff;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1320" y="280" width="340" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-perPersonasDir" value="personas/" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#B45309;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1320" y="380" width="280" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-perHandle" value="jane-devops-demo/" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#B45309;" vertex="1" parent="1">
+          <mxGeometry x="1640" y="380" width="280" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-perSlug" value="incident-veteran/" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#B45309;" vertex="1" parent="1">
+          <mxGeometry x="1960" y="380" width="280" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-perReadme" value="README.md&#10;persona creator bio + intro" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#4338CA;" vertex="1" parent="1">
+          <mxGeometry x="1320" y="450" width="380" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-perManifest" value="persona.json&#10;(VaultManifest fragment; composer discards&#10;in favour of merged vault.json)" style="shape=cylinder3;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#059669;fontStyle=1;align=center;" vertex="1" parent="1">
+          <mxGeometry x="1720" y="450" width="380" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-perNeurons" value="neurons/" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#B45309;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1320" y="540" width="280" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-nN1" value="2024-08-flaky-tests-after-redis-upgrade.md" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#4338CA;" vertex="1" parent="1">
+          <mxGeometry x="1640" y="540" width="500" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-nN2" value="2024-10-blue-green-rollback-at-3am.md" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#4338CA;" vertex="1" parent="1">
+          <mxGeometry x="1640" y="590" width="500" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-nN3" value="2024-09-pagerduty-storm-rate-limit.md" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#4338CA;" vertex="1" parent="1">
+          <mxGeometry x="1640" y="640" width="500" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-nN4" value="2024-11-terraform-state-lock-incident.md" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#4338CA;" vertex="1" parent="1">
+          <mxGeometry x="1640" y="690" width="500" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-nN5" value="2024-07-observability-blind-spot.md" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#4338CA;" vertex="1" parent="1">
+          <mxGeometry x="1640" y="740" width="500" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-nN6" value="2024-12-incident-postmortem-pattern.md" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#4338CA;" vertex="1" parent="1">
+          <mxGeometry x="1640" y="790" width="500" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-nN7" value="2025-01-canary-deployment-rollback.md" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#4338CA;" vertex="1" parent="1">
+          <mxGeometry x="1640" y="840" width="500" height="40" as="geometry"/>
+        </mxCell>
+
+        <!-- Composed (delivered) -->
+        <mxCell id="g-composed" value="Composed (delivered) bundle = occupation tree + personas/ overlay" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;verticalAlign=top;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="1200" width="2520" height="220" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-composedNote1" value="delivery/vaults/{nonce}.zip&#10;= occupationZip's contents&#10;+ personas/{handle}/{slug}/ from each persona overlay&#10;+ regenerated vault.json (merged manifest)&#10;+ per-buyer &lt;!-- skg-license --&gt; watermark on every .md" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#065F46;align=left;spacingLeft=10;spacingTop=8;verticalAlign=top;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="80" y="1250" width="2440" height="140" as="geometry"/>
+        </mxCell>
+
+        <!-- Occupation tree edges -->
+        <mxCell id="eo1" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-occRoot" target="n-occReadme"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="eo2" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-occRoot" target="n-occIndex"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="eo3" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-occRoot" target="n-occManifest"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="eo4" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-occRoot" target="n-occObsidian"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="eo5" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-occRoot" target="n-occDomains"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <mxCell id="eo6" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-occDomains" target="n-dCi"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="eo7" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-dCi" target="n-dCi1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="eo8" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-dCi" target="n-dCi2"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="eo9" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-dCi" target="n-dCi3"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <mxCell id="eo10" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-occDomains" target="n-dObs"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="eo11" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-dObs" target="n-dObs1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="eo12" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-dObs" target="n-dObs2"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="eo13" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-dObs" target="n-dObs3"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <mxCell id="eo14" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-occDomains" target="n-dInc"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="eo15" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-dInc" target="n-dInc1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="eo16" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-dInc" target="n-dInc2"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <mxCell id="eo17" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-occDomains" target="n-dIac"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="eo18" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-dIac" target="n-dIac1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <mxCell id="eo19" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-occDomains" target="n-dSec"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="eo20" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-occDomains" target="n-dCost"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="eo21" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-occDomains" target="n-dPlat"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- Persona edges -->
+        <mxCell id="ep1" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-perRoot" target="n-perPersonasDir"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="ep2" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-perPersonasDir" target="n-perHandle"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="ep3" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-perHandle" target="n-perSlug"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="ep4" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-perSlug" target="n-perReadme"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="ep5" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-perSlug" target="n-perManifest"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="ep6" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-perSlug" target="n-perNeurons"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="ep7" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-perNeurons" target="n-nN1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="ep8" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-perNeurons" target="n-nN2"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="ep9" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-perNeurons" target="n-nN3"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="ep10" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-perNeurons" target="n-nN4"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="ep11" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-perNeurons" target="n-nN5"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="ep12" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-perNeurons" target="n-nN6"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="ep13" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-perNeurons" target="n-nN7"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

@@ -1,0 +1,101 @@
+%% Layer-C demo CLI — scripts/demo_devops_agent.py end-to-end.
+%% Source: apps/api/scripts/demo_devops_agent.py
+%%         apps/api/src/core/anthropic.py:get_async_client / resolve_model
+%% ADR-018: REFERENCE LOADER, not a hosted runtime. Skills Git ships the
+%% vault; the buyer's own agent runs against it. Demo calls Claude
+%% directly for the demo's sake; production buyers BYOK their own model.
+
+sequenceDiagram
+    autonumber
+    actor Operator as Operator (developer running the demo)
+    participant CLI as scripts/demo_devops_agent.py
+    participant DB as Postgres (SessionLocal)
+    participant Composer as vault/composer.py compose_for_license
+    participant Cache as core/cache.py
+    participant S3 as storage/s3.py (MinIO / S3 / R2)
+    participant Anthropic as Anthropic API (claude-sonnet-4-6)
+
+    %% 1. Parse args + resolve prompt
+    Operator->>CLI: uv run python -m scripts.demo_devops_agent --prompt "my CI is flaky" [--occupation H/S] [--persona H/S or --persona ""] [--buyer-email ...] [--max-tokens N] [--model ID] [--snapshot-only]
+    CLI->>CLI: _parse_args(argv)
+    Note over CLI: mutually exclusive --prompt / --prompt-id — --snapshot-only skips prompt requirement
+    CLI->>CLI: _normalise_personas(args.persona)
+    Note over CLI: empty string = "no persona" — None = default DEFAULT_PERSONA
+    CLI->>CLI: _print_banner — "== REFERENCE LOADER ==" header
+
+    %% 2. Resolve occupation + personas from DB
+    CLI->>DB: SessionLocal (session #1)
+    CLI->>DB: _resolve_skill_by_handle_slug handle=skillsgit-curated slug=ai-devops-engineer expected_kind=OCCUPATION
+    Note over DB,CLI: 404-style exit (code 2) if not found — "run build_devops_vault.py first". Also fails on kind mismatch or status != PUBLISHED.
+    DB-->>CLI: ResolvedSkill(skill, handle, slug)
+    loop for each persona slug
+        CLI->>DB: _resolve_skill_by_handle_slug handle slug expected_kind=PERSONA
+        DB-->>CLI: ResolvedSkill
+    end
+
+    %% 3. Ensure demo buyer + free licenses
+    CLI->>DB: _ensure_demo_buyer email=demo-buyer@skillsgit.local display_name=DEFAULT_BUYER_DISPLAY
+    Note over CLI,DB: Idempotent on email — re-runs reuse the buyer. Password is internal (not for login).
+    DB-->>CLI: User row
+    CLI->>DB: _ensure_free_license buyer skill=occupation.skill composition_role=OCCUPATION target_occupation_skill_id=None
+    Note over CLI,DB: Idempotent on (buyer_id, skill_id, status=ACTIVE). source=GRANT (no checkout). Reuses existing row if present and updates role/target.
+    DB-->>CLI: License (occupation)
+    loop for each persona
+        CLI->>DB: _ensure_free_license buyer skill=persona.skill composition_role=PERSONA target_occupation_skill_id=occupation.skill.id
+        DB-->>CLI: License (persona)
+    end
+    CLI->>DB: session.commit()
+
+    %% 4. Compose vault (new session #2)
+    CLI->>DB: SessionLocal (session #2)
+    CLI->>Composer: compose_for_license(session, buyer_id, occupation_license_id, include_persona_license_ids=[pl.id, ...])
+    Note over CLI,Composer: CLI ALWAYS passes an EXPLICIT list (even when empty) so --persona "" actually composes occupation-only. Passing None would silently re-attach every active persona license.
+
+    Composer->>Cache: get_or_compute(cache_key, _compute, ttl=24h)
+    alt cache HIT
+        Cache-->>Composer: cached storage_url, ...
+    else cache MISS
+        Composer->>S3: get_object per build
+        Composer->>S3: put_object delivery/vaults/{nonce}.zip
+        Composer->>DB: INSERT vault_downloads
+        Composer->>Cache: SETEX (24h)
+    end
+    Composer->>S3: presigned_url(storage_url, ttl=60s)
+    Composer-->>CLI: ComposedDownload(presigned_url, storage_url, composed_hash, cache_hit, ...)
+
+    %% 5. Download composed zip from S3
+    CLI->>S3: storage.get_object(composed.storage_url)
+    Note over CLI,S3: Direct via storage helper — not via the presigned URL, since the CLI shares the same storage client as the API.
+    S3-->>CLI: bytes (composed zip)
+
+    %% 6. Parse vault.json to neuron lookup
+    CLI->>CLI: _load_vault_lookup(zip_bytes)
+    Note over CLI: open zip — read vault.json — for each files[]: read .md, strip frontmatter, take first 200 chars to NeuronRecord
+    CLI->>CLI: _print_compose_summary
+    Note over CLI: occupation + personas + composed_hash + cache_hit
+
+    %% 7. Branch: snapshot-only vs live
+    alt --snapshot-only (CI / no API key)
+        CLI->>CLI: _print_snapshot_listing(lookup, manifest)
+        Note over CLI: print total file count + warnings count + alphabetical listing of every neuron with [kind] (creator vX.Y.Z)
+        CLI-->>Operator: exit 0
+        Note over CLI,Operator: Used by T-14 snapshot test (tests/integration/test_demo_cli_snapshot.py) and CI's team-smoke.yml workflow.
+    else live demo (ANTHROPIC_API_KEY set)
+        %% 8. Build system message + call Claude
+        CLI->>CLI: model = resolve_model(args.model) — fallback SKG_CAPTURE_LLM_MODEL
+        CLI->>CLI: system_message = _build_system_message(lookup)
+        Note over CLI: preamble (rules + consulted-block contract) plus one line per neuron sorted by vault_path: "- (kind) vault_path: summary"
+        CLI->>Anthropic: get_async_client then client.messages.create(model, max_tokens, system, messages)
+        Note over CLI,Anthropic: AnthropicKeyMissingError exit 2 — any other Exception exit 3
+        Anthropic-->>CLI: response{content[], usage}
+
+        %% 9. Parse consulted block + render
+        CLI->>CLI: raw_text = join text blocks — answer_md, consulted = _parse_consulted_block(raw_text)
+        Note over CLI: regex on triple-backtick consulted fence — strip leading dashes, quotes, backticks per line
+        CLI->>CLI: intersect consulted vs lookup — known[] printed in table — unknown[] printed as warnings
+
+        CLI-->>Operator: -- Answer -- {answer_md} -- Consulted neurons -- (table: vault_path - kind - creator - version) -- Model: claude-... input_tokens=... output_tokens=... --
+        CLI-->>Operator: exit 0
+    end
+
+    Note over Operator,Anthropic: Exit codes: 0 success — 2 missing prereqs (skill not found, no API key) — 3 Claude call failed (network, parse)

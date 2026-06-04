@@ -1,0 +1,182 @@
+<mxfile host="app.diagrams.net" agent="skillsgit-arch" version="24.7.17" type="device">
+  <diagram name="s3-object-layout" id="skg-s3-layout">
+    <mxGraphModel dx="2400" dy="1600" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2800" pageHeight="2400" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <mxCell id="title" value="S3 / MinIO / R2 object key layout&#10;Source: skills/service.py (_skill_storage_key, _cover_storage_key) + vault/builder.py + vault/composer.py:_build_and_record + capture/service.py — single bucket: settings.S3_BUCKET" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=none;fontSize=14;fontStyle=1;align=left;" vertex="1" parent="1">
+          <mxGeometry x="40" y="20" width="2700" height="60" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== Bucket ===== -->
+        <mxCell id="n-Bucket" value="Bucket: settings.S3_BUCKET&#10;(default 'skillsgit-skills'; endpoint: MinIO localhost:9000&#10;OR R2 https://….r2.cloudflarestorage.com)" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#0EA5E9;strokeColor=#0369A1;fontColor=#FFFFFF;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1080" y="100" width="640" height="140" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== skills/ prefix ===== -->
+        <mxCell id="g-skills" value="skills/ — canonical skill bodies" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;verticalAlign=top;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="280" width="1340" height="640" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-SK1" value="SK1: skills/{skill_id}/{version}.md&#10;(skills/service.py:_skill_storage_key)&#10;e.g. skills/01HX…/1.0.0.md" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="60" y="320" width="1300" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-SK2" value="SK2: content_type: text/markdown&#10;content_hash: sha256(normalized body)&#10;(stored on SkillVersion row;&#10;distribution block re-injected at delivery)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="60" y="440" width="640" height="140" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-SK3" value="SK3: Created by:&#10;POST /v1/creator/skills/ (multipart)&#10;POST /v1/creator/skills/{id}/versions" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="720" y="440" width="640" height="140" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-SK4" value="SK4: Read by:&#10;delivery/router.py for direct downloads&#10;vault/builder.py during vault assembly" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="60" y="600" width="1300" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-SK5" value="SK5: covers/{skill_id}/cover.{ext}&#10;(skills/service.py:_cover_storage_key)&#10;e.g. covers/01HX…/cover.png&#10;content_type: image/* per upload" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="60" y="740" width="1300" height="160" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== vaults/ prefix ===== -->
+        <mxCell id="g-vaults" value="vaults/ — built occupation + persona zips" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;verticalAlign=top;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1420" y="280" width="1340" height="640" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-V1" value="V1: vaults/{skill_id}/{version}/{content_hash}.zip&#10;(vault/builder.py — same path shape&#10;for both occupation and persona builds;&#10;the kind discriminator is on the skill row, not the zip path)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1440" y="320" width="1300" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-V2" value="V2: content_type: application/zip&#10;content_hash: sha256(zip bytes)&#10;(stored on VaultBuild.storage_url + VaultBuild.content_hash)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="1440" y="460" width="1300" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-V3" value="V3: Determinism: _write_zip pins&#10;EPOCH_TIMESTAMP on every entry +&#10;sorts paths alphabetically →&#10;byte-identical bytes for the same tree across rebuilds" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="1440" y="580" width="1300" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-V4" value="V4: Persists indefinitely:&#10;compose-time reads (composer pulls&#10;occupation_build.storage_url +&#10;each persona_build.storage_url via storage.get_object)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="1440" y="700" width="640" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-V5" value="V5: Created by:&#10;vault/jobs.py:build_occupation_job&#10;vault/jobs.py:build_persona_job&#10;(triggered by POST /v1/occupations/{id}/build&#10;or POST /v1/personas/{id}/build)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="2100" y="700" width="640" height="200" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== delivery/vaults/ prefix ===== -->
+        <mxCell id="g-delivery" value="delivery/vaults/ — composed buyer bundles" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fce7f3;strokeColor=#be185d;verticalAlign=top;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="940" width="1340" height="640" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-D1" value="D1: delivery/vaults/{nonce}.zip&#10;(composer's _build_and_record:&#10;nonce = secrets.token_urlsafe(12),&#10;so key is unguessable)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#be185d;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="60" y="980" width="1300" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-D2" value="D2: content_type: application/zip&#10;composed_hash: sha256(final bytes, post-watermark)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#be185d;" vertex="1" parent="1">
+          <mxGeometry x="60" y="1100" width="1300" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-D3" value="D3: Per-buyer bundle:&#10;occupation tree + every held&#10;persona's overlay + regenerated&#10;vault.json + per-.md watermark" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#be185d;" vertex="1" parent="1">
+          <mxGeometry x="60" y="1200" width="640" height="160" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-D4" value="D4: Lifecycle rule (target): 1h expiry&#10;(spec — not yet wired in MinIO).&#10;Cached for 24h in Redis under&#10;composed:{buyer}:{occ_skill}:{digest}" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#be185d;" vertex="1" parent="1">
+          <mxGeometry x="720" y="1200" width="640" height="160" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-D5" value="D5: Read by buyer via 60s presigned URL&#10;(composer.PRESIGNED_URL_TTL_SECONDS=60)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#be185d;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="60" y="1380" width="1300" height="180" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== attachments/captures/ prefix ===== -->
+        <mxCell id="g-captureAtt" value="attachments/captures/ — capture-time uploads" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;verticalAlign=top;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1420" y="940" width="1340" height="640" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-AC1" value="AC1: attachments/captures/{capture_session_id}/{filename}&#10;(capture/service.py — verified by&#10;test_service.py:test_attachment_finalize)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1440" y="980" width="1300" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-AC2" value="AC2: content_type: per upload&#10;(image/*, application/pdf, …)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="1440" y="1120" width="1300" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-AC3" value="AC3: Created by:&#10;POST /v1/capture/sessions/{id}/attachments&#10;(multipart upload)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="1440" y="1240" width="640" height="140" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-AC4" value="AC4: Survives finalize — the row in&#10;capture_attachments stays put" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="2100" y="1240" width="640" height="140" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== attachments/personas/ prefix ===== -->
+        <mxCell id="g-personaAtt" value="attachments/personas/ — post-finalize copies" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;verticalAlign=top;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="1600" width="1340" height="380" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-AP1" value="AP1: attachments/personas/{persona_id}/…&#10;(capture/service.py:finalize_session&#10;copies attachments here so the&#10;persona-side has a permanent record&#10;that's not tied to the capture session)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="60" y="1640" width="1300" height="160" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-AP2" value="AP2: Server-side copy (best-effort —&#10;never blocks the finalize transaction;&#10;failure is logged but the persona neuron&#10;still publishes)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="60" y="1820" width="1300" height="140" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== Prefix summary ===== -->
+        <mxCell id="g-summary" value="Prefix summary" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#475569;verticalAlign=top;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1420" y="1600" width="1340" height="380" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-ST1" value="ST1: skills/ — canonical bodies (.md)&#10;+ covers/ — skill cover images" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#475569;" vertex="1" parent="1">
+          <mxGeometry x="1440" y="1640" width="1300" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-ST2" value="ST2: vaults/ — built occupation + persona zips&#10;(immutable per content_hash)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#475569;" vertex="1" parent="1">
+          <mxGeometry x="1440" y="1710" width="1300" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-ST3" value="ST3: delivery/vaults/ — composed buyer bundles&#10;(ephemeral; 1h lifecycle target)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#475569;" vertex="1" parent="1">
+          <mxGeometry x="1440" y="1780" width="1300" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-ST4" value="ST4: attachments/captures/ — capture-time uploads&#10;(per capture_session_id)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#475569;" vertex="1" parent="1">
+          <mxGeometry x="1440" y="1850" width="1300" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-ST5" value="ST5: attachments/personas/ — post-finalize copies&#10;(per persona_id)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#475569;" vertex="1" parent="1">
+          <mxGeometry x="1440" y="1920" width="1300" height="55" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== Backend ===== -->
+        <mxCell id="g-be" value="Storage backend" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;verticalAlign=top;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="2000" width="2720" height="280" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-BE1" value="BE1: S3Storage (storage/s3.py)&#10;aioboto3 wrapper; same code&#10;against MinIO (dev) and R2/S3 (prod)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="60" y="2040" width="880" height="220" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-BE2" value="BE2: InMemoryStorage (storage/s3.py)&#10;used when settings.is_test;&#10;dict-backed, presigned URLs are&#10;'memory://…?expires=N'" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="960" y="2040" width="880" height="220" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-BE3" value="BE3: get_storage() singleton —&#10;set_storage() lets tests inject&#10;a fake at fixture time" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="1860" y="2040" width="880" height="220" as="geometry"/>
+        </mxCell>
+
+        <!-- Edges - bucket → prefixes -->
+        <mxCell id="e-bsk" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-Bucket" target="n-SK1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-bv" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-Bucket" target="n-V1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-bd" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-Bucket" target="n-D1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-bac" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-Bucket" target="n-AC1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-bap" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-Bucket" target="n-AP1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-bsk5" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-Bucket" target="n-SK5"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- Edges - skills internal -->
+        <mxCell id="e-sk12" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-SK1" target="n-SK2"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-sk13" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-SK1" target="n-SK3"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-sk14" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-SK1" target="n-SK4"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- Edges - vaults internal -->
+        <mxCell id="e-v12" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-V1" target="n-V2"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-v13" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-V1" target="n-V3"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-v14" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-V1" target="n-V4"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-v15" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-V1" target="n-V5"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- Edges - delivery internal -->
+        <mxCell id="e-d12" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-D1" target="n-D2"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-d13" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-D1" target="n-D3"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-d14" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-D1" target="n-D4"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-d15" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-D1" target="n-D5"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- Edges - capture attachments internal -->
+        <mxCell id="e-ac12" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-AC1" target="n-AC2"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-ac13" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-AC1" target="n-AC3"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-ac14" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-AC1" target="n-AC4"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- Edges - persona attachments internal -->
+        <mxCell id="e-ac4ap1" value="finalize copies" style="endArrow=classic;html=1;dashed=1;" edge="1" parent="1" source="n-AC4" target="n-AP1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-ap12" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-AP1" target="n-AP2"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- Edges - backend -->
+        <mxCell id="e-bbe1" value="dev" style="endArrow=classic;html=1;dashed=1;" edge="1" parent="1" source="n-Bucket" target="n-BE1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-bbe2" value="test" style="endArrow=classic;html=1;dashed=1;" edge="1" parent="1" source="n-Bucket" target="n-BE2"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-be1be3" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-BE1" target="n-BE3"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-be2be3" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-BE2" target="n-BE3"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

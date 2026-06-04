@@ -1,0 +1,337 @@
+---
+id: skillsgit-curated/ux-usability-test-planner
+version: 1.0.0
+name: Usability Test Planner
+description: Design a moderated or unmoderated usability study — research questions, realistic tasks, success metrics, sample size, recruit criteria, observation plan, and an analysis approach scoped to the decision at hand.
+authors:
+  - name: skillsgit Curated
+    handle: skillsgit-curated
+    role: author
+category: design
+tags: [niche:ux-research, usability-testing, evaluative-research, task-design, study-plan, moderated, unmoderated]
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6, claude-haiku-4-5, gpt-4o]
+  tools_required: []
+  min_context_tokens: 32000
+  estimated_tokens_per_invocation: 5500
+trigger_keywords:
+  - usability test
+  - usability study
+  - task-based test
+  - prototype testing
+  - evaluative research
+  - moderated test
+  - unmoderated test
+  - test plan
+  - benchmark study
+  - success metric
+  - SUS
+  - task scenario
+example_invocations:
+  - "Plan a moderated usability test for our new checkout flow before the May release."
+  - "I have an unmoderated prototype on a remote testing platform — what tasks should I run?"
+  - "Design a benchmark study comparing our current dashboard against the redesign."
+  - "Build me a test plan for our mobile signup, 6 participants, remote, two days to run."
+inputs:
+  - name: design_under_test
+    type: text
+    required: true
+    description: What you are evaluating — feature, flow, prototype, live product, or specific screens. Include fidelity (paper, lo-fi, hi-fi, prod), state of the design, and what is and is not clickable if a prototype.
+  - name: decision_to_inform
+    type: text
+    required: true
+    description: What changes based on the findings. "Ship or hold the release," "pick variant A or B," "decide where to invest the next sprint," etc. If unknown, the plan will flag this as a risk.
+  - name: moderation
+    type: choice
+    required: false
+    description: How the test will be run. Affects task wording, success measurement, and the analysis plan.
+    choices: [moderated-remote, moderated-in-person, unmoderated-remote, mixed]
+  - name: participant_profile
+    type: text
+    required: true
+    description: Target user description including any segments to compare, exclusion criteria, and recency of relevant behavior. The recruit specification will be built from this.
+  - name: timeline_and_budget
+    type: text
+    required: false
+    description: Days available to run the study and any budget constraints. Plan will scale sample size and method to fit.
+  - name: prior_known_issues
+    type: text
+    required: false
+    description: Issues already known from heuristic review, analytics, or earlier rounds. Tasks will be designed to test whether fixes worked without merely re-finding the same problems.
+  - name: success_criteria
+    type: text
+    required: false
+    description: What "the design works" means in this round. If empty, default thresholds will be proposed.
+outputs:
+  - name: test_plan
+    type: markdown
+    description: The full plan — research questions, hypotheses, sample, recruit screener, tasks with scenarios and success criteria, observation guide, schedule, and risk register.
+  - name: moderator_script
+    type: markdown
+    description: A session-ready script with consent language, intro, task introductions, post-task questions, and a debrief flow. Adjusted for the chosen modality.
+  - name: analysis_plan
+    type: markdown
+    description: How results will be coded and reported — severity rubric, evidence requirements, decision-mapping, and report skeleton.
+  - name: recruit_screener
+    type: markdown
+    description: Screener questions with disqualifying answers marked, an estimated incidence note, and incentive guidance.
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Initial release.
+---
+
+# Usability Test Planner
+
+## When to use
+
+Use this skill when there is a real design — a prototype, a live feature, a paper sketch, or a comparison between two variants — and the team needs to know whether people can actually use it. Usability testing answers behavioral questions, not preference questions: can the participant complete the task, where do they stumble, what do they misunderstand, and how confident are they at the end.
+
+Trigger this skill when the input includes:
+
+- A specific design artifact under evaluation.
+- A decision tied to a date — "before we ship," "for the design-review meeting," "to choose between two variants."
+- Phrases like "usability test," "task-based study," "prototype test," "tree test," "first-click test," "benchmark," "evaluative research," or "round-two testing."
+- A request for tasks, scenarios, success criteria, sample size guidance, or a test plan document.
+
+Do not trigger when:
+
+- The team has no design yet and is exploring problems (use the interview-guide-designer skill).
+- The need is broader satisfaction tracking (use the survey-question-bank-builder skill).
+- The session is for synthesis of data already collected (use the research-synthesis skill).
+- The question is purely aesthetic preference — usability testing handles task success, not "which color do you like."
+
+If `design_under_test` is missing or vague, ask one clarifying question and a link or screenshot before generating the plan. A plan written without the artifact is a plan that will produce useless tasks.
+
+## How to apply
+
+Work through these steps in order. Each one closes off a failure mode that usability studies routinely hit.
+
+### Step 1. Convert the decision into research questions
+
+A research question is a question the study can actually answer with behavioral evidence. Three to five is the right count. Anchor every question to the decision in the input. Examples:
+
+- "Can a first-time user complete checkout without external help, in under three minutes, on the smallest supported screen size?"
+- "Does the new error-recovery design get users back on track without requiring support contact?"
+- "Which of the two information architectures lets people find product specifications faster and more confidently?"
+
+Reject these as research questions and reshape them:
+
+- "Do users like the new design?" — Not behavioral; replace with task completion and confidence questions.
+- "Is the navigation intuitive?" — Vague; replace with "can users find X without scrolling past it" or "can users predict what is behind each top-level label."
+- "Will users adopt this feature?" — Not answerable from a usability session; flag for a different study.
+
+### Step 2. State testable hypotheses with kill criteria
+
+For each research question, write one or two hypotheses in this shape: "We expect that [behavior], with [threshold]. If we see [counter-evidence], we will [action]."
+
+Example: "We expect 5 of 6 participants to complete the checkout flow on their first attempt without moderator help. If 3 or more fail or require help on the same step, we will hold the release and redesign that step."
+
+Kill criteria are the most under-used part of a test plan. Without them, teams rationalize bad results. With them, the team agreed in advance what failure looks like — disagreement happens before the test, not after.
+
+### Step 3. Choose method, sample size, and modality
+
+Match method to the question type.
+
+- **Task-based usability test** — for completion, confidence, error-recovery, and time-on-task questions. Standard sample: 5–8 per segment for problem-discovery, 15–30 per segment for benchmarking.
+- **First-click test** — for navigation labeling and layout questions when you need quick directional signal. Unmoderated, 20–50 per task.
+- **Tree test** — for information-architecture questions independent of visual design. Unmoderated, 30–50 per condition.
+- **Comparative test (A/B in research, not in production)** — for variant decisions. Between-subjects 8–12 per variant or within-subjects 6–8 total with counterbalancing.
+- **Diary or longitudinal test** — for tasks that span days. Smaller sample (5–8), longer commitment.
+
+For modality:
+
+- **Moderated remote** — best balance of depth and reach. Sessions 45–60 minutes, 1:1.
+- **Moderated in-person** — for sensitive contexts, devices that are hard to share remotely, or when observation of body language matters.
+- **Unmoderated remote** — for tight timelines, large samples, narrow questions, and when moderator influence is a contamination risk.
+- **Mixed** — small moderated round followed by larger unmoderated round to validate the patterns.
+
+State the trade-off in the plan: moderated catches more "why," unmoderated produces a cleaner behavioral signal at scale.
+
+### Step 4. Design tasks that mirror real intent
+
+A task is not "click the blue button." A task is a scenario the participant believes they would plausibly be in, expressed in their language, with a goal they need to satisfy. The participant decides how to satisfy it; the design either supports them or not.
+
+Strong task structure:
+
+- **Context.** One or two sentences placing the participant in a believable situation. "Imagine you just got home from a trip and need to submit a $340 receipt for reimbursement. You took a photo of the receipt before you left."
+- **Goal.** What success looks like to the participant, in their words. "Get this receipt submitted before you go to bed tonight."
+- **Trigger.** What they have in front of them. The starting screen, the email, the deep link.
+- **Constraints (optional).** Realistic limits — "you only have ten minutes" — used sparingly.
+
+Avoid these task anti-patterns:
+
+- **Leading by language.** "Use the new export feature to..." gives away the path. Use the user's vocabulary, not the product team's.
+- **Synthetic data that breaks immersion.** If the receipt amount is $0.01 and the merchant is "Test Vendor," the participant breaks character.
+- **Tasks that test the moderator's curiosity instead of the decision.** Cut any task that does not tie to a research question.
+- **Tasks that depend on a state the prototype cannot reach.** Walk the flow yourself first. Many "the prototype is broken" sessions are actually "the task asked for something the prototype cannot do."
+
+Order tasks from broad to narrow when possible. Start with a task that lets the participant explore freely so they form a mental model — then test specific flows. Save risky or potentially confusing tasks for the middle, never the end (fatigue contaminates).
+
+### Step 5. Define success per task
+
+Each task needs concrete success criteria stated before the test. Pick from this menu and adapt:
+
+- **Completion.** Did they finish? Binary, but list the path variants you will count as success.
+- **Unaided completion.** Did they finish without the moderator helping?
+- **Time-on-task.** How long did it take? Set a threshold based on the task type, not a vanity target.
+- **Error count.** How many wrong turns before they recovered? Define what counts as an error.
+- **Severity-weighted error.** Some errors matter more — categorize during analysis.
+- **Confidence rating.** A 1–5 or 1–7 scale on "how confident are you that you got this right?" — asked after each task. Misalignment between confidence and actual success is a strong finding.
+- **Single Ease Question.** "Overall, this task was..." with a 1–7 scale from very difficult to very easy.
+
+Avoid leaning solely on the System Usability Scale or any single composite metric. Use composites to track over time; use behavior to find problems.
+
+### Step 6. Write the recruit screener
+
+Translate the participant profile into a screener of six to twelve questions, ordered by disqualification likelihood (cheapest disqualifiers first). For each:
+
+- The question.
+- The answers that qualify.
+- The answers that disqualify (often unmarked, but you should know).
+- A note on whether the question is a comprehension trap (e.g., a question with one obviously "correct" answer used to filter out fraud-prone respondents in unmoderated platforms).
+
+Estimate incidence — what fraction of a generic panel will pass. For tight criteria, recommend snowball recruiting through user lists or community channels rather than a panel. Include an incentive recommendation appropriate to participant value and session length.
+
+Always include exclusion of participants who have recently been in a study on similar topics — repeat participants in research panels skew toward people too familiar with the testing process.
+
+### Step 7. Build the observation guide
+
+The observation guide is what the moderator and observers fill out during sessions. Structure it task-by-task with prompts for:
+
+- Path taken (where did they click first, second, third?)
+- Stalls (where did they pause for more than three seconds?)
+- Verbalizations (quotes, in their words)
+- Errors and recoveries (what went wrong and what got them back on track)
+- Body language or off-screen behavior (when modality allows)
+- Confidence rating (their answer)
+- Single Ease Question rating (their answer)
+- One-sentence observer summary
+
+Provide a separate observer-only column for inferences the moderator should not voice during the session.
+
+### Step 8. Plan for note-taking and recording
+
+Specify:
+
+- Who is the moderator, who is the note-taker, and who else observes (silent).
+- Where notes go in real time (shared document, structured form, dedicated tool).
+- How sessions are recorded — video, audio, screen, or all three.
+- How consent for each is captured at session start.
+- Where recordings are stored and for how long, including retention and deletion policy.
+
+Avoid the trap of relying on memory to be filled in after the day. Same-day debrief plus the structured observation guide produces analyzable data; reconstructed notes do not.
+
+### Step 9. Write the moderator script
+
+The script covers:
+
+- **Pre-session intro** — purpose, consent, recording, "there are no right or wrong answers, we are testing the design not you," think-aloud invitation, and a question-answer norm-setting (the moderator can decline to answer questions during the test).
+- **Per-task introduction** — read or paraphrase the task; ask if anything needs to be reread; start the clock; go silent.
+- **Per-task post-questions** — confidence rating, ease rating, a short open question on what was easiest and what was hardest.
+- **Wrap-up** — overall impressions, anything they would change, follow-up consent if relevant.
+- **Closing** — thank-you, incentive logistics, recording stop.
+
+Adjust language and pacing for modality. Unmoderated tests need especially clear written task framing because there is no one to clarify.
+
+### Step 10. Define the analysis plan in advance
+
+Decide before data exists:
+
+- **Coding scheme.** What categories will issues get sorted into? Define them before the first session.
+- **Severity rubric.** Use a four-level scale: cosmetic, minor, major, blocker. Define each in plain language — "blocker" means "a typical user will not complete the task and will not contact support" or similar.
+- **Evidence threshold.** How many participants must show an issue before it is reported as a pattern? Two is a useful lower bound for small-N studies, with single instances reported as "noted, not patterned."
+- **Decision-mapping.** Restate the kill criteria from step 2 with the data the team will actually have. Who decides if a kill criterion is hit?
+- **Report skeleton.** Headline finding per research question, top 5–10 issues by severity, what was unexpectedly easy, recommended changes, and a clear next-action list.
+
+### Step 11. Pilot the test
+
+Run the entire flow with one participant — ideally an internal one — before the real sessions begin. Plan to throw out the pilot data and adjust:
+
+- Tasks that read poorly.
+- Tasks that the prototype cannot support.
+- Time budget that does not fit.
+- Recording setup that fails.
+
+A 90-minute pilot saves more than a day of bad sessions.
+
+### Step 12. Build a risk register
+
+List things that could go wrong and the mitigations:
+
+- Recruit shortfall — back-up panel or extended timeline.
+- Prototype breakage mid-study — fallback flow or schedule pause.
+- Confidentiality risk — NDA and recording access controls.
+- Sensitive findings that need stakeholder pre-briefing — flag the topics in advance.
+
+Hand the risk register to the study lead, not just the moderator.
+
+## Inputs
+
+- `design_under_test` (required): the artifact and its fidelity.
+- `decision_to_inform` (required): what changes from the findings.
+- `moderation` (optional): modality choice.
+- `participant_profile` (required): who you are testing with.
+- `timeline_and_budget` (optional): scaling constraints.
+- `prior_known_issues` (optional): what to test that fixes worked.
+- `success_criteria` (optional): predefined thresholds, if any.
+
+## Outputs
+
+- `test_plan`: the full plan document.
+- `moderator_script`: a session-ready script.
+- `analysis_plan`: the coding, severity, and reporting approach.
+- `recruit_screener`: screener questions with qualification logic.
+
+## Examples
+
+### Example 1 — mobile checkout, pre-launch
+
+Design under test: hi-fi clickable prototype of a mobile checkout flow, redesigned to add saved payment methods and a single-page review.
+
+Decision to inform: ship the redesign in the May release, hold, or partially ship.
+
+Moderation: moderated remote, 6 participants.
+
+Participant profile: people who completed at least one online purchase in the past month, mix of new and returning customers.
+
+Prior known issues: in the last round, three of six participants missed the shipping-address selector. Fix shipped.
+
+The output plan would include three research questions (can users complete checkout unaided; does the shipping-address fix hold; do saved payment methods feel safe). Tasks would simulate three plausible purchase scenarios — one new card, one saved card, one gift card. Each task would have an unaided-completion criterion and a confidence rating. Kill criterion: if any single step in the core flow blocks more than 2 of 6 participants, hold the release.
+
+### Example 2 — information architecture for a new navigation
+
+Design under test: two candidate top-level navigation structures for a marketing site, presented as a tree (no visual design).
+
+Decision: pick A or B.
+
+Moderation: unmoderated remote tree test.
+
+Participant profile: prospective buyers in the target industry, 40 per variant, between-subjects.
+
+The output plan would specify 8–10 findability tasks based on the most-traffic intents from analytics, success defined as reaching the correct destination via the most direct path with no backtrack. Confidence rating per task. Comparison done on completion rate and directness; the variant with the higher of both wins on each task; the plan describes the tie-breaking rule.
+
+## Limitations
+
+- This skill does not run the study, recruit, or analyze data — it produces the plan and supporting artifacts.
+- Small-N usability tests reliably surface problems but do not produce statistically robust completion rates. Treat completion percentages from 6 participants as directional.
+- Tree tests, first-click tests, and benchmark studies have method-specific nuances; the plan provides a strong starting point but a seasoned researcher should review for niche contexts.
+- The skill cannot replace pilot testing. Always pilot before real sessions.
+- For accessibility-specific usability testing (with assistive-technology users), additional method considerations are needed — request a specialist review or a separate plan.
+- Unmoderated platforms vary in fraud quality. The screener includes baseline traps, but the team must monitor for repeat or low-effort responses.
+
+## Sources reviewed
+
+Patterns were identified by surveying these open-source repositories covering usability evaluation, agent-skill collections that include usability-test workflows, and qualitative research tooling. All prose above is original to this skill; no source content was copied.
+
+- https://github.com/ruxailab/RUXAILAB
+- https://github.com/VoltAgent/awesome-claude-code-subagents
+- https://github.com/msitarzewski/agency-agents
+- https://github.com/product-on-purpose/pm-skills
+- https://github.com/aakashg/pm-claude-code-setup
+- https://github.com/surveyjs/survey-library

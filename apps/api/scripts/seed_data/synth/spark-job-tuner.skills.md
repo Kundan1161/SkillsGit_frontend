@@ -1,0 +1,254 @@
+---
+id: skillsgit-curated/spark-job-tuner
+version: 1.0.0
+name: Spark Job Tuner
+description: Diagnoses a slow Apache Spark job from its physical plan, stage metrics, and executor logs — naming the bottleneck (skew, spill, shuffle volume, partition count, broadcast threshold, AQE settings, cache vs persist, catalyst hints) and prescribing the specific change to make.
+authors:
+  - name: skillsgit Curated
+    handle: skillsgit-curated
+    role: author
+category: data
+tags: [niche:spark-tuning, apache-spark, performance, shuffle, aqe, partitioning, catalyst, spill]
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6, gpt-4o]
+  tools_required: []
+  tools_optional: [code_execution]
+  min_context_tokens: 32000
+  estimated_tokens_per_invocation: 7500
+trigger_keywords:
+  - spark job slow
+  - spark tuning
+  - spark performance
+  - spark shuffle
+  - spark spill
+  - aqe
+  - adaptive query execution
+  - spark broadcast
+  - spark partition count
+  - spark physical plan
+  - spark explain
+  - skew join
+  - spark cache vs persist
+  - catalyst optimizer
+  - spark sql tuning
+example_invocations:
+  - "This Spark job used to run in 20 minutes and now takes 3 hours — here is the plan and the stage timings."
+  - "Stage 14 has one task that takes 40 minutes while the rest finish in seconds. Diagnose."
+  - "Our shuffle read is 2 TB on a 200 GB input. What is wrong?"
+  - "Spark is spilling 800 GB to disk on a join. How do we fix it?"
+  - "Should we cache or persist this dataframe used in three downstream queries?"
+inputs:
+  - name: job_description
+    type: text
+    required: true
+    description: What the job does in business terms — the inputs, the transformations, and the output. A two-paragraph summary is enough.
+  - name: physical_plan
+    type: text
+    required: false
+    description: Output of df.explain(mode="formatted") or "EXPLAIN FORMATTED" SQL. The single most useful diagnostic input.
+  - name: stage_metrics
+    type: text
+    required: false
+    description: Per-stage timings, shuffle read/write, spill, and task duration distribution (min/median/max/p95). Copy from the Spark UI stages tab.
+  - name: cluster_shape
+    type: text
+    required: false
+    description: Number of executors, cores per executor, memory per executor, total cluster cores, Spark version, AQE setting.
+  - name: data_volumes
+    type: text
+    required: false
+    description: Input table sizes (rows and bytes), output size, and any obvious cardinalities (e.g., 99% of rows belong to 10 keys).
+  - name: code_snippet
+    type: text
+    required: false
+    description: The relevant transformation code (Scala, Python, or SQL). Helps identify wide vs narrow ops and hint placement.
+outputs:
+  - name: diagnosis
+    type: markdown
+    description: Ranked list of root causes with evidence pulled from the plan and metrics, and the specific Spark concept implicated.
+  - name: prescription
+    type: markdown
+    description: Concrete changes with rationale — config knobs, code rewrites, hint additions, partitioning changes — with the expected effect.
+  - name: verification_plan
+    type: markdown
+    description: How to confirm each change worked, including which metrics to compare and the expected direction and magnitude.
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Initial release.
+---
+
+## When to use
+
+Use this skill when an Apache Spark batch job is slower than it should be and the team needs a specific diagnosis rather than a generic checklist. Typical situations:
+
+- A job that used to run in N minutes now takes Nx minutes after a data-volume change, a Spark version upgrade, or a code change.
+- A long-tail stage where one or two tasks dominate runtime while the rest of the cluster sits idle.
+- A shuffle whose written bytes are an order of magnitude larger than the input, or whose spill-to-disk volume rivals the input.
+- A join that suddenly becomes a sort-merge join when it used to broadcast, or vice versa.
+- An ETL pipeline that hits a memory ceiling and either OOMs or spills heavily.
+- A query whose physical plan looks reasonable but whose wall-clock time disagrees with the cluster's nominal capacity.
+
+Do not use this skill for cluster sizing or capacity planning from scratch — pair with the Spark Cluster Sizer skill. Do not use it as a substitute for collecting a physical plan; the diagnostic quality without `explain` output is low. Do not use it for non-Spark engines (Presto, Trino, DuckDB) — those have different planners and the heuristics here will mislead.
+
+## How to apply
+
+Work the steps in order. The early steps establish whether the bottleneck is in the plan, the data, the cluster, or the code; later steps prescribe fixes specific to each.
+
+### 1. Frame the job and the symptom
+
+1. **Restate the job in one sentence.** "Reads two parquet inputs of 200 GB each, joins on customer_id, aggregates by region, writes 1 GB output." A sentence the team agrees with anchors every later step.
+2. **State the symptom with numbers.** "Wall-clock 3 hours, was 20 minutes." "Stage 14 has one task at 42 minutes, others at 12 seconds." "Shuffle read 2.1 TB, spill 800 GB." Without numbers, the diagnosis is guesswork.
+3. **Identify what changed.** Data volume change, a code change, a Spark version upgrade, an AQE toggle, a cluster shape change, a catalog statistics refresh, a partition layout change in upstream tables. The recent change is the prime suspect.
+4. **Decide the success criterion.** A wall-clock target ("under 30 minutes"), a cost target, or both. The fix needs a stopping condition.
+
+### 2. Read the physical plan
+
+5. **Always start with `explain(mode="formatted")`.** The formatted mode separates the tree from the per-node details and is easier to scan than the default. For SQL, use `EXPLAIN FORMATTED`.
+6. **Identify the join type at every join.** `BroadcastHashJoin` is fast and free of shuffle. `SortMergeJoin` requires shuffle and sort on both sides. `ShuffleHashJoin` requires shuffle on both sides plus a hash build. `BroadcastNestedLoopJoin` is almost always a mistake unless the build side is tiny and the join condition is non-equi.
+7. **Look for `Exchange` nodes.** Every `Exchange` is a shuffle. Count them. A query with two joins typically has two or three exchanges; one with six is a candidate for review.
+8. **Check partition counts in `Exchange` nodes.** The post-shuffle partition count is `spark.sql.shuffle.partitions` (default 200) unless AQE coalesces. A 200-partition shuffle on a 2 TB dataset means 10 GB per partition — far above the healthy 100–200 MB range.
+9. **Look for filter pushdown.** A `PushedFilters: [...]` block on a parquet scan means predicate pushdown succeeded; an empty one means Spark is reading data it will throw away. Often a column-type mismatch (string vs int compare) prevents pushdown.
+10. **Look for column pruning.** The `ReadSchema:` line at a scan should contain only the columns the query needs. If it lists 80 columns when the query touches 5, pruning failed (often because of a `select *` or a Python UDF blocking pushdown).
+11. **Spot expensive expressions.** Window functions over unbounded ranges, `collect_list` over very wide groups, regex extracts, and Python UDFs all show up as project or window nodes that are easy to miss. They run after shuffle, so they amplify any data-volume problems.
+12. **Find AQE adjustments in the plan.** Under AQE, a `CustomShuffleReader` indicates coalescing or skew handling. Its absence on a clearly skewed stage means AQE is off or the skew threshold did not trigger.
+
+### 3. Read the stage and task metrics
+
+13. **Open the Spark UI stages tab.** Sort by duration. The longest stage is the place to look, but also check stages with high shuffle read/write or spill.
+14. **Compare task duration percentiles.** A healthy stage has max < 2x median. A long-tail stage has max > 10x median. A skew problem typically shows max > 50x median with one or two tasks dominating.
+15. **Read shuffle metrics per stage.** Shuffle Read Size, Shuffle Write Size, and Spill (Memory/Disk). Spill > 0 means the executor heap could not hold the partition; either the partition is too big or the executor is too small.
+16. **Read input/output ratios.** A stage that reads 200 GB and writes 2 TB is exploding data (often via `explode` or a join multiplication). A stage that reads 2 TB and writes 1 GB after aggregation is fine — but pre-aggregation pushdown might be missing.
+17. **Look at GC time.** GC time > 10% of task time is a sign of memory pressure. > 30% is critical. Either the executor is too small or the partition is too big.
+18. **Look at scheduler delay and task deserialization time.** Large values here mean driver-side bottleneck or huge broadcast variables, not executor-side.
+
+### 4. Diagnose the top 5 patterns
+
+19. **Pattern A: data skew.** Symptom: one or two tasks take 10x+ the median in a shuffle-heavy stage. Confirm by adding `spark.sql.adaptive.skewJoin.enabled=true` and re-checking; if AQE detects skew it will inject a `CustomShuffleReader` with skew handling. If not, you have skew that AQE could not detect — usually because the skewed key is below the default skew factor. See the Spark Skew Mitigator skill for fixes.
+20. **Pattern B: under-partitioning.** Symptom: each shuffle partition handles > 1 GB; tasks individually take 10+ minutes; spill is high. Fix: raise `spark.sql.shuffle.partitions` so post-shuffle partitions land in 100–200 MB. Without AQE this is set globally; with AQE the initial value should be high (e.g., 1000–4000) and AQE will coalesce down.
+21. **Pattern C: over-partitioning.** Symptom: thousands of tiny tasks taking < 1 second each; scheduling overhead dominates. Fix: enable AQE coalesce (`spark.sql.adaptive.coalescePartitions.enabled=true`) or set a lower `spark.sql.shuffle.partitions`. The healthy task duration is 1–10 seconds.
+22. **Pattern D: missed broadcast.** Symptom: a `SortMergeJoin` on a small-ish dimension table that is below the broadcast threshold by row count but above it by bytes (often because of long strings or wide schemas). Fix: raise `spark.sql.autoBroadcastJoinThreshold` cautiously, or add an explicit `/*+ BROADCAST(dim) */` hint. Verify the small side fits in driver memory plus executor broadcast cache.
+23. **Pattern E: unwanted broadcast.** Symptom: a broadcast join on a side that is actually large at runtime (statistics were wrong). The driver spills or OOMs collecting the build side. Fix: add `/*+ NO_BROADCAST(...) */` or run `ANALYZE TABLE ... COMPUTE STATISTICS` so the planner has correct sizes.
+24. **Pattern F: spill from oversized partition.** Symptom: shuffle write is fine but downstream stage spills 100s of GB. Fix: increase partition count for the downstream stage, lower memory consumers per task (e.g., decrease `spark.sql.windowExec.buffer.in.memory.threshold`), or add a salt to redistribute.
+25. **Pattern G: cache thrash.** Symptom: a cached dataset is repeatedly evicted because it does not fit in memory. The same scan runs multiple times. Fix: pick a smaller cache level (`MEMORY_AND_DISK`), persist after a narrow transformation rather than after a wide one, or simply do not cache when the dataset is read only once.
+26. **Pattern H: UDF dominance.** Symptom: a Python UDF stage takes most of the runtime. Fix: rewrite as native Spark SQL or pandas UDF (vectorized). The serialization tax of row-at-a-time Python UDFs is severe.
+
+### 5. Tune AQE first
+
+27. **Enable AQE unless on a Spark version older than 3.0.** `spark.sql.adaptive.enabled=true`. AQE is the single biggest win on modern Spark; it dynamically coalesces post-shuffle partitions, switches join strategies on accurate runtime sizes, and handles join skew.
+28. **Enable coalesce partitions.** `spark.sql.adaptive.coalescePartitions.enabled=true`. Set `spark.sql.adaptive.advisoryPartitionSizeInBytes` to the target post-shuffle partition size, typically 64–256 MB.
+29. **Enable skew join handling.** `spark.sql.adaptive.skewJoin.enabled=true`. AQE splits skewed partitions when their size exceeds `spark.sql.adaptive.skewJoin.skewedPartitionFactor` times the median and a hard threshold.
+30. **Set `spark.sql.shuffle.partitions` high.** With AQE coalescing, start at 1000–4000 partitions. AQE will reduce; without a high starting count there is nothing to reduce from.
+31. **Re-run the job and re-read the plan.** Confirm `CustomShuffleReader` nodes appear, the post-shuffle partition counts are reasonable, and the long tail is gone.
+
+### 6. Tune broadcast and join strategy
+
+32. **Compute the small-side size honestly.** Bytes on disk lies for compressed parquet. Estimate uncompressed size: `rows * avg_row_bytes`. A 50-million-row dim table with a 100-byte average row is 5 GB uncompressed — too big to broadcast on a typical setup.
+33. **Pick a broadcast threshold that matches executor memory.** The default 10 MB is safe; 100 MB is reasonable on executors with 16+ GB; 1 GB requires a thoughtful executor sizing. Above that, the driver collecting the build side becomes the bottleneck.
+34. **Use explicit hints over global thresholds when the plan keeps mis-picking.** `/*+ BROADCAST(dim) */` is unambiguous and survives plan changes.
+35. **Consider `BROADCAST` even for moderately large dims** when the fact side is huge. Shuffling 10 TB of fact data is more expensive than broadcasting a 500 MB dim, even when statistics suggest otherwise.
+
+### 7. Tune partitioning of the writes
+
+36. **Write output with a partition count that matches the target file size.** For parquet, 256 MB–1 GB per file is the typical sweet spot. Repartition before write: `df.repartition(N).write...`.
+37. **Beware `coalesce(1)` for "single file" output.** It removes parallelism for the entire upstream stage. If the data is small enough, fine; otherwise use a separate compaction step.
+38. **Use partition columns thoughtfully.** Hive-style partitioning by date is universally good; by high-cardinality columns it is catastrophic (millions of tiny files). Aim for ≥ 100 MB per partition file.
+
+### 8. Cache and persist deliberately
+
+39. **Cache only when a dataset is read more than once.** A one-shot pipeline rarely benefits from caching. The Spark UI's storage tab tells you whether the cache is hit or evicted.
+40. **Pick the right storage level.** `MEMORY_ONLY` is fastest but evicts on pressure; `MEMORY_AND_DISK` is the safe default; `DISK_ONLY` is for the rare cases where memory is precious and recomputation is expensive.
+41. **Persist after narrow transformations, not after the wide one.** A persisted dataframe still has to be recomputed if you persist before the shuffle and then trigger a different shuffle. Persist at the natural reuse point.
+42. **Drop caches explicitly.** `df.unpersist()` after the last use. Cached blocks otherwise survive until executor GC.
+
+### 9. Tune the Catalyst plan with hints
+
+43. **Use `BROADCAST`, `MERGE`, `SHUFFLE_HASH`, `SHUFFLE_REPLICATE_NL` hints** to force a specific join strategy when the planner consistently picks wrong.
+44. **Use `COALESCE(n)` and `REPARTITION(n, cols)` hints** to control partition counts inline rather than via global config.
+45. **Use `SKEW` hints** (Databricks-style, or Spark 3.5+ `/*+ SKEW(...) */`) to tell the planner which key on which table is skewed. Only when AQE skew handling does not catch it.
+46. **Document every hint in code with a comment** stating the reason and the date. Hints survive plan changes and become dead weight.
+
+### 10. Tune at the cluster level only after the query is sane
+
+47. **Right-size executors.** 4–8 cores per executor with 16–32 GB memory is a healthy default. Larger executors increase GC pressure; smaller ones increase coordination overhead.
+48. **Set `spark.memory.fraction` and `spark.memory.storageFraction` to defaults** unless profiling shows otherwise. The dynamic split (`spark.memory.fraction=0.6`, storage borrows from execution and vice versa) handles most workloads.
+49. **Enable off-heap memory** for very large shuffles or sort operations: `spark.memory.offHeap.enabled=true`, `spark.memory.offHeap.size=...`. Reduces GC pressure for sort-heavy queries.
+50. **Tune `spark.sql.files.maxPartitionBytes`** to control the read-side partitioning. The default 128 MB is fine for most parquet; lower it to 32 MB when reading from object stores with high request overhead.
+51. **Check `spark.locality.wait`.** Lowering to 1–3 seconds helps on object-store-backed clusters where data locality is moot.
+
+### 11. Write the prescription
+
+52. **Produce a ranked list.** Highest-impact change first. Each item has: the change, the rationale tied to a specific piece of evidence, the expected effect, and how to verify.
+53. **Order by reversibility.** Code rewrites first (more durable), then hints (durable but narrow), then configs (easy to undo).
+54. **Bundle changes into experiments of 2–3 each.** Tuning is iterative; changing 10 things at once means you cannot tell which one worked.
+
+### 12. Verify
+
+55. **Re-run with each experiment and capture the same metrics.** Wall clock, stage timings, shuffle bytes, spill bytes, task duration distribution.
+56. **Confirm the expected effect of each change.** A bumped partition count should reduce spill and reduce p95 task duration; a broadcast hint should remove an `Exchange` and reduce shuffle bytes; an AQE enablement should reduce stage count or partition count.
+57. **Watch for second-order effects.** A change that fixes one stage may push the bottleneck downstream. Re-rank after each round.
+58. **Record the final config in the job repository.** A pasted Spark UI screenshot, the diff in configs, and the wall-clock-before/after go in the change log.
+
+## Inputs
+
+- A short description of what the job does.
+- The physical plan (highest-value input).
+- Per-stage metrics from the Spark UI (or History Server).
+- Cluster shape and Spark version.
+- Input and output data volumes, plus any known cardinalities.
+- The relevant code snippet.
+
+## Outputs
+
+- A diagnosis identifying the top 1–3 root causes with evidence.
+- A prescription with specific, ranked changes.
+- A verification plan with expected metric movement.
+
+## Examples
+
+### Example 1: long-tail stage
+
+Input: stage 14 of an order-attribution job, one task at 42 minutes, others at 9 seconds. Shuffle read on the stage is 320 GB. Cluster: 40 executors, 4 cores, 16 GB. Plan shows a `SortMergeJoin` on `customer_id`.
+
+Diagnosis: data skew on `customer_id`. The top customer (a B2B reseller) accounts for 38% of the fact table.
+
+Prescription: enable AQE skew handling (`spark.sql.adaptive.enabled=true`, `spark.sql.adaptive.skewJoin.enabled=true`). If insufficient, add a `SKEW` hint on the customer side, or apply salting (see Spark Skew Mitigator skill). Expected wall-clock reduction: 35–40 minutes (the long task dominates).
+
+### Example 2: spill on aggregate
+
+Input: a group-by-user aggregation spills 600 GB to disk on a 250 GB input. `spark.sql.shuffle.partitions=200`. Job runs 90 minutes.
+
+Diagnosis: under-partitioning. 250 GB across 200 post-shuffle partitions is 1.25 GB per partition, well above executor memory budget per task; the engine spills.
+
+Prescription: enable AQE with a high initial `shuffle.partitions=2000` and `advisoryPartitionSizeInBytes=128MB`. AQE will coalesce as needed. Expected effect: spill drops to single-digit GB, wall clock drops to 25–35 minutes.
+
+### Example 3: misplaced broadcast
+
+Input: a join between a 50 GB fact and a "small" lookup table that is actually 4 GB. Driver OOMs collecting the broadcast side.
+
+Diagnosis: `spark.sql.autoBroadcastJoinThreshold` was set to 8 GB by a previous engineer. Statistics on the lookup table are stale.
+
+Prescription: drop the auto-broadcast threshold back to 100 MB. Add `/*+ NO_BROADCAST(lookup) */`. Run `ANALYZE TABLE lookup COMPUTE STATISTICS` so future plans pick correctly. Expected effect: job completes via sort-merge join; about 8–12 minutes wall clock.
+
+## Limitations
+
+- Without a physical plan, the diagnostic quality drops sharply. A free-form description is the weakest input.
+- This skill targets Spark SQL and DataFrame APIs on Spark 3.0+. Older Spark and RDD-era code follow different rules; some advice (AQE in particular) does not apply.
+- Some advice is platform-dependent; "broadcast threshold" defaults differ between vanilla Spark and managed runtimes, and driver memory budgets differ by deployment.
+- Streaming workloads have separate bottlenecks (state store, watermarking) not covered here — use the Spark Streaming Architect skill.
+- Memory-mapped, off-heap, and GPU-accelerated workloads have additional knobs not covered here.
+
+## Sources reviewed
+
+- https://github.com/apache/spark
+- https://github.com/qubole/sparklens
+- https://github.com/delta-io/delta
+- https://github.com/apache/iceberg
+- https://github.com/databricks/koalas
+- https://github.com/apache/incubator-celeborn
+- https://github.com/MrPowers/quinn

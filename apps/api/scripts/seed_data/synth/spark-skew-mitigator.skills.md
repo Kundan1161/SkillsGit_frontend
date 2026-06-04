@@ -1,0 +1,216 @@
+---
+id: skillsgit-curated/spark-skew-mitigator
+version: 1.0.0
+name: Spark Skew Mitigator
+description: Diagnoses Apache Spark data skew from stage metrics and key distributions, then prescribes the right mitigation — AQE skew handling, salting, two-step aggregation, broadcast lift, or skew hints — with the trade-offs of each.
+authors:
+  - name: skillsgit Curated
+    handle: skillsgit-curated
+    role: author
+category: data
+tags: [niche:spark-tuning, apache-spark, data-skew, salting, aqe, broadcast-join, hot-keys]
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6, gpt-4o]
+  tools_required: []
+  tools_optional: [code_execution]
+  min_context_tokens: 16000
+  estimated_tokens_per_invocation: 5000
+trigger_keywords:
+  - spark skew
+  - data skew
+  - skewed join
+  - salting spark
+  - hot key
+  - hot partition
+  - long tail task
+  - skew hint
+  - aqe skew
+  - one task slow
+  - lopsided partition
+  - skewed group by
+  - two step aggregate
+example_invocations:
+  - "One task in our join takes 50 minutes, the rest finish in seconds. Help."
+  - "Our group-by on customer_id is skewed because three customers do 60% of the orders."
+  - "AQE skew handling didn't trigger but we obviously have skew. What do we do?"
+  - "Walk us through salting a skewed join end to end."
+inputs:
+  - name: symptom
+    type: text
+    required: true
+    description: The observed symptom — typically a long-tail stage with one or two tasks dominating runtime.
+  - name: key_distribution
+    type: text
+    required: false
+    description: Top-N keys by count or share, even rough. Critical input — skew mitigation is shaped by how many keys are hot and how hot.
+  - name: physical_plan
+    type: text
+    required: false
+    description: The relevant join or aggregation node from the physical plan, including current join strategy.
+  - name: spark_version
+    type: text
+    required: false
+    description: Spark version and AQE settings. AQE skew handling requires 3.0+ and changes the recommended approach.
+  - name: downstream_constraints
+    type: text
+    required: false
+    description: Whether downstream consumers expect a specific partitioning or sort order — affects whether salting is acceptable.
+outputs:
+  - name: skew_diagnosis
+    type: markdown
+    description: Type of skew (point-mass, heavy-tail, multi-key) and why current behavior is bad.
+  - name: mitigation
+    type: markdown
+    description: The specific mitigation with code patterns, in the order they should be tried.
+  - name: trade_offs
+    type: markdown
+    description: What each mitigation costs and where it breaks down.
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Initial release.
+---
+
+## When to use
+
+Use this skill when a Spark job has a clear long-tail stage and the team needs a specific mitigation, not generic advice. Typical situations:
+
+- A join where one task takes 30x the median.
+- A group-by where the largest groups dwarf the rest (the classic "B2B customer" or "celebrity user" pattern).
+- A window function over a key with extreme cardinality differences.
+- An AQE-enabled job where skew handling did not trigger (key is hot but not hot enough for the default thresholds).
+- A pipeline where skew is intrinsic to the data and cannot be eliminated at the source — the fix must live in Spark.
+
+Do not use this skill for under-partitioning (too few partitions globally) — that is a tuning issue, not skew. Do not use it for over-partitioning (too many tiny tasks). Do not use it as a substitute for understanding the data; the right mitigation depends on whether you have one hot key, a heavy tail of warm keys, or a mix.
+
+## How to apply
+
+Work the steps in order. Mitigations have very different costs; picking the cheapest effective one matters.
+
+### 1. Confirm it is skew
+
+1. **Open the suspect stage in the Spark UI.** Note p50, p95, and max task duration. Skew is roughly: max > 10x median, or one or two tasks alone consume most of the wall-clock.
+2. **Confirm the shuffle stage, not a downstream one.** Skew shows up after a shuffle. If task durations are uniform but the stage is slow overall, the issue is under-partitioning or compute volume, not skew.
+3. **Rule out file skew.** A stage that reads from object storage may have unbalanced task sizes if input files are unbalanced. Look at task input size: if some tasks read 10 GB and others read 100 MB, the skew is on the read side, not the shuffle. Fix with read-side repartition or smaller file targets, not with the techniques below.
+4. **Sanity-check executor health.** A long task may simply be a slow executor (GC, network, noisy neighbor) rather than skewed data. Look at GC time on the long-running task — if GC time is most of the duration, the executor is unhealthy.
+
+### 2. Profile the skew
+
+5. **Query the key distribution.** For a suspect join or group-by on `k`, run `df.groupBy("k").count().orderBy(desc("count")).limit(20)` against a sample (or against the full data if cheap).
+6. **Classify the shape.** Point-mass: one or two keys account for > 30% of rows. Heavy tail: top 10 keys account for 20–40%, no single dominator. Multi-cluster: many medium-hot keys. Each shape has a preferred mitigation.
+7. **Compute the imbalance ratio.** Largest key count divided by mean key count. < 10x is mild; 10–100x is moderate; > 100x is severe.
+8. **Identify whether the skew is on the left side, the right side, or both** in a join. Different mitigations apply.
+
+### 3. Try AQE skew handling first
+
+9. **Enable AQE if not already.** `spark.sql.adaptive.enabled=true` and `spark.sql.adaptive.skewJoin.enabled=true`.
+10. **Tune the skew thresholds for your data.** `spark.sql.adaptive.skewJoin.skewedPartitionFactor` (default 5) — a partition is "skewed" if its size is > factor x median. `spark.sql.adaptive.skewJoin.skewedPartitionThresholdInBytes` (default 256MB) — and absolute floor. Both conditions must hold. Lower the factor to 3 and the threshold to 64MB if AQE is not catching your skew.
+11. **Re-run and re-check the plan.** A `CustomShuffleReader` node with skew handling should appear. The long tail should compress noticeably — often a 10x task speedup.
+12. **Accept the trade-off.** AQE splits skewed partitions on one side and replicates the corresponding partition from the other side. This roughly doubles the work on the other side for skewed keys. For point-mass skew with a small build side this is a clear win; for heavy-tail skew with a large build side, it can backfire.
+13. **Combine with skew hints when needed.** Spark 3.5+ supports `/*+ SKEW('table', 'key', ('value1', 'value2')) */` hints to tell AQE exactly which keys to treat as skewed. Use this when AQE's automatic detection misses keys you know are hot.
+
+### 4. Try a broadcast lift
+
+14. **If one side of the join is small enough, broadcast it.** Skew on the small side disappears because the broadcast side is replicated to every task; no shuffle on the build side means no skewed task. Add `/*+ BROADCAST(small) */`.
+15. **The threshold to "small enough" is uncompressed memory, not file size.** A 200 MB parquet may be 2 GB in memory. Estimate honestly.
+16. **Verify the broadcast didn't break the driver.** A broadcast lift is free when it fits; it kills the driver when it does not.
+17. **Broadcast only helps when the small side is the non-skewed side.** Skew on the broadcast side cannot be solved by broadcast — there is no shuffle to skew.
+
+### 5. Salting a skewed join
+
+18. **Use salting when** AQE handling is insufficient, broadcast is not possible, and the imbalance ratio is severe. Salting is the most general-purpose tool and the most code-intrusive.
+19. **The pattern, conceptually:** on the skewed (large, hot) side, append a random integer in `[0, N)` to the join key. On the other (build) side, replicate each row N times, once per salt value. The join key becomes `(original_key, salt)`; the previously hot value spreads across N partitions.
+20. **Choose N based on the hot-key share.** If one key is 40% of the data and you have 200 partitions, salting with N=80 gives each salt-bucket roughly the same load as a non-hot key. A common starting point: N = (hot-key share) * (number of partitions) * 2.
+21. **Salt only the hot keys, not all keys.** Salting every key wastes compute on the non-hot side via row replication. Use a conditional salt: if the key is in the hot-set, append a random salt; else append a constant. The hot-set is precomputed from the profiling step.
+22. **Replicate the build side proportionally.** For non-hot keys, replicate with the constant salt only (a 1x explode). For hot keys, replicate N times. The total build-side row count grows by approximately (hot-key share × N) + (1 − hot-key share).
+23. **Test the salt distribution.** After salting, re-check the per-task duration distribution. The max-over-median should drop to under 3x.
+24. **Document the salt N.** A magic number in the codebase without explanation is a maintenance trap. Comment the salt and the data assumption that justified it.
+
+### 6. Two-step aggregation for skewed group-by
+
+25. **Use two-step aggregation when** the operation is a `groupBy(...).agg(...)` rather than a join, and the hot keys are aggregating many rows into few.
+26. **Step 1: partial aggregate with a random sub-key.** Group by `(key, random_int(0, N))` and compute the partial aggregate. The hot key splits into N partial groups, each manageable.
+27. **Step 2: final aggregate over the partial results.** Group by `key` alone and combine the partial aggregates with the corresponding combine function (sum-of-sums, max-of-maxes, hll-union-of-hlls for distinct count).
+28. **The combine function must be associative and commutative.** Sum, max, min, count, hll, and bitmap are all friendly. Median is not — it requires either approximate techniques (T-digest) or a different approach.
+29. **For approximate distinct count, use HyperLogLog.** `approx_count_distinct` aggregates a sketch, which combines cleanly in step 2. Exact distinct count on a skewed key is intrinsically slow.
+30. **For percentiles, use T-digest or quantile sketches.** Spark's `percentile_approx` aggregates a sketch state; combining sketches gives an approximate but stable answer.
+
+### 7. Skew hints (engine-specific)
+
+31. **Use `/*+ SKEW(...) */` hints when the engine supports them.** Spark 3.5+ supports a SKEW hint at the SQL level naming the table, the join key, and the skewed values; the optimizer then applies the skew strategy directly.
+32. **Verify the hint took effect.** Look for the corresponding plan-node change. Hints that do not match the join shape are silently ignored.
+33. **Treat hints as fragile.** A plan change downstream (a different join order, a different filter) can invalidate the hint. Re-verify after any structural change to the query.
+
+### 8. Combine techniques
+
+34. **Combine AQE with hints.** AQE handles unknown skew at runtime; explicit hints handle the known cases the optimizer keeps missing.
+35. **Combine broadcast with skew handling** for joins where one side is small and the other has skew on a non-broadcast-eligible key.
+36. **Combine salting with two-step aggregation** for pipelines that join then aggregate on the same skewed key.
+37. **Do not combine all techniques blindly.** Each adds complexity and runtime cost. The right combination has measured benefit on the actual data.
+
+### 9. Special cases
+
+38. **Null keys.** Nulls often dominate when a join is on an outer-join key or a sparse column. Spark hashes nulls to the same partition; the result is a massive null bucket. Filter out the nulls before the join, or coalesce them to a special sentinel and handle separately.
+39. **Empty strings or default values.** A column where 50% of rows are `""` or `"unknown"` behaves like nulls. Same fix.
+40. **Cartesian-like joins.** A join with a non-equi condition (`>`, `<`, `BETWEEN`) and no equality predicate falls back to `BroadcastNestedLoopJoin` or `CartesianProduct`. These do not skew per se but multiply data alarmingly. Add an equality predicate on a high-cardinality column where possible.
+41. **Skewed window functions.** A window partitioned by a skewed key produces a skewed shuffle. Mitigations: pre-aggregate within the partition where possible, or reshape the window to use a less skewed partitioning column.
+42. **Skewed top-N per group.** A top-N per skewed group can blow up. Use approximate techniques (sampling), or use a two-pass approach: a sample-based threshold, then a filter, then exact top-N on the filtered set.
+
+### 10. Verify and document
+
+43. **Re-run the job and compare per-task durations.** The max-over-median ratio is the cleanest metric. Wall clock is the bottom-line metric.
+44. **Re-check shuffle write and read sizes.** Salting and replication grow shuffle volume. Confirm the growth is acceptable.
+45. **Confirm output correctness.** Salting and two-step aggregation can introduce subtle bugs (wrong combine function, missed null handling). A small sample comparison against the pre-mitigation output is cheap insurance.
+46. **Document the mitigation in code.** The salt N, the hot-key set, the AQE configs — all with comments that name the data assumption. The next engineer should be able to recompute the hot-key set and confirm the assumption still holds.
+47. **Set up a check for hot-key drift.** Hot keys change. A monthly job that re-profiles and alerts on shifts gives the team time to re-tune.
+
+## Inputs
+
+- A clear statement of the symptom with metrics.
+- The key distribution, even rough.
+- The relevant physical plan or query.
+- Spark version and AQE settings.
+
+## Outputs
+
+- A diagnosis of the skew shape.
+- A prescribed mitigation, in order of cost.
+- The trade-offs of each.
+
+## Examples
+
+### Example 1: AQE catches point-mass skew
+
+A join on `merchant_id` has one merchant accounting for 22% of rows. AQE is on but skew handling was off. Enabling `spark.sql.adaptive.skewJoin.enabled=true` adds a `CustomShuffleReader` and the long tail drops from 35 minutes to 4 minutes. Wall clock improves by 25 minutes. No code change.
+
+### Example 2: salting a stubborn hot key
+
+A join on `customer_id` has one customer at 38% of orders. AQE skew handling is on, but the join is `BroadcastHashJoin` on a small dim and `SortMergeJoin` between two large fact tables. The skewed-side partition is split by AQE but its replicated partner is also huge, so the savings are limited.
+
+Mitigation: salt the customer-side fact table with N=64 only for the hot customer's id; explode the other fact table by 64 only for that customer. The long-tail task drops from 50 minutes to 90 seconds. Shuffle write grows by 6% (the explode on the small subset is cheap). Wall clock improves by 45 minutes.
+
+### Example 3: two-step distinct count
+
+A daily distinct-product-per-region aggregate skews because one region (the home market) has 80% of activity. Switching from `countDistinct` to a two-step approach: step 1 builds an HLL sketch grouped by `(region, hour_bucket)`; step 2 unions the sketches per region. Wall clock drops from 70 minutes to 8 minutes. The output is approximate (HLL ~2% error), which the consumer accepts.
+
+## Limitations
+
+- This skill assumes the user can profile their data. Without a sense of the hot-key share, recommendations are educated guesses.
+- The recommended salt N values are rules of thumb; the right N depends on the data and the cluster shape.
+- Salting changes the join output's partitioning, which can break downstream consumers that rely on a specific partitioning or sort order. Coordinate with consumers.
+- Two-step aggregation requires associative-commutative aggregates. Median and exact percentile do not fit cleanly.
+- AQE skew handling is a moving target across Spark versions; defaults and even algorithms have changed. Always check the version's documentation.
+
+## Sources reviewed
+
+- https://github.com/apache/spark
+- https://github.com/qubole/sparklens
+- https://github.com/delta-io/delta
+- https://github.com/apache/iceberg
+- https://github.com/MrPowers/quinn
+- https://github.com/awesome-spark/awesome-spark

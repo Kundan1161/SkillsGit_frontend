@@ -1,0 +1,238 @@
+---
+id: skillsgit-curated/trino-query-tuner
+version: 1.0.0
+name: Trino Query Tuner
+description: Diagnose and tune a slow Trino query — join strategy, pushdown, partition pruning, and connector-specific knobs.
+authors:
+  - name: Wave-3 Data Synth
+    handle: wave3-data
+    role: author
+category: data
+tags:
+  - niche:lakehouse-architecture
+  - trino
+  - presto
+  - query-tuning
+  - federated-query
+  - pushdown
+  - join-strategy
+license_type: free
+ai:
+  required_models:
+    - claude-opus-4-7
+    - claude-sonnet-4-6
+  compatible_models:
+    - gpt-4o
+  min_context_tokens: 32000
+  estimated_tokens_per_invocation: 7000
+trigger_keywords:
+  - trino
+  - presto
+  - slow query
+  - query plan
+  - EXPLAIN ANALYZE
+  - broadcast join
+  - partition pruning
+  - dynamic filtering
+  - pushdown
+  - connector tuning
+example_invocations:
+  - "This Trino query takes 14 minutes — help me speed it up."
+  - "Why is my Iceberg-on-Trino query reading the whole table?"
+  - "Should I use broadcast or partitioned join here?"
+  - "EXPLAIN ANALYZE shows huge skew — what now?"
+inputs:
+  - name: query
+    type: text
+    required: true
+    description: The SQL being tuned.
+  - name: explain_output
+    type: text
+    required: false
+    description: EXPLAIN ANALYZE or EXPLAIN (TYPE DISTRIBUTED) output if available.
+  - name: connector
+    type: choice
+    required: true
+    description: Primary connector for the heaviest tables.
+    choices:
+      - iceberg
+      - delta
+      - hive
+      - hudi
+      - postgresql
+      - mysql
+      - mongodb
+      - clickhouse
+      - bigquery
+      - snowflake
+      - other
+  - name: cluster_profile
+    type: text
+    required: false
+    description: Worker count, memory per worker, fault-tolerant execution on/off, Starburst vs OSS.
+outputs:
+  - name: tuning_plan
+    type: markdown
+    description: Ranked changes to query, schema, session properties, and connector config.
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Initial release.
+---
+
+# Trino Query Tuner
+
+## When to use
+
+Use this skill when a user has a slow or expensive Trino (or Presto, fork-of-Trino) query and wants concrete, ordered changes that will speed it up — at the **query**, **schema**, **session**, or **connector** level. The skill is engine-agnostic across Trino, Trino-on-Iceberg, Starburst, Presto-style forks; we'll flag connector-specific bits explicitly.
+
+Trigger on:
+
+- "Trino query is slow"
+- "Presto plan looks wrong"
+- "EXPLAIN ANALYZE" / "TYPE DISTRIBUTED"
+- "broadcast vs partitioned join"
+- "dynamic filtering"
+- "pushdown not working"
+- "stage skew"
+
+Do **not** use for cluster sizing, JVM tuning, or connector installation — different skill, different surface.
+
+## How to apply
+
+Do not propose changes until you've seen, or inferred, the **distributed plan** and at least rough **table cardinalities**. Walk these eight checks in order; stop as soon as a fix appears.
+
+### 1. Read the plan, not the SQL
+
+Ask the user to run:
+
+```sql
+EXPLAIN (TYPE DISTRIBUTED, FORMAT TEXT) <query>;
+-- and if they can afford a real run:
+EXPLAIN ANALYZE <query>;
+```
+
+In the plan, look for these signals **in this order**:
+
+1. **TableScan with no `predicate` push-down** when the WHERE filters should reach the connector. Symptom: scan reports `Input rows ≈ table rows` despite a selective WHERE.
+2. **Stage with input row count >> output row count for joins** — the join is doing work it shouldn't (no dynamic filtering, wrong distribution).
+3. **Skew** — one task per stage processes 10× the rows or wall-clock time of its peers.
+4. **CrossJoin** in the plan when you wrote an INNER JOIN — almost always a missing or non-equi predicate.
+5. **Exchange volume** (`Output buffer`) bytes much larger than table size — suggests broadcast of a too-large table or a partitioned join with bad hash distribution.
+
+### 2. Partition pruning (lake connectors)
+
+For Iceberg, Delta, Hive, Hudi:
+
+- WHERE on the **partition column or transform** must be a literal or constant-folded expression. `WHERE date_col >= current_date - INTERVAL '7' DAY` works; `WHERE date_col >= my_func(today)` may not.
+- Iceberg hidden partitioning means the user should filter the **source column** (e.g., `occurred_at`), not a derived `dt` column.
+- Confirm `Iceberg:scan` reports `partition filter` and `partitions read` < total partitions. If not, rewrite the filter to a sargable form (no casts on the column, no string contains on date).
+- For Hive tables with non-statistics-computed partitions, partition pruning may not propagate into the join — see dynamic filtering below.
+
+### 3. Pushdown to the connector
+
+Push every filter, projection, and (where supported) aggregate to the source.
+
+- **JDBC connectors** (Postgres, MySQL, Snowflake, Redshift, BigQuery): enable `*.aggregation-pushdown.enabled=true`, `*.join-pushdown.enabled=true`, `*.topn-pushdown.enabled=true` in the catalog properties. Check `EXPLAIN` for `Remote SQL` text — if the remote SQL doesn't contain your filter, pushdown failed.
+- Common pushdown blockers: casting a column in the predicate, using a Trino-specific function the connector doesn't support, mixing collations.
+- For huge cross-connector joins, use `connector.full-query-passthrough` (Starburst) or the `system.query` table function (OSS Trino, on supported connectors) to ship the whole subquery to the source.
+
+### 4. Join distribution: broadcast vs partitioned
+
+Trino's default is `join-distribution-type=AUTOMATIC`, which picks based on stats. When stats are missing or stale, it picks wrong.
+
+- **Broadcast join** (probe is large, build is small enough to fit in worker memory): fastest when build side fits — typically a few hundred MB to a few GB. Use `set session join_distribution_type='BROADCAST'` to force.
+- **Partitioned join** (both sides large, redistribute on the join key): only choice for big-big joins. Use `set session join_distribution_type='PARTITIONED'` to force.
+- **Fix stats first**: run `ANALYZE table` for Iceberg/Delta, or accept that Hive needs `hive.partition-statistics-sample-size` tuning.
+- Beware skew on the partitioned side. If one join key value dominates (e.g., `null` or a default), pre-filter it, or use a salting trick (append `_salt = mod(hash(rand()),N)` to both sides).
+
+### 5. Dynamic filtering
+
+Trino's dynamic filtering lets a small build side push runtime filters into the probe-side scan, dramatically cutting reads for **fact-dim** joins on lake tables. Verify:
+
+- `enable-dynamic-filtering=true` (default true since recent versions).
+- `dynamic-filtering-wait-timeout` long enough that the build side finishes first (default 5s).
+- Connector supports it (Iceberg/Delta/Hive yes; some JDBC connectors no).
+- The join's build side is small and selective.
+
+In the plan, look for `dynamicFilters = {df_xxx}` on the probe-side scan. If absent on a fact-dim join, you're scanning the whole fact table.
+
+### 6. Memory and spill
+
+- `query.max-memory-per-node` and `query.max-memory` must be > the largest in-memory hash table you build. OOMs and "Query exceeded per-node memory limit" point here.
+- Enable **spill to disk** (`experimental.spill-enabled=true`) for one-off big-batch queries; do not enable for interactive workloads where spill latency kills SLA.
+- **Fault-Tolerant Execution** (`retry-policy=TASK`) trades latency for cost-efficient long queries. Enable it for batch ETL, **disable** for ad-hoc.
+
+### 7. Bucketing and Z-ordering at the table level
+
+If the same join pattern is hot and the lake table is owned by the team:
+
+- **Iceberg bucketed partitioning** on the join key: `PARTITIONED BY (days(ts), bucket(N, user_id))` enables co-located joins ("bucketed execution"). Set `join-distribution-type=PARTITIONED` and ensure both sides share bucket count.
+- **Sort / Z-order** on the secondary filter column improves file skipping for non-equality filters.
+- This is a schema change; do it once for the top-three repeating join patterns, not for every query.
+
+### 8. Connector-specific gotchas
+
+- **Iceberg**: enable `iceberg.statistics-enabled=true`; run `ANALYZE` after big writes; manifest count > a few thousand slows planning — schedule rewrite.
+- **Delta**: enable `delta.checkpoint-row-statistics-writing.enabled` on the writer side; Trino can't push down filters against columns missing statistics. Liquid Clustering changes file layout — re-collect stats after.
+- **Hive**: `hive.metastore-cache-ttl` reduces metastore latency for planning; partition statistics must be computed (`ANALYZE TABLE ... PARTITION (...) COMPUTE STATISTICS FOR COLUMNS`).
+- **Postgres/MySQL JDBC**: set `*.connection-pool.size` realistically; one Trino worker = one connection per active split. Watch the source DB connection ceiling.
+- **MongoDB**: aggregate pushdown is limited; pre-aggregate in a view if join is small.
+- **ClickHouse**: filter pushdown is strong; aggregate pushdown still partial — verify with EXPLAIN.
+
+### Output a ranked plan
+
+Produce three to seven actions, ordered by **expected impact ÷ effort**. Tag each as:
+
+- **No-code** (session property, config flag, catalog property)
+- **Query-rewrite** (SARGable filter, hint, restructure CTE)
+- **Schema-change** (ANALYZE, partition/bucket, materialized view)
+- **Cluster-change** (memory, FTE, more workers)
+
+Always include the **expected speedup band** (e.g., "2–5×") and the **single metric** to look at to confirm the fix worked (input rows scanned, exchange bytes, wall-clock time).
+
+## Inputs
+
+- **query** (required): the SQL being tuned.
+- **explain_output** (optional but highly recommended): EXPLAIN ANALYZE text.
+- **connector** (required): primary connector for the heaviest tables.
+- **cluster_profile** (optional): workers, memory, FTE state.
+
+## Outputs
+
+A markdown tuning plan:
+
+1. **Diagnosis** (one paragraph): the dominant bottleneck.
+2. **Ranked actions** (3–7 bullets): each tagged by type, with the exact SQL/property to set.
+3. **Verification metric**: what to look at in the new EXPLAIN ANALYZE.
+4. **Risks**: what could regress (other queries, memory pressure).
+
+## Examples
+
+> "Trino on Iceberg, a 2 TB fact joins a 50 MB dim by `user_id`. Query takes 9 minutes. Plan shows full fact-table scan."
+
+Likely missing dynamic filtering or broadcast. Actions: (1) confirm `enable-dynamic-filtering=true`; (2) `set session join_distribution_type='BROADCAST'`; (3) run `ANALYZE fact_table`; (4) verify Iceberg manifest count and rewrite if > 5k. Expected: 5–20× speedup. Verify via input-rows-scanned on the fact scan.
+
+> "Cross-DB join: Postgres dim to Snowflake fact via Trino. 8 minutes."
+
+Pushdown likely failing across the federation boundary. Actions: (1) push the Postgres side into a temp view or use `system.query` table function on the Snowflake catalog to ship the join key list; (2) enable `snowflake.aggregation-pushdown.enabled`; (3) consider replicating the small Postgres dim into the lakehouse for hot joins.
+
+> "EXPLAIN shows one task running 12× longer than peers."
+
+Skew. Actions: (1) check for a dominant join key value (`SELECT key, count(*) ... ORDER BY 2 DESC`); (2) filter or salt that key; (3) consider partitioned-bucketed table on the join key if pattern recurs.
+
+## Limitations
+
+- Skill assumes the user can run EXPLAIN; without it, advice is heuristic.
+- Cluster-level tuning (worker count, JVM heap, fault-tolerant exchange storage) is out of scope.
+- Advice is current to recent Trino release lines; very old Presto forks (PrestoDB pre-2024) may lack some session properties referenced here.
+- Cost-based optimizer behavior depends on fresh stats; without stats, this skill defaults to forcing distribution explicitly rather than relying on AUTOMATIC.
+
+## Sources
+
+- https://github.com/trinodb/trino
+- https://trino.io/docs/current/optimizer/cost-based-optimizations.html
+- https://trino.io/docs/current/admin/dynamic-filtering.html
+- https://trino.io/docs/current/connector/iceberg.html
+- https://trino.io/docs/current/admin/fault-tolerant-execution.html
+- https://github.com/apache/gravitino

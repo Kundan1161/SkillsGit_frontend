@@ -1,0 +1,140 @@
+<mxfile host="app.diagrams.net" agent="skillsgit-arch" version="24.7.17" type="device">
+  <diagram name="snapshot-mode-flow" id="skg-snapshot-mode">
+    <mxGraphModel dx="2400" dy="1600" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="3000" pageHeight="2000" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <mxCell id="title" value="--snapshot-only branch of the Layer-C demo CLI&#10;Source: apps/api/scripts/demo_devops_agent.py:_run (snapshot_only branch) + _print_snapshot_listing + _parse_args" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=none;fontSize=16;fontStyle=1;align=left;" vertex="1" parent="1">
+          <mxGeometry x="40" y="20" width="2400" height="50" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="n-A1" value="A1: Operator runs:&#10;uv run python -m scripts.demo_devops_agent&#10;--snapshot-only" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0EA5E9;strokeColor=#0369A1;fontColor=#FFFFFF;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="100" width="540" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-A2" value="A2: _parse_args:&#10;--snapshot-only relaxes the otherwise-required&#10;--prompt / --prompt-id (snapshot mode&#10;doesn't consume the prompt text)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="620" y="100" width="540" height="100" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== Phases 1-4 shared ===== -->
+        <mxCell id="g-shared" value="Phases 1-4 — IDENTICAL to live mode" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;verticalAlign=top;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="240" width="1620" height="380" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-S1" value="S1: Resolve occupation + persona slugs&#10;(exit 2 if missing)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="60" y="280" width="280" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-S2" value="S2: _ensure_demo_buyer +&#10;_ensure_free_license per skill" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="360" y="280" width="280" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-S3" value="S3: compose_for_license&#10;(occ + every persona license)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="660" y="280" width="280" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-S4" value="S4: storage.get_object(composed.storage_url)&#10;→ _load_vault_lookup(zip_bytes)&#10;→ (lookup, manifest)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="960" y="280" width="320" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-S5" value="S5: _print_compose_summary&#10;(occupation + personas + composed_hash + cache_hit)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="60" y="430" width="1580" height="80" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== Branch ===== -->
+        <mxCell id="n-B1" value="B1: args.snapshot_only?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="700" y="670" width="300" height="100" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== Snapshot-only branch ===== -->
+        <mxCell id="g-snap" value="--snapshot-only branch" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;verticalAlign=top;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="820" width="1620" height="380" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-SS1" value="SS1: print '-- Skipping Claude call&#10;(snapshot-only) --'" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="60" y="860" width="300" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-SS2" value="SS2: _print_snapshot_listing(lookup, manifest):&#10;'Total files in composed vault: N'" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="380" y="860" width="300" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-SS3" value="SS3: 'Manifest warnings: K'&#10;(count of vault.json.warnings[];&#10;used to track unresolved-link drift)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="700" y="860" width="320" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-SS4" value="SS4: '-- Composed vault contents (alphabetical) --'" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="1040" y="860" width="600" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-SS5" value="SS5: For sorted(lookup.keys()):&#10;print '  {vault_path}  [{kind}]&#10;({creator_handle} v{version})'" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="60" y="990" width="800" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-SS6" value="SS6: return EXIT_OK (0)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="900" y="990" width="740" height="100" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== Live branch (deferred) ===== -->
+        <mxCell id="g-live" value="Live branch (omitted — see demo-cli-sequence.mmd) &lt;&lt;deferred&gt;&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;verticalAlign=top;fontSize=14;fontStyle=1;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="1700" y="820" width="1260" height="380" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-LV1" value="LV1: Build system message (neuron index)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="1720" y="860" width="300" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-LV2" value="LV2: Call Anthropic API" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="2040" y="860" width="300" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-LV3" value="LV3: Parse consulted block" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="2360" y="860" width="300" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-LV4" value="LV4: Render answer + table" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="2680" y="860" width="260" height="80" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== What changes ===== -->
+        <mxCell id="g-diff" value="What --snapshot-only changes" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fce7f3;strokeColor=#be185d;verticalAlign=top;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="1230" width="2920" height="320" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-D1" value="D1: Skipped:&#10;- prompt resolution / --prompt requirement&#10;- _build_system_message&#10;- Anthropic API call&#10;- _parse_consulted_block&#10;- _print_consulted_table" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#be185d;" vertex="1" parent="1">
+          <mxGeometry x="60" y="1270" width="940" height="240" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-D2" value="D2: Performed:&#10;- ALL DB writes (buyer, licenses)&#10;- compose_for_license (cache + S3 + audit row)&#10;- vault.json parsing&#10;- file listing" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#be185d;" vertex="1" parent="1">
+          <mxGeometry x="1020" y="1270" width="940" height="240" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-D3" value="D3: Why DB + compose still run:&#10;The snapshot fixture is the full&#10;composed vault contents, not just&#10;the seed data. Drift in the&#10;compose path (e.g. a persona&#10;build going stale) MUST be&#10;caught by the snapshot diff." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#be185d;" vertex="1" parent="1">
+          <mxGeometry x="1980" y="1270" width="960" height="240" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== CI consumer ===== -->
+        <mxCell id="g-ci" value="CI consumer — team-smoke.yml" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;verticalAlign=top;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="1580" width="2920" height="340" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-CI1" value="CI1: env:&#10;SKG_CAPTURE_LLM_STUB: 1&#10;SKG_LLM_STUB: 1&#10;ANTHROPIC_API_KEY: '' (empty)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="60" y="1620" width="940" height="260" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-CI2" value="CI2: pytest tests/integration/&#10;test_full_demo_pipeline.py&#10;test_vault_snapshots.py" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="1020" y="1620" width="940" height="260" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-CI3" value="CI3: Snapshot test calls&#10;scripts.demo_devops_agent.main(&#10;['--snapshot-only',&#10;'--occupation', '…',&#10;'--persona', '…'])&#10;and compares stdout to fixture" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1980" y="1620" width="960" height="260" as="geometry"/>
+        </mxCell>
+
+        <!-- Edges -->
+        <mxCell id="e-1" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-A1" target="n-A2"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-2" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-A2" target="n-S1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-3" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-S1" target="n-S2"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-4" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-S2" target="n-S3"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-5" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-S3" target="n-S4"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-6" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-S4" target="n-S5"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-7" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-S5" target="n-B1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-8" value="yes (--snapshot-only)" style="endArrow=classic;html=1;fontStyle=1;" edge="1" parent="1" source="n-B1" target="n-SS1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-9" value="no" style="endArrow=classic;html=1;dashed=1;fontStyle=1;" edge="1" parent="1" source="n-B1" target="n-LV1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-10" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-SS1" target="n-SS2"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-11" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-SS2" target="n-SS3"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-12" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-SS3" target="n-SS4"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-13" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-SS4" target="n-SS5"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-14" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-SS5" target="n-SS6"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-15" style="endArrow=classic;html=1;dashed=1;" edge="1" parent="1" source="n-LV1" target="n-LV2"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-16" style="endArrow=classic;html=1;dashed=1;" edge="1" parent="1" source="n-LV2" target="n-LV3"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-17" style="endArrow=classic;html=1;dashed=1;" edge="1" parent="1" source="n-LV3" target="n-LV4"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-18" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-SS6" target="n-D1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-19" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-D1" target="n-D2"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-20" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-D2" target="n-D3"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-21" value="consumed by" style="endArrow=classic;html=1;dashed=1;" edge="1" parent="1" source="n-D3" target="n-CI1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-22" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-CI1" target="n-CI2"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-23" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-CI2" target="n-CI3"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

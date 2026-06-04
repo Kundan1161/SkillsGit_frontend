@@ -1,0 +1,130 @@
+---
+id: jane-devops-demo/2024-08-flaky-tests-after-redis-upgrade
+version: 1.0.0
+name: 2024-08 Flaky integration tests after Redis 7.2 upgrade
+description: "[sample data] CI suite timed out 35% of nightly runs starting 18 hours after a Redis Cluster 7.0->7.2 minor upgrade; bisected to a WAIT semantics change."
+authors:
+  - name: Jane Devops (sample)
+    handle: jane-devops-demo
+    role: author
+category: personas
+tags:
+  - sample-data
+  - ci
+  - redis
+  - flaky-tests
+  - bisect
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models:
+    - claude-opus-4-7
+trigger_keywords:
+  - flaky tests
+  - redis
+  - intermittent failure
+  - ci timeout
+example_invocations:
+  - "Our nightly CI started failing 1-in-3 after a Redis minor upgrade — where do I look?"
+kind: memory_neuron
+parent_occupation_id: skillsgit-curated/ai-devops-engineer
+links:
+  - target: base/ci-pipeline-architect
+    relation: applies
+  - target: base/gha-workflow-optimizer
+    relation: see-also
+  - target: base/chaos-experiment-planner
+    relation: see-also
+neuron:
+  situation: |
+    Eighteen hours after a Redis Cluster 7.0 -> 7.2 minor upgrade on the
+    shared CI Redis pool, the checkout-service integration suite started
+    timing out 35% of nightly runs. No application code had changed for
+    36 hours, and the unit-test tier was green.
+  decision: |
+    Pinned Redis 7.0 across CI via the cluster-image tag, opened an
+    incident, then bisected the integration-test harness against 7.2 in
+    a one-off branch. Confirmed that the WAIT command semantics changed
+    so a single assertion that expected acknowledgement in 10s now took
+    up to 35s under load.
+  outcome: |
+    Reverted to 7.0 immediately (CI back to green in 12 minutes after
+    the image tag landed). Over the next two weeks rewrote the
+    assert_eventually() helper to drive its timeout from a per-test
+    budget rather than a hardcoded 10s constant, then re-rolled 7.2.
+    Zero flakiness on the new helper across the next 600 nightly runs.
+  recorded_at: "2024-08-22"
+  confidence: 0.9
+---
+
+# 2024-08 Flaky integration tests after Redis 7.2 upgrade
+
+> SAMPLE DATA — this neuron is part of the seeded `@jane-devops-demo`
+> persona shipped alongside the Cycle-1 demo. Real persona neurons are
+> published by named DevOps practitioners and replace this content.
+
+## When to use
+Consult this neuron when a CI suite (especially one talking to a shared
+backing service) starts failing intermittently within 24-48 hours of a
+seemingly-minor infrastructure or dependency bump. The pattern that
+applies is: assume the upgrade changed timing semantics, even if the
+release notes don't mention it, and bisect the harness in isolation
+before touching anything else.
+
+## How to apply
+1. Pin the pre-upgrade version of the changed component in CI to
+   buy time without rolling back production.
+2. Bisect the test harness against the new version in a sandbox
+   branch with verbose protocol logging on whatever the changed
+   component talks (Redis MONITOR, MySQL general log, etc.).
+3. Look for timing-budget changes specifically: tests that wait
+   for a quorum, an ack, a replication signal, or a cache fill.
+4. Replace hardcoded timeout constants with per-test budgets
+   derived from the shard's remaining wall-clock so harness slop
+   stops surfacing as flakes.
+
+## What happened
+The checkout-service nightly CI matrix (Python 3.12, 4 shards, 90-minute
+budget) had been clean for 11 days. The morning after the platform team
+shipped a Redis Cluster 7.0 -> 7.2 minor upgrade in the shared CI
+pool, the orange started: shard 2 was failing on a `test_payment_intent_acknowledged`
+case roughly one run in three, all of them timing out at the 30-minute
+shard cap rather than producing an assertion error.
+
+First instinct was a flaky-test triage loop: rerun, mark as known-flake,
+move on. That's wrong here, because the rerun rate had jumped from 1.5%
+to 35% in under a day with no code change. I pulled the Redis upgrade
+PR from the platform team's calendar, pinned 7.0 via the cluster-image
+tag in CI, and the nightly went green again within one cycle. That
+bought time without rolling back the prod cluster (which was unaffected
+under steady-state load).
+
+In a sandbox branch I bisected the integration harness against 7.2 with
+verbose Redis logging and found that the `WAIT` command (used inside an
+`assert_eventually(10s)` helper to confirm replication) had changed
+timing: 7.2 returns acknowledgement based on a different replica-set
+quorum calculation, so under the CI load (4 shards hammering shared
+Redis) a single WAIT call drifted from ~200ms median to a long-tail
+that brushed 35s p99. The 10-second helper budget couldn't cover it.
+
+Fix: rewrote `assert_eventually()` to accept a per-test deadline derived
+from the shard's remaining wall-clock budget, not a hardcoded constant.
+Re-rolled 7.2 two weeks later with the new helper in place. Flake rate
+stayed at 0/600 runs.
+
+## Lessons
+- A minor version bump on a shared backing service can change timing
+  semantics in ways the release notes won't flag. Treat any CI-wide
+  flake spike within 48 hours of a platform change as "guilty until
+  bisected."
+- Pin-and-buy-time is the right first move when a change is mid-flight
+  and a real rollback would hurt prod. The pin is the temporary fix;
+  the bisect is the actual fix.
+- Hardcoded timeout constants in test helpers are debt. Drive timeouts
+  from a budget the test framework already knows about (shard wall
+  clock, suite budget) so harness slop doesn't surface as flakes.
+- Reruns are a great signal at 1-5%, a smoke alarm at 30%. Distinguish
+  the two with a rolling-7-day flake rate per test, not a per-run gut
+  call.

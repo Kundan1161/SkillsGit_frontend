@@ -1,0 +1,111 @@
+%% Consulted-neuron attribution extraction.
+%% Source: apps/api/scripts/demo_devops_agent.py:_parse_consulted_block,
+%%         _CONSULTED_FENCE_RE, _SYSTEM_PREAMBLE, _print_consulted_table.
+%% Unit tests: apps/api/scripts/tests/test_parse_consulted_block.py.
+
+graph TB
+    %% 1. System-prompt contract
+    subgraph contract["System-prompt contract (CLI → Claude)"]
+        SC1["_SYSTEM_PREAMBLE includes:<br/>'After your prose answer, append a<br/>fenced block exactly like this ...'"]
+        SC2["Example block (literal in the preamble):<br/>fence consulted<br/>domains/ci-cd/devops-ci-pipeline-architect.md<br/>personas/jane-devops-demo/incident-veteran/neurons/2024-08-flaky-tests-after-redis-upgrade.md<br/>fence end"]
+        SC3["Rules:<br/>- One vault_path per line, no whitespace<br/>- Use ONLY paths from the neuron index<br/>- 1-8 paths<br/>- Do NOT include the block before prose"]
+        SC4["Neuron index (one line per file):<br/>'- (kind) vault_path: summary'<br/>(sorted alphabetically by vault_path<br/>for determinism)"]
+    end
+
+    SC1 --> SC2
+    SC1 --> SC3
+    SC1 --> SC4
+
+    %% 2. LLM response shape
+    subgraph response["Claude's response (raw)"]
+        R1["Prose answer<br/>(markdown — covers the user's question,<br/>may freely reference vault_paths in prose)"]
+        R2["fence consulted<br/>domains/ci-cd/devops-ci-pipeline-architect.md<br/>personas/jane-devops-demo/incident-veteran/neurons/2024-08-...md<br/>fence end"]
+    end
+
+    R1 --> R2
+
+    %% 3. Regex extraction
+    subgraph regex["_parse_consulted_block(raw_text)"]
+        RX1["_CONSULTED_FENCE_RE = re.compile pattern matches triple-backtick consulted block<br/>flags: re.DOTALL or re.IGNORECASE"]
+        RX2["match = _CONSULTED_FENCE_RE.search(raw_text)"]
+        RX3{"match is None?"}
+        RX3Y["return (raw_text.strip(), [])<br/>(no attribution provided —<br/>not a hard error; renderer<br/>shows a friendly warning)"]
+        RX4["body = match.group('body')"]
+        RX5["for line in body.splitlines():<br/>strip whitespace, lstrip leading dashes,<br/>strip backticks and quotes,<br/>append non-empty to paths"]
+        RX6["prose = raw_text before match + raw_text after match (strip the fenced block from prose)"]
+        RX7["return (prose, paths)"]
+    end
+
+    R2 --> RX1
+    RX1 --> RX2
+    RX2 --> RX3
+    RX3 -->|"yes"| RX3Y
+    RX3 -->|"no"| RX4
+    RX4 --> RX5
+    RX5 --> RX6
+    RX6 --> RX7
+
+    %% 4. Manifest intersection
+    subgraph intersect["Manifest intersection (validates each path)"]
+        IN1["lookup = _load_vault_lookup(composed_zip)<br/>keys: every vault.json files[].vault_path"]
+        IN2["known: list[str] = []<br/>unknown: list[str] = []"]
+        IN3["for p in reply.consulted_paths:<br/>if p in lookup: known.append(p)<br/>else: unknown.append(p)"]
+        IN4["Why drop unknowns from the table:<br/>Claude can hallucinate paths. The CLI<br/>refuses to attribute work to a file<br/>that does not exist in the buyer's<br/>composed vault."]
+    end
+
+    RX7 --> IN1
+    IN1 --> IN2
+    IN2 --> IN3
+    IN3 --> IN4
+
+    %% 5. Renderer
+    subgraph render["_print_consulted_table(known, lookup)"]
+        RN1["For each known path:<br/>rec = lookup[p] = (vault_path, kind,<br/>creator_handle, version)"]
+        RN2["Compute column widths from row data<br/>(tight-fit table — ASCII only —<br/>no Unicode box characters for<br/>Windows cp1252 console safety)"]
+        RN3["Header row:<br/>vault_path - kind - creator - version<br/>(dashes underline)"]
+        RN4["Data rows aligned to widths."]
+        RN5["After table — if unknown[]:<br/>'(Claude also cited N unknown<br/>path(s) — dropped from the table):'<br/>+ bullet list of unknown paths"]
+    end
+
+    IN3 --> RN1
+    RN1 --> RN2
+    RN2 --> RN3
+    RN3 --> RN4
+    RN4 --> RN5
+
+    %% 6. Final output assembly
+    subgraph assemble["Final stdout assembly"]
+        AS1["-- Answer --<br/>{answer_md}<br/>(prose only — consulted block stripped)"]
+        AS2["-- Consulted neurons --<br/>{table}"]
+        AS3["-- Model: claude-sonnet-4-6<br/>input_tokens=N output_tokens=M --"]
+    end
+
+    RX6 -. "prose" .-> AS1
+    RN5 --> AS2
+    AS2 --> AS3
+
+    classDef contract fill:#FEF3C7,color:#92400E,stroke:#B45309;
+    classDef resp fill:#FCE7F3,color:#9D174D,stroke:#BE185D;
+    classDef regex fill:#DBEAFE,color:#1E40AF,stroke:#1D4ED8;
+    classDef gate fill:#FEE2E2,color:#7F1D1D,stroke:#B91C1C;
+    classDef intersect fill:#D1FAE5,color:#065F46,stroke:#059669;
+    classDef render fill:#FAE8FF,color:#86198F,stroke:#A21CAF;
+    classDef out fill:#0EA5E9,color:#fff,stroke:#0369A1;
+
+    class SC1,SC2,SC3,SC4 contract;
+    class R1,R2 resp;
+    class RX1,RX2,RX4,RX5,RX6,RX7 regex;
+    class RX3,RX3Y gate;
+    class IN1,IN2,IN3,IN4 intersect;
+    class RN1,RN2,RN3,RN4,RN5 render;
+    class AS1,AS2,AS3 out;
+
+    %% Notes:
+    %% - Regex tolerates whitespace after the fence label (re.IGNORECASE
+    %%   for the label, re.DOTALL so body can include newlines).
+    %% - Per-line cleanup defends against the most common shapes
+    %%   Claude emits: leading bullet dashes, backtick-wrapped paths,
+    %%   stray quotes.
+    %% - "Unknown" paths are surfaced but never attributed. This is
+    %%   the safety rail that prevents Claude from claiming it
+    %%   consulted files the buyer doesn't even own.

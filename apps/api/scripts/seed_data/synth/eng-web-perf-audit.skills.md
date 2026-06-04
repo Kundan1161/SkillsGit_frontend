@@ -1,0 +1,278 @@
+---
+id: skillsgit-curated/web-perf-audit
+version: 1.0.0
+name: Web Performance Audit
+description: Audit a web page's Core Web Vitals — LCP, INP, CLS — find the offenders by frame and resource, and produce a prioritized fix list with expected impact.
+authors:
+  - name: skillsgit Curated
+    handle: skillsgit-curated
+    role: author
+category: engineering
+tags: [niche:performance, web-performance, core-web-vitals, lcp, inp, cls, frontend, lighthouse]
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6, gpt-4o, gpt-4.1, gemini-1.5-pro]
+  tools_required: [file_io]
+  tools_optional: [web_search]
+  min_context_tokens: 24000
+  estimated_tokens_per_invocation: 7000
+trigger_keywords:
+  - core web vitals
+  - lcp
+  - inp
+  - cls
+  - lighthouse audit
+  - web performance audit
+  - page is slow
+  - improve page speed
+  - field data
+  - pagespeed
+  - largest contentful paint
+  - interaction to next paint
+  - cumulative layout shift
+  - render blocking
+example_invocations:
+  - "Audit our marketing landing page's Core Web Vitals and tell me what to fix."
+  - "LCP is 4.2 seconds on mobile. Read the Lighthouse output and rank fixes."
+  - "INP regressed after the last deploy — find the slow interaction."
+inputs:
+  - name: page_url_or_description
+    type: text
+    required: true
+    description: The page being audited. URL or, when not crawlable, a description of its template and contents.
+  - name: vitals_data
+    type: text
+    required: false
+    description: Lab results (Lighthouse, WebPageTest) and/or field results (CrUX, RUM) for the page, including p75 of LCP, INP, CLS, and the breakdown.
+  - name: html_or_assets
+    type: text
+    required: false
+    description: The page HTML, key script tags, critical CSS, image sizes, and font loading strategy.
+  - name: device_profile
+    type: choice
+    required: false
+    description: Which user profile to optimize for; thresholds and priors differ.
+    choices: [mobile-mid-tier, mobile-low-tier, desktop, tablet, mixed, unknown]
+  - name: business_context
+    type: text
+    required: false
+    description: Conversion-sensitive areas (above-the-fold CTA), regions of priority, third parties under contract.
+outputs:
+  - name: audit_report
+    type: markdown
+    description: Per-vital diagnosis with offenders named, the evidence chain, and the expected impact of each candidate fix.
+  - name: fix_plan
+    type: markdown
+    description: Ordered remediation plan from highest-impact-lowest-cost to riskier interventions, each with verification steps.
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Initial release.
+---
+
+# Web Performance Audit
+
+## When to use
+
+Use this skill when a web page's Core Web Vitals (CWV) need to improve and the team wants a prioritized fix list grounded in evidence rather than a generic "minify your JS" checklist. The skill is built for the moment after Lighthouse, WebPageTest, or CrUX has produced numbers that the team is unhappy with — when the question is "what specifically on this page is causing these numbers, and what's the smallest credible change."
+
+The skill audits the three current Core Web Vitals — Largest Contentful Paint (LCP), Interaction to Next Paint (INP), and Cumulative Layout Shift (CLS) — and treats them as the dependent variables. It treats the rest of the audit (TTFB, FCP, total blocking time, network waterfall, JavaScript bundle composition, image strategy, third-party tags) as independent variables that may explain the dependent ones.
+
+The skill assumes the page can be analyzed from its HTML, network waterfall, and a profiling trace. It works with lab data, field data, or both, and reads them differently — lab data tells you what is possible on a controlled run, field data tells you what your real users experience.
+
+Do not use this skill for backend latency that happens to affect TTFB; for that, use the perf-investigation-playbook skill. Do not use it for an end-to-end JavaScript bundle architecture review; for that, prefer a dedicated bundle-architecture skill. And do not use it as a substitute for running the actual tools — the skill consumes their output but does not replace them.
+
+## Inputs
+
+| Input | Required | Purpose |
+| --- | --- | --- |
+| `page_url_or_description` | yes | What is being audited. |
+| `vitals_data` | no, strongly recommended | Lab and/or field measurements for the three vitals. |
+| `html_or_assets` | no | The page source and asset list; needed for offender identification. |
+| `device_profile` | no | Which user profile to optimize for. |
+| `business_context` | no | What matters above the fold; what third parties cannot be removed. |
+
+If `vitals_data` is missing the skill begins by asking for it. Recommendations without measurement are guesses; the skill avoids them.
+
+## Outputs
+
+The skill produces two artifacts.
+
+The `audit_report` is the diagnostic narrative. It contains a section per vital (LCP, INP, CLS), with the current value, the target, the contributing factors named in causal order, and the evidence (network entries, trace frames, layout shifts) for each.
+
+The `fix_plan` is the action list, ordered by impact divided by cost. Each fix lists the affected vital, the expected improvement, the implementation outline, the verification step (which tool's output should change in what way), and the risk.
+
+## How to apply
+
+The agent runs the seven-stage audit. The stages map roughly to the three vitals plus shared infrastructure, in the order that produces correct attributions.
+
+### Stage 1 — Frame the targets per device
+
+Targets for the vitals are not absolutes; they depend on device profile and the population the page must serve. Google's published thresholds give a starting point: LCP good under 2.5s, INP good under 200ms, CLS good under 0.1, all measured at the 75th percentile of field data.
+
+The agent restates the targets explicitly. If `device_profile` is mobile-mid-tier, the targets are tighter than for desktop because the slow end of the field distribution is what the vitals measure. If `device_profile` is "mixed," the agent recommends splitting the analysis: a fix that improves desktop while leaving mobile flat is the wrong fix for a mobile-dominated audience.
+
+The agent writes the exit criterion for the audit: "after the fixes ship, p75 LCP under 2.5s, p75 INP under 200ms, p75 CLS under 0.1, measured on the relevant device segment for 28 days of CrUX data." A vague exit criterion produces an audit that never ends.
+
+### Stage 2 — Read the network waterfall for LCP
+
+LCP is dominated by the time the browser takes to discover, fetch, and render the largest content element above the fold. The agent walks the waterfall from request 1 in order, asking at each step whether anything blocking the LCP resource could have happened sooner.
+
+The recurring offenders:
+
+- The LCP resource is discovered late. The browser cannot start fetching the hero image until the HTML containing it has been parsed; if a render-blocking script delays parsing, LCP delays. Look for synchronous scripts in the document `head` without `defer` or `async`.
+- The LCP resource is a critical image without a `<link rel="preload">` hint. On hero images that are the LCP element, preloading shaves discovery time.
+- The LCP resource is delivered via lazy-loading (`loading="lazy"`). Lazy-loading the LCP element is a common own-goal; the loader waits for layout to determine visibility, which delays the request.
+- The LCP resource is over-served. A 4000px-wide image rendered into a 600px slot. Look for `srcset` and `sizes` mismatches.
+- The LCP resource is in a format the browser de-prioritizes or cannot decode in parallel. Modern formats (AVIF, WebP) decode faster on most browsers; old-format (JPEG progressive) is fine but not optimal.
+- The LCP candidate is text waiting for a web font. The browser does FOUT (flash of unstyled text) or FOIT (flash of invisible text) depending on `font-display`. `font-display: swap` is generally the right LCP-friendly choice; `font-display: block` punishes LCP for branded typography.
+- The server's TTFB is large. LCP cannot be less than TTFB plus a small constant. If TTFB is 1.2s, LCP cannot reach 2.5s by tweaking frontend resources; the backend or the CDN strategy is the bottleneck.
+
+The agent annotates each finding with the network entry that evidences it (URL, start time, response time) and an estimate of the LCP improvement if removed.
+
+### Stage 3 — Trace INP at the interaction level
+
+INP measures the worst (or near-worst) interaction-to-next-paint in a session. It is not a load metric; it is a runtime metric. The agent asks for a record of the slow interactions, ideally captured as a long-task trace or as INP traces from the browser's Performance API.
+
+Recurring offenders:
+
+- A long JavaScript task on the main thread synchronously responds to the interaction. Look for `>50ms` tasks in the trace whose call stack starts at an event listener.
+- A handler reads layout (`offsetTop`, `getBoundingClientRect`) immediately after mutating the DOM, triggering forced synchronous layout. The trace shows a `Layout` event inside the handler's stack.
+- A heavy framework re-render runs on the interaction. The trace shows a wide framework function (`render`, `reconcile`, `update`) inside the handler.
+- The interaction triggers a fetch on the main thread that the UI then waits for. The trace shows a fetch promise chain that doesn't let the browser paint until the response returns.
+- A third-party script (analytics, A/B testing, chat widget) installs an event listener on `document` and runs on every interaction. The trace shows the third-party stack inside the slow frame.
+- The interaction is on an element painted by a hydration step that has not completed. The trace shows the hydration overlapping the input event.
+
+The agent identifies the slow interaction by name (which button, which form) and the offender by function name. INP fixes are often surgical: split a task with `scheduler.yield()`, defer non-essential work to `requestIdleCallback`, move heavy compute to a Web Worker, debounce or coalesce redundant state updates.
+
+### Stage 4 — Locate layout shifts and attribute them to a source
+
+CLS sums the shift scores of unexpected layout shifts during the session, weighted by the area of the viewport that moved. The agent asks for the layout-shift entries from the browser's PerformanceObserver or from the Lighthouse trace.
+
+Recurring offenders:
+
+- An image without explicit `width` and `height` (or aspect-ratio CSS). The image, when it loads, displaces content below.
+- An ad slot or embed without a reserved size. The slot grows when the ad arrives, shifting everything below.
+- A web font loaded with FOUT and a wide metric difference between fallback and final font. The text reflows when the final font arrives.
+- A late-inserted banner (cookie consent, promotional, app-install prompt) that pushes content down after first paint.
+- A "skeleton" placeholder that is sized differently from the real content it stands in for.
+- Animations that move layout-affecting properties (top, left, height, width) instead of transform/opacity. The shifts are intentional but still scored.
+
+The agent attributes each shift to its source element by reading the shift entry's `sources` array (when present) or by correlating the shift's timing to the network event that fetched the offending asset. Each fix is named to the asset.
+
+### Stage 5 — Examine the JavaScript pipeline
+
+JavaScript affects all three vitals: TBT/INP through main-thread work, LCP through render-blocking parse, CLS through delayed insertions. The agent reads the JS pipeline in three views.
+
+The bundle composition view: which scripts ship to the browser, their sizes (transfer and parse-cost), their loading attributes (`defer`, `async`, `type="module"`, inline). The agent looks for: scripts loaded synchronously in the head that should be deferred; vendor bundles larger than the application code; duplicated dependencies across chunks; polyfills shipped to browsers that don't need them.
+
+The execution view: what runs on each frame after load. The agent reads the Long Tasks API entries: tasks longer than 50ms are CWV-relevant; the cumulative TBT is the sum of the slow part of each long task. Repeated 200ms tasks at first load mean the app is hydrating in monolithic chunks; the fix is incremental hydration or islands architecture.
+
+The third-party view: how much main-thread time is spent in scripts not authored by the team. The agent itemizes third parties by their share of long-task time and tags each with its business owner. Third-party tag-managers can be loaded via `data-` attributes and a deferred boot; analytics can typically tolerate a delay of seconds; chat widgets can usually wait until interaction; A/B testing scripts that flicker content are the worst offenders and deserve a discussion about their value.
+
+### Stage 6 — Audit images, fonts, and CSS as discovery problems
+
+Resources the browser must discover before fetching often dominate LCP. The agent reads the page's resource hints and asks:
+
+- Are the critical resources preloaded? Hero image, primary web font, critical CSS chunk.
+- Are non-critical resources de-prioritized? `loading="lazy"` for below-the-fold images, `media` attributes on stylesheets to limit them to relevant viewports, `importance="low"` on opportunistic scripts.
+- Is the critical CSS inlined? For a marketing page the above-the-fold CSS can be inlined in the head, deferring the rest. This is the largest LCP lever for content-heavy pages.
+- Are fonts subset and preloaded? An unsubsetted font may be ten times the bytes of a subset; preload removes a discovery hop.
+- Are images served at the right resolution per device? `srcset` and `sizes`, with `<picture>` for art direction. Over-serving wastes bandwidth and CPU decode time.
+- Are third-party font services (Google Fonts) called from the document head, adding a DNS lookup and a sequential dependency? Self-hosting can be faster despite the cache argument.
+
+The agent annotates each finding with the LCP-second cost on the relevant device profile, based on the waterfall.
+
+### Stage 7 — Order the fixes by impact divided by cost
+
+The audit ends with a ranked plan. The agent ranks fixes by (estimated improvement in seconds or score points) divided by (engineering cost in person-days plus risk).
+
+Typical orderings:
+
+- High impact, low cost — adding `width`/`height` to images (CLS), preloading the LCP image, adding `font-display: swap`, deferring a synchronous third-party script.
+- High impact, medium cost — removing or async-loading a heavy third-party tag, splitting a vendor bundle, replacing a heavy chat widget with a deferred boot.
+- High impact, high cost — moving from client-side rendering to server-side rendering for the critical route, replacing a heavy A/B testing system that flickers content, migrating off a legacy framework.
+- Low impact — minification (already done in most pipelines), gzip vs brotli (small delta if both are reasonable), HTTP/2 vs HTTP/3 (small delta on most networks).
+
+For each fix the agent writes: which vital it improves, by approximately how much, on which device, with what verification (which tool's output should change in what way), and with what risk.
+
+## Reading the tools without getting fooled
+
+The agent applies these rules.
+
+Lighthouse lab scores are not field scores. Lab is a single run on a synthetic device on a single network. Field is the distribution of real users. They can disagree dramatically. Field data (CrUX, your RUM) is the truth; lab data is the workshop for testing fixes.
+
+INP measured in the lab is unreliable because the lab interaction is synthetic. INP improvements should be designed in the lab but verified in the field.
+
+CLS is a sum, not a peak. A page can have many small shifts that add up; the fix is to find the shifts in the timeline, not to look for one large jump.
+
+LCP element identity can flip between runs. A run where the LCP is the hero image and a run where it is the headline produce different waterfalls. The audit should specify which element is the LCP and how stable that identity is.
+
+A score that drops on the next deploy may be a regression in the page or a change in the field population (more mobile users, more slow networks). The agent considers both before concluding.
+
+Third-party scores fluctuate with their providers. A regression that aligns with the provider's release notes is a provider regression, not yours.
+
+## Examples
+
+**Input:**
+
+`page_url_or_description`: "marketing landing page at /pricing." `device_profile`: mobile-mid-tier. `vitals_data`: "p75 LCP 4.2s, p75 INP 380ms, p75 CLS 0.18 from CrUX."
+
+`html_or_assets`: HTML head contains four synchronous third-party scripts; the hero image is a 1.8MB JPEG; web fonts loaded with `font-display: block`; the testimonials section uses a third-party widget.
+
+**Agent reasoning (abbreviated):**
+
+- Stage 1: targets restated; mobile-mid-tier; audit exit at LCP 2.5s, INP 200ms, CLS 0.1.
+- Stage 2 LCP: TTFB 320ms (acceptable). LCP element is hero image. Discovered late because of two synchronous scripts that parse before the `<img>` tag. Image is over-served: viewport-rendered slot is 720px, source is 3200px. No preload hint.
+- Stage 3 INP: slow interactions are clicks on the "Get a demo" CTA. Long-task trace shows 280ms in a third-party A/B testing handler that recomputes a variant on every click. The CTA also dispatches an analytics event synchronously.
+- Stage 4 CLS: three shifts. Hero image (no width/height) accounts for 0.09; a late banner adds 0.04; web font swap adds 0.05.
+- Stage 5: vendor bundle 480KB gzipped, dominated by a charting library not used on this route.
+- Stage 6: critical CSS not inlined; font preload absent; image strategy wrong.
+- Stage 7: ordered plan emitted.
+
+**Fix plan (abbreviated):**
+
+1. Add `width` and `height` to the hero image. CLS −0.09. Hours of work. Verify: re-record CrUX after 28 days; lab CLS should drop to under 0.1 immediately on the next Lighthouse run.
+2. Replace hero image with `srcset` and add `<link rel="preload">`. LCP −1.4s expected on mid-tier mobile. One day. Verify: Lighthouse LCP improves; WebPageTest filmstrip shows earlier paint.
+3. Defer the two synchronous head scripts. LCP −0.6s expected. One day; verify the scripts don't depend on early DOM parsing.
+4. Move the A/B testing handler off the click handler; precompute the variant at load. INP −180ms expected. Two days. Verify INP-trace on the CTA.
+5. Switch `font-display: block` to `font-display: swap` and metric-match the fallback. CLS −0.05; small visual change. Two days. Verify: lab CLS, visual diff.
+6. Remove charting library from this route's bundle. TBT −150ms, marginal LCP improvement. Half a day.
+7. Defer the testimonials widget until below-the-fold visibility. INP −small, LCP −small.
+
+## Worked example two — INP regression after a deploy
+
+**Input:** the team's RUM shows p75 INP went from 160ms to 320ms after a deploy. The deploy added "smart form validation."
+
+**Agent reasoning:**
+
+- Stage 1: revert to under 200ms.
+- Stage 3 INP: ask for the slow-interaction trace. The new validator runs synchronously on every keystroke; for forms with many fields, the keystroke handler is doing O(n) DOM reads.
+- Recommendation 1: debounce validation to 100ms after the last keystroke.
+- Recommendation 2: hoist field reads out of the per-keystroke loop, compute once on focus.
+- Recommendation 3: if either fails, move the validator to a Web Worker.
+- Verification: re-record RUM INP for the affected forms over 24 hours after each rollout.
+
+## Limitations
+
+- The skill audits one page or template at a time. Site-level performance audits require multiple invocations and a cross-page synthesis.
+- The skill works best when the user supplies both lab and field data. Without field data, recommendations may not reflect what real users experience.
+- The skill cannot run Lighthouse or other tools; it consumes their output. Quality of conclusions depends on the data provided.
+- For single-page applications with deep client-side routing, the skill audits a representative entry; per-route INP analysis benefits from per-route RUM that the team must capture.
+- Recommendations are quantitative estimates. Realized impact depends on the rest of the page; the skill includes verification steps for each fix.
+- The skill does not write the code that implements the fixes; it produces the plan. A frontend agent or developer applies the change.
+- Third-party tag tradeoffs (analytics, A/B, chat) require business context the skill asks for and respects. It will not recommend removing a third party the business has marked as non-negotiable; it will offer the lightest-touch alternatives.
+- The skill is focused on Core Web Vitals as Google currently defines them. Search ranking effects of CWV are out of scope; the skill optimizes for user experience, not for SEO position.
+
+## Sources reviewed
+
+- https://github.com/GoogleChrome/lighthouse (Apache-2.0)
+- https://github.com/GoogleChrome/web-vitals (Apache-2.0)
+- https://github.com/sitespeedio/sitespeed.io (MIT)
+- https://github.com/addyosmani/critical (Apache-2.0)
+- https://github.com/sharkdp/hyperfine (MIT / Apache-2.0)
+- https://github.com/locustio/locust (MIT)

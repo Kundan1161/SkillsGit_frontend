@@ -1,0 +1,178 @@
+---
+id: skillsgit-curated/legal-clause-library-architect
+version: 1.0.0
+name: Clause Library Architect
+description: Design a company's clause library — taxonomy, three-position structure (standard/preferred/walkaway), fallback ladders, customer-tier customization, versioning, and CLM integration.
+authors:
+  - name: skillsgit Curated
+    handle: skillsgit-curated
+    role: author
+category: legal
+tags: [niche:contract-clause-library, clause-library, playbook, clm, contract-ops, standardization, versioning, taxonomy]
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6, gpt-4o]
+  tools_required: []
+  tools_optional: [file_io]
+  min_context_tokens: 64000
+  estimated_tokens_per_invocation: 14000
+trigger_keywords:
+  - design a clause library
+  - build a contract playbook structure
+  - clause taxonomy
+  - fallback ladder design
+  - standardize our contracts
+  - clm clause repository
+  - contract template architecture
+  - clause versioning system
+  - customer tier playbook
+  - contract standardization program
+example_invocations:
+  - "Help me design a clause library for our SaaS company — what clauses, what positions, how do we version them?"
+  - "Architect a fallback ladder for our top fifteen most-negotiated clauses."
+  - "How should we structure our clause repository so it integrates with our CLM and Word templates?"
+inputs:
+  - name: company_profile
+    type: json
+    required: true
+    description: Industry, contract types in scope (MSA, SaaS, DPA, NDA, SOW, etc.), counterparty mix (enterprise customer / SMB customer / vendor / partner), revenue stage, regulatory exposure, geographic footprint. Drives clause scope and risk calibration.
+  - name: existing_artifacts
+    type: text
+    required: false
+    description: Summary or text of any existing templates, playbook fragments, or "house style" rules. The architect should preserve institutional decisions where defensible and only reopen them with explicit rationale.
+  - name: target_clm
+    type: choice
+    required: false
+    description: The contract platform the library must integrate with. Shapes the export format and tagging scheme.
+    choices: [none, ironclad, docusign_clm, contract_works, agiloft, sirion, juro, linksquares, gc_ai, custom, word_templates_only]
+  - name: maturity_target
+    type: choice
+    required: false
+    description: How sophisticated the resulting library should be. Calibrates depth and process overhead.
+    choices: [v1_minimum_viable, v2_operational, v3_data_driven]
+outputs:
+  - name: architecture_doc
+    type: markdown
+    description: Full library design — taxonomy, position framework, fallback ladders, customization axes, version-control model, ownership and change-control RACI, CLM integration mapping, rollout plan.
+  - name: clause_register_seed
+    type: json
+    description: Machine-readable seed of the clause register — clause_id, topic, sub_topic, applies_to_doc_types, risk_tier, owner_role, position_count, has_fallback, requires_legal_review, last_reviewed, version, status.
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Initial release.
+---
+
+# Clause Library Architect
+
+## When to use
+
+**Mandatory legal disclaimer.** This skill produces methodology guidance only. Clause-library decisions affect contractual liability. Every output must be reviewed by qualified counsel before incorporation into any agreement. The skill does not provide legal advice and use does not create an attorney-client relationship.
+
+Reach for this skill when an organisation needs to move from ad-hoc contract drafting — where every deal recreates clause positions from scratch and every redline asks the same questions twice — to a managed clause library and playbook. Typical triggers: a growing legal-ops function inheriting a folder of mismatched Word templates; a general counsel preparing for a CLM rollout and discovering there is no canonical clause source to seed it; an in-house team that just hired its second or third contract manager and needs to stop relying on one senior lawyer's memory; a post-Series-B company whose sales cycle has slowed because every customer redline triggers an unbounded internal debate.
+
+The skill is also appropriate when an existing library has decayed — positions referenced in the playbook no longer match the templates, fallbacks are missing or obsolete, and reviewers default to whatever was sent rather than to a defined position. A library audit is a smaller version of a library build, and the methodology below scales down cleanly.
+
+It is not appropriate as a substitute for senior commercial counsel ownership of the library, for jurisdiction-specific drafting (which still requires admitted attorneys per jurisdiction), or for novel deal structures that the library cannot yet contemplate. A clause library accelerates the typical case and frees counsel to focus on the atypical; it does not eliminate the need for qualified human judgement on unusual deals.
+
+## How to apply
+
+Library design is a layered exercise. Each layer presumes the one below it is in place, and skipping layers produces a library that looks complete on a slide but disintegrates the first time a deal team consults it under time pressure. Build outward from a fixed clause taxonomy, attach positions per clause, define how positions get customised, version the whole thing, then plug it into the tools the deal team actually uses.
+
+1. **Anchor the scope.** From `company_profile`, list the document families the library must cover. A common scope for a mid-stage software company looks like: a customer-facing master agreement family (master subscription / cloud services / professional services), order forms and statements of work as separate templates, a data-processing addendum, a security exhibit, mutual and one-way confidentiality agreements, a partner / reseller addendum, vendor-side agreements (the agreements the company *receives* from its own suppliers), and a click-through end-user terms set if applicable. Do not start with clauses; start with which documents the clauses live inside. A clause without a host document is unmanageable.
+
+2. **Build the clause taxonomy.** Each clause is a node in a two-level taxonomy: a topic (e.g., risk allocation, payment, intellectual property) and a sub-topic (e.g., under risk allocation: limitation of liability, indemnification, insurance, waiver of consequential damages). Aim for roughly forty to seventy distinct sub-topics across a typical mid-stage software library — fewer feels under-managed; many more becomes unbrowseable. Tag each clause with the document families it can appear in (a single sub-topic like "audit rights" can appear in three different documents with different appropriate positions). Reserve a small set of sub-topics as cross-cutting (definitions, governing law, notices) and resist the temptation to duplicate them per document.
+
+3. **Define risk tiers for each clause.** A three-tier scheme works well: tier-one clauses are the small set whose mis-drafting can cause existential harm (limitation of liability, indemnification, IP ownership, data-protection obligations, term and termination); tier-two clauses materially affect commercial outcomes (warranties, audit rights, assignment, service levels, fee escalation); tier-three clauses are operational hygiene (notices, severability, counterparts, force majeure boilerplate). The tier determines reviewer seniority, approval workflow, and how often the position is revisited.
+
+4. **Establish the three-position framework, consistently named.** For each clause, the library specifies a preferred position (what the company opens with and protects), an acceptable fallback range (what the company accepts after pushback without escalating), and a walk-away floor (the boundary below which the deal does not get signed without explicit named-executive approval). Use the same three labels everywhere — naming drift is the single most common reason these libraries lose internal credibility. A preferred position is not a position the company hopes for; it is the position the company will draft into its template and defend in round one.
+
+5. **Build fallback ladders, not single fallback steps.** For high-value clauses, the gap between preferred and walk-away is too wide to bridge with a single step. Decompose into a ladder: preferred, first-step concession, second-step concession, walk-away. Each ladder step is pre-approved by the position owner; reviewers walking down the ladder do not need fresh approval until they reach the walk-away floor. The ladder is the operational core of the library — it is the artefact the reviewer reads at midnight when the customer wants to close by Friday.
+
+6. **Differentiate by customer tier and counterparty class.** A single set of positions across all customers leaves money on the table at the top of the market and creates avoidable friction at the bottom. Define two to four customer tiers (typical: strategic enterprise / mid-market / SMB / self-serve) and, where relevant, separate counterparty classes (customer / vendor / partner). For each tier-and-class combination, the library can override specific positions while inheriting the rest. Keep the override matrix small — if every clause has tier-specific overrides, the simplification benefit has been lost.
+
+7. **Capture rationale alongside position.** For every position, include a short rationale paragraph stating *why* this is the position. Rationale is the audit trail when the position is challenged ("we have always done it this way" is not a rationale) and the input to the next reviewer who inherits the library. Rationale should reference the underlying business risk being managed, not the legal mechanism.
+
+8. **Define the change-control RACI.** A library that nobody owns drifts within a quarter. For each clause topic, name a single accountable owner (typically a senior commercial counsel or contracts director), a consulted set (subject-matter owners — security for data clauses, finance for payment clauses, IP counsel for IP clauses), and an informed set (deal-desk leads). Tier-one clauses require the named owner plus consulted parties to approve any position change; tier-two require the owner; tier-three may be updated by any senior member of the contracts team with the owner notified.
+
+9. **Version the library as a unit and per clause.** The library has a library version (a date-stamped immutable snapshot used to reproduce a specific deal's playbook state) and per-clause versions (each clause has its own minor-version counter that increments on any text change). When a clause changes, the previous version is retained as historical; agreements signed against the prior version retain that text as their interpretive frame. Store the library in a system with diff and history — a CLM clause repository, a Git repository, or at minimum a spreadsheet with append-only change logs.
+
+10. **Write a change log readable by non-lawyers.** Every clause change ships with a one-line plain-language change note ("Tightened audit notice from ten to thirty business days to align with security team operational capacity"). The change log is read by sales, deal desk, and customer success — they need to understand what shifted without re-reading the clause. Library credibility comes from the legibility of its change log as much as from the rigour of its positions.
+
+11. **Map the library into the chosen CLM or template system.** From `target_clm`, generate an export plan: which clauses go into the CLM clause library as searchable entries, which become content controls in Word templates, which become guard-rail rules in the CLM redline engine. A library that lives only in a separate document is not a library; it is a memo. Specify the field mappings — clause_id, topic, position_label, version, jurisdiction_filter — and the round-trip rule (when the library changes, how do the deployed templates update, and on what cadence). Where the platform supports it, expose the fallback ladder as a structured object that the CLM can present to the reviewer mid-redline.
+
+12. **Plan rollout in waves, not big-bang.** A library covering forty sub-topics cannot be authored, reviewed, approved, and operationalised in one quarter without compromising quality. Wave one: the five to ten tier-one clauses for the highest-volume document family. Wave two: tier-one clauses for the remaining document families. Wave three: tier-two clauses across the portfolio. Wave four: tier-three hygiene. Communicate the wave plan transparently — partial coverage with high quality beats full coverage with low quality, but only if reviewers know which wave they are operating in.
+
+13. **Instrument from day one.** Even at v1, capture per-clause data: how often each clause was opened, how often the preferred position held, how often the fallback was used, how often the walk-away was hit, time-to-resolution per clause. These metrics inform the next library version and surface clauses where the preferred position is unrealistic (the fallback fires nine times out of ten — the fallback is in fact the de facto preferred position) or where a missing clause is causing repeated ad-hoc work. Instrumentation distinguishes a v2 operational library from a v1 written-down library.
+
+14. **Define escalation explicitly.** When a reviewer hits the walk-away floor, they need to know who to escalate to within how long. Default model: the clause owner is the first escalation; the general counsel or head of legal is the second; the deal-sponsoring executive is the third. Maximum first-escalation response window of one business day for active deals. Without an explicit escalation path, walk-away floors silently erode because reviewers cannot find anyone to authorise the breach.
+
+15. **Decide what is *not* in the library.** Some clauses are explicitly excluded from standardisation: clauses that depend heavily on the specific deal (custom service-level commitments, deal-specific commercial milestones, specific data-processing scopes) and clauses where regulatory or counterparty-specific drafting overrides any standard (highly regulated industries, government customers, certain non-US jurisdictions). Document the exclusions — silent exclusion creates the impression that the library is comprehensive when it is not.
+
+16. **Build a v2 review cadence into the v1 plan.** Schedule a structured library review at least every twelve months, plus event-driven reviews (regulatory change, a major incident, a category of repeat deviations from the playbook, an inflection in the company's risk profile from an acquisition or new product). The cadence is a calendar invitation, not an aspiration.
+
+17. **Sanity-check the design against three end-user scenarios.** Before declaring the design complete, walk through: a junior contracts analyst opening a vendor MSA for the first time (can they find the right positions in under five minutes?); a sales-side counsel responding to a customer redline at the end of quarter (does the fallback ladder give them enough to negotiate without escalation?); a general counsel onboarding a new commercial counsel hire (can the library be learned in two weeks of structured reading?). If any scenario fails, redesign the affected layer.
+
+## Inputs
+
+- `company_profile` (required, JSON) — drives scope, risk tier, customer-tier breakdown, and exclusion list.
+- `existing_artifacts` (optional, text) — summary of current templates and playbook fragments. Used to preserve defensible institutional positions and identify legacy drift.
+- `target_clm` (optional, choice) — shapes the integration mapping and export format.
+- `maturity_target` (optional, choice) — v1 minimum viable / v2 operational / v3 data-driven. Calibrates the volume and depth of the recommended scope.
+
+## Outputs
+
+- `architecture_doc` (markdown) — taxonomy, position framework, fallback ladder schema, customisation matrix, version-control model, change-control RACI, CLM integration mapping, rollout waves, instrumentation plan, escalation paths, exclusion list, review cadence.
+- `clause_register_seed` (JSON) — initial register seeded with the clause taxonomy and metadata stubs, ready to populate with positions per clause in the `playbook-author` skill.
+
+## Examples
+
+### Example 1 — Series-B SaaS company, first formal library
+
+**Input company_profile (excerpt):** `{"industry": "B2B SaaS analytics", "doc_families": ["msa", "order_form", "dpa", "mutual_nda", "vendor_msa"], "counterparty_mix": "enterprise + mid-market customers; ~50 vendor agreements/yr", "regulatory_exposure": ["GDPR", "CCPA"], "geo": ["US", "EU"], "stage": "post-Series-B"}`
+
+**Architecture doc output (excerpt):**
+
+> **Taxonomy:** Fifty-two sub-topics across nine topics. Five tier-one clauses for first-wave rollout: limitation of liability, indemnification, IP ownership and use of customer data, data-protection obligations, term and termination. Two customer tiers (enterprise / mid-market) with override matrix on three sub-topics. Vendor-side MSA receives its own derived library with reversed polarity on six sub-topics.
+>
+> **Position framework:** Preferred / Fallback Ladder (three steps for tier-one, one step for tier-two) / Walk-away. Each position carries a rationale paragraph and a last-reviewed date.
+>
+> **Versioning:** Library version is date-stamped quarterly snapshot. Per-clause version increments on any text change. Library lives in the CLM clause repository as source-of-truth, exported to Word content controls weekly.
+>
+> **Rollout:** Wave one (tier-one customer MSA clauses) at month three; wave two (tier-one DPA and vendor MSA) at month six; wave three (tier-two across portfolio) at month nine; wave four (tier-three hygiene) at month twelve. Instrumentation captured from wave one to inform wave-two positions.
+
+### Example 2 — library refresh after a regulatory shift
+
+**Input existing_artifacts:** Summary of current playbook last refreshed three years ago.
+
+**Architecture doc output (excerpt):**
+
+> **Diagnostic findings:** Eleven sub-topics show fallback-fired-rate above seventy percent (the fallback has become the de facto preferred position). Six sub-topics lack a fallback at all (every deviation escalates, slowing cycle time). Two sub-topics (AI model training on customer data, biometric-data handling) are missing entirely from the library.
+>
+> **Refresh plan:** Repromote eleven fallbacks to preferred and rebuild new fallbacks beneath them. Add fallback ladders to the six unfallback'd clauses. Author two new clause families (AI training opt-out, biometric data handling) and route them to the data-protection owner for primary drafting. All changes versioned, change-logged, and broadcast to deal desk in a single quarterly release.
+
+## Limitations
+
+- **Not legal advice.** The library is a methodology and operational scaffolding artefact. Every clause position must be drafted, reviewed, and owned by qualified counsel admitted in the relevant jurisdiction.
+- **Jurisdiction-blind by default.** The architecture does not encode enforceability nuances under specific state, provincial, or national law. Where the company contracts across jurisdictions, the position owner must layer jurisdiction-specific overrides on top.
+- **Industry-blind by default.** Industries with sector-specific clause expectations (life sciences, defense, financial services, government) require additional clause families and risk tiers not represented in the default scope.
+- **Tool-agnostic limits.** Some CLM platforms cannot represent fallback ladders as structured objects. Where the platform is the constraint, the library may have to live partly outside the tool with manual reviewer reference.
+- **People-dependent.** A library without named owners and a real change-control cadence decays within twelve months. The architecture assumes the company can staff and fund the named roles.
+- **Not a substitute for negotiation skill.** Even a perfect library does not produce a good outcome when the negotiator does not understand the rationale behind the positions. The library presumes a programme of reviewer training.
+
+## Sources reviewed
+
+The methodology synthesised here draws on public methodology references for clause libraries, contract playbooks, and CLM integration. Industry standardised agreement libraries (released under CC BY 4.0) and the GitLab handbook legal section (CC BY-SA 4.0) were consulted at the *methodology* level only — taxonomy structure, three-position framework, change-control practices. No clause text and no source-specific risk explanations were copied or close-paraphrased. Product-specific names are deliberately not used in the body to avoid implying affiliation with or derivation from any single source.
+
+- https://bonterms.com/ (CC BY 4.0 — methodology only)
+- https://commonpaper.com/standards/cloud-service-agreement/ (CC BY 4.0 — methodology only)
+- https://handbook.gitlab.com/handbook/legal/ (CC BY-SA 4.0 — handbook structure only)
+- https://www.contractken.com/post/contract-playbook-guide (industry reference)
+- https://www.gainfront.com/blog/why-a-centralized-clause-library-and-playbook-are-the-backbone-of-modern-contract-management (industry reference)
+- https://www.sirion.ai/library/contract-management/contract-playbook/ (industry reference)
+- https://github.com/accordproject/template-archive (Apache-2.0 — open clause template format)
+- https://github.com/Open-Source-Legal/OpenContracts (MIT — clause taxonomy patterns)

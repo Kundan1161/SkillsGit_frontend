@@ -1,0 +1,160 @@
+---
+id: skillsgit-curated/color-pipeline-architect
+version: 1.0.0
+name: Color Pipeline Architect
+description: Design a production color pipeline from camera log to delivery — working space choice, IDT/RRT/ODT vs custom transforms, SDR vs HDR mastering, and the deliverables matrix across Rec.709, P3-D65, Rec.2020 PQ/HLG, and theatrical DCI-P3.
+authors:
+  - name: skillsgit Curated
+    handle: skillsgit-curated
+    role: author
+category: creative
+tags: [niche:color-grading, color-science, aces, ocio, hdr, log-workflow, scene-referred, pipeline-design]
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6, claude-haiku-4-5, gpt-4o, gpt-4.1, gemini-1.5-pro]
+  tools_required: []
+  tools_optional: [web_search]
+  min_context_tokens: 24000
+  estimated_tokens_per_invocation: 6000
+trigger_keywords:
+  - color pipeline
+  - aces workflow
+  - ocio config
+  - scene referred
+  - display referred
+  - idt rrt odt
+  - working color space
+  - hdr pipeline
+  - deliverables matrix
+  - color management
+  - rec709 p3 rec2020
+  - log color space
+example_invocations:
+  - "Design a color pipeline for a multi-camera documentary delivering Netflix HDR and a broadcast Rec.709 trim."
+  - "Should we use ACES or a custom OCIO config for an animated short?"
+  - "Plan the working space and transforms for a project shooting on two log formats."
+  - "Build the deliverables matrix for a feature with HDR10, Dolby Vision, and DCI-P3 theatrical."
+inputs:
+  - name: project_brief
+    type: text
+    required: true
+    description: Genre, format (episodic, feature, commercial, animated, mixed live action/CG), and final delivery requirements.
+  - name: cameras_or_sources
+    type: text
+    required: true
+    description: Camera bodies and log encodings used on the shoot, or CG render outputs and their primaries.
+  - name: mastering_target
+    type: choice
+    required: false
+    description: Primary mastering display the colorist will reference.
+    choices: [sdr_rec709, hdr_pq_1000_nit, hdr_pq_4000_nit, hlg_1000_nit, dci_p3_theatrical, mixed]
+  - name: deliverables
+    type: text
+    required: false
+    description: List of required deliverables with platform, container, transfer function, and primaries.
+  - name: tooling_constraints
+    type: text
+    required: false
+    description: Grading suite, NLE, VFX package, asset management constraints, and whether OCIO is supported end-to-end.
+  - name: budget_for_displays
+    type: choice
+    required: false
+    description: Available calibrated reference display tier.
+    choices: [consumer, prosumer, broadcast_reference, theatrical_reference, none]
+outputs:
+  - name: pipeline_design
+    type: markdown
+    description: Annotated pipeline diagram in prose — input transforms, working space, look application, output transforms — with rationale for each choice and notes on round-tripping.
+  - name: deliverables_matrix
+    type: markdown
+    description: Table of deliverables with transfer function, primaries, peak luminance, container, codec, and which trim pass produces it.
+  - name: risk_register
+    type: markdown
+    description: Pipeline failure modes (mismatched transforms, baked-in looks, gamut clipping, metadata loss) with mitigation steps.
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Initial release.
+---
+
+# Color Pipeline Architect
+
+## When to use
+
+Use this skill when a production is being set up and somebody has to decide how images move from camera or render through editorial, VFX, and grading to final delivery without losing their range, their primaries, or their intent. It is the right skill for pre-production meetings, for writing a color bible, for vetting an OCIO config a studio handed over, and for any project where more than one display target is in scope and the trim pass cannot be an afterthought.
+
+Skip it if the job is a single-camera Rec.709-only deliverable with no VFX — that does not need an architecture, it needs a normalization LUT and a grading template. Use it the moment a second deliverable, a second camera with a different log encoding, or a CG element joins the project.
+
+## How to apply
+
+1. Establish the **mastering target** first. The whole pipeline is built backward from the display the colorist will sit in front of. If the program masters in HDR at 1,000 nit PQ, that is the trim and SDR is a downconvert; if it masters Rec.709 and HDR is a later upconvert, that is a very different pipeline with very different risks. Capture peak luminance, transfer function, primaries, and viewing environment for the mastering target before going further.
+2. Inventory every **input source** and tag each with its native encoding. For live action this means the camera body, the log curve, and the wide gamut primaries (the camera-native color space, not what the camera "displays as"). For CG it means the render's working space (scene-linear primaries) and any baked tone-mapping. Mixed projects almost always have at least four input encodings; write them all down.
+3. Choose **scene-referred or display-referred working**. Scene-referred carries linear light all the way to the final view transform and is the right default for any pipeline with CG, with VFX, or with multiple deliverables — grades translate across displays because the math operates on linearized scene values. Display-referred (grading directly on a baked Rec.709 image) is acceptable only for single-deliverable SDR projects with no VFX integration, and even then it forecloses HDR later.
+4. Pick the **working color space**. Two reasonable defaults: an industry color encoding system with wide-gamut linear primaries (a scene-linear archival space), or a wide-gamut log working space favored by colorists for grading ergonomics. The first gives lossless interchange with VFX; the second gives smoother controls in a primary grading suite. Hybrid pipelines linearize for VFX and convert to a wide-gamut log for the grading bay.
+5. Define the **input transforms (IDT-equivalent)** per source. Each camera log encoding gets a documented conversion to working space — published transforms from the camera vendor, an OCIO color space definition, or a CTL-equivalent transform. Reject any pipeline that "eyeballs" the input transform; this is where colors silently drift between cameras.
+6. Decide the **view transform stack** for the mastering display. Three patterns are common: (a) a published reference rendering transform plus an output device transform stack (the scene-linear-archival pattern), (b) a custom show-LUT or DCTL view transform driven by a creative DI brief, (c) a tone-mapping operator chosen for its highlight behavior (relevant for CG-heavy and animated pipelines). Document which one applies and why; do not let a colorist swap view transforms mid-show.
+7. Map the **VFX exchange**. VFX needs linear, scene-referred imagery in a known wide-gamut primaries, in a high-bit-depth file format (16-bit half-float minimum). Define the IDT for plates, the working primaries VFX delivers back in, and whether a temporary view transform travels with the plate. Bake nothing destructive; CDLs and looks travel as sidecars.
+8. Define the **editorial proxy path**. Editorial needs a baked, view-transformed proxy (Rec.709 typically) so dailies are watchable. The proxy is a deliverable of the dailies pipeline, not the grade — preserve the camera original for conform and re-link the conformed timeline to camera originals in grading.
+9. Build the **deliverables matrix**. For each output, capture: transfer function (Rec.709 gamma, sRGB piecewise, PQ ST.2084, HLG ARIB B.67, DCI gamma 2.6), primaries (Rec.709, P3-D65, Rec.2020, DCI-P3), peak/black luminance, container and codec, audio handling, captioning/subtitle handling, and which trim pass produces it. HDR mastering with SDR trim is one trim plus a derived; native dual-master is two trims and doubles the colorist time budget.
+10. Specify **trim passes** explicitly. If mastering is HDR PQ 1,000 nit, plan: SDR Rec.709 trim from the HDR master; optional HDR 4,000 nit upscale via metadata; HLG conversion via published mapping. Each trim is a colorist decision, not an automatic conversion — budget time and approval per trim.
+11. Author **metadata authoring** for HDR. HDR10 carries static MaxCLL/MaxFALL plus mastering display primaries and luminance; HDR10+ and the proprietary dynamic-metadata format carry per-scene dynamic metadata authored during the trim. Plan where in the pipeline each metadata block is measured (MaxCLL/MaxFALL are computed from the final master, not estimated) and which application authors it.
+12. Stress-test the **round-trip**. Send a representative shot through the full pipeline twice — camera to editorial proxy to conform to grade to deliverable, and a parallel scene-linear-archival round-trip through VFX. Compare scope readings on a known reference frame (a calibrated chart or a known waveform target). Any drift larger than a couple of code values is a misconfigured transform.
+13. Document the **OCIO config or equivalent**. A single config file describes the input transforms, working space, looks (CDLs, LUTs), and output transforms. Every application in the pipeline reads the same config. If the grading suite cannot consume the same config the rest of the pipeline uses, document the manual transform mapping and treat the boundary as a known risk.
+14. Write a **color bible**. One short document, accessible to every department, that names the working space, the input transforms per camera, the view transform per deliverable, the trim pass plan, and the contact owner for color decisions. The bible is the artifact that prevents on-set monitoring drift, dailies surprises, and the "why does my shot look different in grading" call.
+
+15. **Plan for archival.** Final masters live longer than the pipeline that produced them. Store the graded master in the working space (scene-linear with wide-gamut primaries) at the original bit depth, plus the OCIO config that defined the transforms. A future re-deliverable in a format that does not yet exist is feasible only if both the linear master and the transforms are preserved. A baked Rec.709 archival master forecloses every future deliverable beyond Rec.709.
+16. **Define the change-control rule.** Once principal photography starts, the input transforms and working space are frozen. Look-LUT and show-LUT changes are versioned and broadcast to every department; transform changes are not allowed without a re-validation pass through dailies and a corresponding grade-side compensation, because old footage was rendered under the old transforms. Write this rule into the color bible and have the producer sign it.
+17. **Plan the cross-vendor handoffs.** Every place the project crosses an organizational boundary — VFX vendor, dailies vendor, sound and picture finishing — is a place transforms can be misinterpreted. The deliverable to each vendor specifies file format, color space, range, and the OCIO config they should consume. The deliverable from each vendor is verified against a reference shot before acceptance. Build a contractual checklist into vendor agreements rather than relying on goodwill.
+
+## Inputs
+
+- Project brief with genre, format, and final delivery requirements.
+- Inventory of camera bodies, log encodings, and CG render outputs.
+- Mastering display target (HDR PQ, SDR Rec.709, theatrical P3, mixed).
+- List of deliverables with platform requirements.
+- Tooling constraints — which applications consume OCIO, which need baked LUTs.
+- Available reference displays in the colorist's environment.
+- Vendor list with each vendor's color-management capability.
+
+## Outputs
+
+- A pipeline design document covering input transforms, working space, view transforms, VFX exchange, and editorial proxies.
+- A deliverables matrix with transfer functions, primaries, peak luminance, and container/codec per output.
+- A risk register naming the likely failure modes (mismatched transforms, baked-in looks, gamut clipping, metadata loss) and the mitigations.
+- A draft color bible suitable for distribution to camera, VFX, editorial, and grading departments.
+
+## Examples
+
+**Episodic drama, two cameras, HDR + SDR mastering.** Camera A is a wide-gamut log encoding at 16 stops; Camera B is a second-vendor wide-gamut log encoding. Working space: scene-linear with wide-gamut archival primaries. Input transforms: vendor-published for each camera, OCIO color space definitions in the show config. Mastering: HDR PQ 1,000 nit on a calibrated reference display in a controlled grading suite. View transform: reference rendering plus output device transform stack. Deliverables: HDR10 with static metadata, dynamic-metadata HDR variant, SDR Rec.709 trim, broadcast HLG conversion. VFX exchange: 16-bit half-float linear in working primaries; CDLs travel as sidecars. Editorial proxy: Rec.709 with show-LUT baked for offline only. Trim plan: HDR master then SDR trim per episode, plus HLG conversion via published mapping (no separate colorist pass).
+
+**Indie feature, single camera, theatrical + streaming.** Camera A wide-gamut log encoding. Working space: wide-gamut log space favored by the colorist. Input transform: vendor-published. Mastering: DCI-P3 theatrical at 48 nit in a theatrical-reference suite. View transform: custom show-LUT authored from a tested film emulation reference. Deliverables: DCP at DCI-P3, streaming SDR Rec.709 trim (separate colorist pass at home suite), streaming HDR PQ trim. Editorial proxy: Rec.709 with offline LUT. VFX exchange: scene-linear linear with documented transform to and from working log. Trim plan: theatrical first; streaming SDR is a fresh pass on the theatrical-graded conform with a Rec.709 view transform; streaming HDR is a separate pass authored on a calibrated HDR display.
+
+**Animated short, CG only, streaming HDR.** No camera, only renderer. Working space: scene-linear with wide-gamut primaries native to the renderer. View transform: a tone-mapping operator chosen for its highlight behavior, configured in the render's OCIO. Mastering: HDR PQ 1,000 nit. Deliverables: HDR10, SDR Rec.709 trim. VFX exchange is the render itself; everything stays scene-linear from render to grade. Editorial proxy: Rec.709 with the same view transform baked. Trim plan: HDR master, SDR trim with the same view transform retargeted to Rec.709 — verify the highlight behavior matches the HDR intent before signoff.
+
+**Documentary, archive-and-new-footage blend.** Mixed sources: a current wide-gamut log encoding from new interviews and a heterogeneous bag of legacy archive (Rec.709 broadcast, scanned film at various transfer functions, ProRes intermediates from the 2000s with unknown intent). Working space: a scene-linear wide-gamut archival primaries. Input transforms: vendor-published for the new camera; per-clip archive analysis — every legacy clip is examined, the colorist decides whether it is Rec.709 legal, Rec.709 full, or something else, and the appropriate input transform is applied per clip. There is no single archive IDT. Mastering: SDR Rec.709 (most documentary deliveries) or HDR PQ 1,000 nit if the platform demands it; the archive's limited range will be respected in the grade rather than upconverted into HDR territory. Deliverables: streaming SDR Rec.709 plus a captioned broadcast variant. VFX is generally absent; editorial proxy is Rec.709 with the show LUT for the new footage and pass-through for the archive (since the archive is already display-referred). Trim plan: a single grading pass producing the SDR master and a derivative HDR variant only if contractually required. The risk register flags every archive clip as a place mis-transforms can creep in silently.
+
+## Limitations
+
+- This skill does not substitute for a calibrated reference display. A pipeline design on paper that masters HDR PQ on an uncalibrated consumer monitor will produce material that fails QC at the platform.
+- Theatrical DCP authoring has format-specific encoding constraints (XYZ primaries, gamma 2.6, JPEG2000 specifics) that this skill names but does not enumerate exhaustively — consult current DCI specifications.
+- Network-specific delivery specs (peak luminance caps, allowed metadata blocks, captioning requirements) change frequently; verify against the current platform delivery spec before locking the pipeline.
+- This skill assumes the production has a colorist or color supervisor making creative decisions. It cannot replace that role; it organizes the technical environment they work in.
+- OCIO config authoring at the level of writing custom color space definitions, custom view transforms, or non-standard primaries requires specialized expertise. This skill describes when those choices apply but does not enumerate the math; rely on the published reference frameworks for the underlying transforms.
+- Live broadcast pipelines (sports, news, live event) have additional real-time constraints (latency, HDR-to-SDR live conversion, ad insertion color handling) outside the scope of this skill. Apply this skill to scripted, episodic, feature, animated, and documentary work; live broadcast needs an additional specialty.
+
+## Sources reviewed
+
+- https://github.com/AcademySoftwareFoundation/OpenColorIO — color management framework, scene-linear and display-referred config patterns (BSD-3-Clause)
+- https://github.com/aces-aswf/aces — industry color encoding system reference transforms (Modified BSD 3-Clause)
+- https://github.com/aces-aswf/CTL — color transformation language used for reference transforms (Modified BSD 3-Clause)
+- https://github.com/aces-aswf/aces-input-and-colorspaces — camera input transform definitions (Modified BSD 3-Clause)
+- https://github.com/colour-science/colour — Python color science library, transforms and primaries reference (BSD-3-Clause)
+- https://github.com/colour-science/OpenColorIO-Configs — reference OCIO configs informing config structure (BSD-3-Clause)
+- https://github.com/colour-science/colour-hdri — HDRI processing reference for scene-linear handling (BSD-3-Clause)
+- https://github.com/EaryChow/AgX — view-transform tone-mapping reference for animation pipelines (MIT)
+- https://github.com/sobotka/filmic-blender — view-transform pattern reference for scene-linear renderer pipelines (license unclear; read for methodology only, no content copied)
+- https://github.com/AcademySoftwareFoundation/OpenTimelineIO — exchange format informing editorial round-trip patterns (Apache-2.0)

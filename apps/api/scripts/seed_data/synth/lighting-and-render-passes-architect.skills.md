@@ -1,0 +1,151 @@
+---
+id: skillsgit-curated/lighting-and-render-passes-architect
+version: 1.0.0
+name: Lighting and Render Passes Architect
+description: Light a scene and design its render-pass breakdown — three-point principles applied to film, product, and character work, HDRI usage, light linking, AOVs for compositor reassembly, render-time budgeting, and denoising strategy.
+authors:
+  - name: skillsgit Curated
+    handle: skillsgit-curated
+    role: author
+category: creative
+tags: [niche:3d-pipeline, lighting, hdri, aov, render-passes, compositing, denoising, lookdev]
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6, claude-haiku-4-5, gpt-4o, gpt-4.1, gemini-1.5-pro]
+  tools_required: []
+  tools_optional: [web_search]
+  min_context_tokens: 24000
+  estimated_tokens_per_invocation: 6000
+trigger_keywords:
+  - three-point lighting
+  - hdri
+  - image based lighting
+  - aov
+  - render pass
+  - beauty pass
+  - light linking
+  - render time budget
+  - denoise
+  - compositing reassembly
+  - lighting rig
+  - cryptomatte
+  - light groups
+example_invocations:
+  - "Light a character close-up that has to read across HDR and SDR deliverables."
+  - "Design a render-pass breakdown for a CG product shot that the compositor needs to relight in 2D."
+  - "Set up HDRI lighting with practical fill for an interior shot at sunset."
+  - "Budget render time and pick a denoiser for a 4K beauty render with hair."
+inputs:
+  - name: scene_brief
+    type: text
+    required: true
+    description: Subject (character, product, environment, action shot), mood, the source-direction story, the look reference (film, photograph, painting), and the intended emotional read.
+  - name: deliverable_constraints
+    type: text
+    required: true
+    description: Final resolution, frame count, target render time per frame, mastering display class (SDR, HDR PQ, HLG), and whether compositing will reassemble the image.
+  - name: render_engine
+    type: choice
+    required: false
+    description: The render engine the scene will be rendered in (affects available AOVs and denoiser options).
+    choices: [path_traced_cpu, path_traced_gpu, hybrid, ray_traced_real_time, unspecified]
+  - name: lighting_sources
+    type: text
+    required: false
+    description: Whether the rig will use HDRI, direct lights, emissive geometry, or a combination, and whether on-set lighting reference plates exist.
+  - name: compositing_intent
+    type: choice
+    required: false
+    description: How much creative latitude the compositor needs over the rendered image.
+    choices: [color_grade_only, light_rebalance, full_relight, integrate_with_live_action_plate]
+outputs:
+  - name: lighting_plan
+    type: markdown
+    description: Lighting design with rig layout, light roles, intensities relative to a reference, and notes on color temperature and softness.
+  - name: aov_breakdown
+    type: markdown
+    description: Render-pass list with channel roles, intended compositor use, and reassembly equation.
+  - name: render_time_plan
+    type: markdown
+    description: Sample budget, denoising strategy, and per-frame time targets with rationale.
+  - name: qc_checklist
+    type: markdown
+    description: Lighting-rig QC steps and compositor reassembly verification.
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Initial release.
+---
+
+# Lighting and Render Passes Architect
+
+## When to use
+
+Use this skill when a CG shot or sequence needs lighting designed with intent — not just "an HDRI and a key light," but a rig that supports the story, survives mastering across multiple displays, and gives the compositor the tools they need in 2D. It is the right skill for a lighter setting up the master light rig for a hero shot, for a CG supervisor writing the lighting brief for a sequence, for a generalist scoping the AOV list before a long render starts, and for any project where rendered frames will be reassembled in compositing rather than delivered straight from the renderer.
+
+Skip it for quick previews, for personal turntables that are not part of a delivery pipeline, and for stylized renders where the lighting is fully baked into shaders. Reach for it the moment a shot has to integrate with a live-action plate, the moment the compositor wants to re-balance light without re-rendering, or the moment render time per frame is creeping past the budget.
+
+## How to apply
+
+1. Start with the **story the light tells**, not the rig that will produce it. Decide where the light comes from in the scene — a window, a streetlight, the sun, a practical fixture, an off-camera implied source. The direction of light tells the audience time of day, weather, indoor versus outdoor, and emotional register. Write one sentence describing the lighting story before any light is created. Every choice that follows defers to that sentence.
+2. Design the rig as **three layered roles**. Key light delivers the dominant directional energy; fill brings shadow detail to a controlled black point; rim or back light separates the subject from the background. Three-point lighting is a principle, not a literal "three lights" — a single HDRI can carry all three roles, an interior set can have one key window and many fills, a product shot can have a key and only environmental fill. The roles persist even when the count of physical lights does not match three.
+3. Choose the **primary lighting basis**. Options: a high-dynamic-range image map driving image-based illumination (an HDRI of an actual location or a synthetic dome); direct analytic lights (area, spot, directional); emissive geometry (a practical fixture modeled as glowing surfaces). Pick the basis that matches the lighting story — an exterior shot at sunset wants an HDRI of an actual sunset sky; a product on a turntable wants direct analytic area lights for control; an interior with practicals wants emissive geometry plus analytic fills for shaping.
+4. Capture or select the **HDRI** with the resolution and dynamic range the shot needs. Reflections in glossy materials need detail (4K minimum, 8K for hero closeups of glossy surfaces); diffuse lighting tolerates lower resolution. A captured HDRI of a real environment carries believable highlight clipping and color cast; a synthetic dome gives more control. If the shot integrates with a live-action plate, the HDRI must match the plate's actual lighting; an on-set sphere photographed at the moment of capture is the most reliable source.
+5. Apply **light linking** as soon as the rig has more than three lights or more than one subject. Light linking restricts a light's contribution to a defined set of objects: a rim light affects only the character, not the background; a fill light affects only the foreground subject, not the matte painting. Linking is a creative tool more than a rendering optimization — it gives the lighter the ability to shape one element without affecting another. Document the linking explicitly so the compositor and any downstream lighter inherit the intent.
+6. Set the **exposure reference**. Pick one reference value in the scene — a known mid-gray, a calibrated reference object, a hero practical fixture — and dial the rest of the rig relative to it. Working in linear scene-referred values means a 0.18 mid-gray under a key light should sit in a known place on the scope. Without an exposure reference, every light intensity becomes an opinion, and the rig drifts every time it is opened.
+7. Choose **color temperature with intent**, not by reflex. Daylight is around 5,600 K; an overcast sky 6,500 K; an incandescent practical 2,800 K; a candle 1,800 K. Mixing two temperatures in one shot tells the audience two stories — daylight through a window with a warm interior practical is the canonical example. Do not white-balance every light to the same temperature unless the story is a perfectly neutral environment; the contrast between temperatures is what makes a rig read as a place.
+8. Plan **shadow behaviour** explicitly. Hard shadows (small angular size) come from the sun, distant practicals, and small punched-through windows; soft shadows (large angular size) come from the sky, large diffusers, and bounced indirect light. The shadow softness on the subject is one of the strongest cues about scale and time of day. Match the shadow size to the lighting story; if the key light is the sun and the shadows look soft, the rig is wrong.
+9. Design the **AOV breakdown** before the first hero render. The minimum: beauty (the composited final), diffuse direct, diffuse indirect, specular direct, specular indirect, transmission, subsurface, emission, atmosphere or volumetric, depth, position, normal, motion vector, and an object identifier mask (a hashed-id pass that the compositor can use to isolate per-object selections). Group passes by light using light-group AOVs so the compositor can re-balance per light without a re-render. Document the reassembly equation that produces beauty from the parts; the compositor verifies it on shot one and trusts it afterward.
+10. Use **light groups** as the unit of per-light control in compositing. A light group is a named bucket; each light in the rig assigns to one bucket; the renderer emits a separate AOV per bucket. A typical bucketing: key, fill, rim, practicals, environment, FX (firelight, computer screens, atmosphere). The compositor stacks the groups and adjusts gain and color per group; this delivers most of the creative latitude that a full relight would require, at a fraction of the render cost.
+11. Add **utility AOVs** for the compositor's toolbox. Per-pixel material identifiers via a hashed-id-style pass let the compositor mask any object or material instantly; per-pixel UV coordinates let the compositor reproject textures in 2D; per-pixel world position lets the compositor relight in a constrained way; a separate ambient occlusion pass lets the compositor adjust contact darkening without changing the render. These utility passes are cheap to produce relative to a re-render and pay for themselves on the first compositor note.
+12. Plan **subsurface, transmission, and volumetric** passes separately. These passes are the most sample-hungry and the most prone to noise; rendering them as their own AOV lets the lighter denoise them individually with strategies tuned to each. Subsurface tolerates aggressive denoising; transmission through clear glass does not; volumetric atmosphere wants temporal denoising if the shot is animated.
+13. Budget **samples per pixel** by region and by feature. A typical bucket: direct lighting needs 16 to 64 samples per pixel; indirect diffuse 64 to 256; reflection and refraction depend on roughness; subsurface 256 to 1024 for hero close-ups. Path-traced renderers expose adaptive sampling that targets a noise threshold — set the threshold per AOV rather than per scene. The total render time is the sum of the parts, not a single knob; cap each contributor before it dominates.
+14. Pick a **denoising strategy** matched to the renderer and the deliverable. Modern AI-based denoisers (built into most production renderers, plus standalone post-process denoisers) deliver acceptable beauty quality at much lower sample counts; spatial denoisers are fine for stills, temporal denoisers are required for animation to avoid frame-to-frame flicker. Denoise per AOV where the renderer supports it (denoising beauty alone and then re-mixing from raw AOVs is wrong). Reserve a "no denoise" raw render for the hero frame of each shot so the compositor can verify what the denoiser ate.
+15. Budget **render time per frame** against the schedule. Multiply seconds-per-frame by frames-per-shot by shots-per-sequence by sequences-per-show; compare to the available render-farm hours. If the math does not fit, the lighter has three levers: lower sample counts and lean harder on denoising, drop AOVs that are not used downstream, or simplify the rig. Doing none of these and hoping the farm grows is the most common reason a project's lighting phase runs over schedule.
+16. Calibrate the rig against a **lookdev test rig** before lighting any shot. The lookdev rig is a chrome ball, a gray ball, a macbeth chart, and a representative hero asset under the show's HDRI. The chrome ball reveals environment contribution and reflection clipping; the gray ball reveals exposure and color temperature; the macbeth chart reveals color fidelity; the hero asset reveals real-shot readability. If any of these reads wrong, fix the rig before lighting shots from it.
+17. Verify **compositor reassembly** on shot one of each sequence. The compositor builds the reassembly tree from the AOVs; the result is compared pixel-by-pixel to the beauty. Any deviation traces to a missing AOV, a renderer-specific clamp, or a denoiser applied inconsistently. Fix it on shot one; do not let a small reassembly error compound across one hundred shots.
+18. Document the rig in a **lighting bible** for the sequence. Capture: the lighting story, the HDRI source, the key/fill/rim assignments, the light-group names, the exposure reference, the color-temperature choices, the AOV list and reassembly equation, the sample budgets, and the denoiser settings. The bible lets a second lighter pick up the sequence without losing the intent and lets the colorist and compositor understand what their inputs represent.
+
+## Inputs
+
+- Scene brief with subject, mood, source-direction story, and look references.
+- Deliverable constraints: resolution, frame count, render-time budget, mastering display class.
+- Render engine and its supported AOV vocabulary.
+- Lighting source choices and any captured reference (on-set HDRI, plate, chrome/gray ball capture).
+- Compositing intent — how much latitude the compositor needs.
+
+## Outputs
+
+- A lighting plan describing the rig, the role of each light, the exposure reference, and the color temperature choices.
+- An AOV breakdown listing each pass, its channel role, and the beauty-reassembly equation.
+- A render-time plan with sample budgets, denoiser settings, and per-frame time targets.
+- A QC checklist for the rig and for compositor reassembly.
+
+## Examples
+
+**Character close-up integrated with a live-action plate.** Lighting story: sunset on a city rooftop; the subject reads warm from camera left, cool from the sky behind. Basis: HDRI captured on set with a chrome ball at the moment of plate capture; resolution 8K for accurate eye reflections. Key: implied sun, an analytic directional matching the on-set angle; color temperature 2,800 K. Fill: HDRI sky contribution, no extra analytic fill (the plate already shows the practical fill amount). Rim: a cool back-light at 6,500 K from upper-left to lift the silhouette. Light linking: rim affects only the subject. Exposure reference: a gray card photographed on set, matched on the rendered chrome ball. AOVs: standard beauty parts plus light groups (key, fill, rim) plus hashed-id-style mask plus depth plus position. Sample budget: adaptive to a noise threshold; subsurface denoised aggressively, transmission untouched. Compositor reassembly verified on shot one against the raw beauty.
+
+**CG product on turntable, controlled studio look.** Lighting story: catalog-clean with a soft hero highlight. Basis: three analytic area lights — a large soft key from upper-left, a smaller fill from lower-right, a narrow rim from behind. No HDRI; a neutral seamless background. Exposure reference: a calibrated mid-gray sphere in pre-flight renders. Color temperature: all three lights at the daylight reference (5,600 K). Shadow behaviour: soft shadows from the area lights, hardened slightly at contact via baked AO. Light linking: rim affects only the product, not the background sweep. AOVs: beauty plus diffuse, specular, reflection by light group plus a depth pass for compositing. Sample budget: low (the rig is clean and noise-free); denoiser at default. Render time per frame: under one minute target.
+
+**Animated interior at night, character driven by practicals.** Lighting story: lit only by a desk lamp and a single overhead fixture, the rest of the room reading dark. Basis: emissive geometry for the lamp and fixture, no HDRI, no analytic fills. Exposure reference: the lamp's filament value, calibrated to a reference brightness; everything else falls into place relative to it. Color temperature: lamp at 2,800 K, fixture at 4,000 K to create a slight separation. Light linking: each practical's bounce is left to indirect; no per-character fills (the look is supposed to be dim and graphic). AOVs: beauty plus diffuse direct, diffuse indirect, emission, atmosphere, depth, position, hashed-id mask. Light groups by practical (lamp, fixture). Sample budget: high on indirect diffuse and atmosphere; aggressive temporal denoising on the volumetric pass to avoid frame-to-frame flicker. The compositor adjusts the lamp versus fixture balance per shot to taste.
+
+## Limitations
+
+- This skill describes lighting principles and AOV design; the exact AOV names, denoiser parameters, and light-linking interfaces are renderer-specific and must be looked up per renderer.
+- Live-action plate integration depends heavily on on-set capture quality (HDRI, chrome/gray ball, plate exposure metadata); if the on-set capture is missing or inadequate, this skill cannot recover that data.
+- Real-time renderers (game engines, ray-traced viewport renderers) trade off sample count for frame rate and have a smaller AOV vocabulary; the AOV strategy adapts to what the engine actually emits.
+- The render-time budget assumes a single renderer and a homogeneous farm. Multi-renderer projects (one for fur, another for atmosphere) require per-renderer budgeting that this skill does not enumerate.
+
+## Sources reviewed
+
+- https://github.com/AcademySoftwareFoundation/MaterialX — material exchange format informing the AOV-aware shading-model treatment (Apache-2.0)
+- https://github.com/AcademySoftwareFoundation/OpenColorIO — color-management framework used for exposure-reference and color-temperature handling (BSD-3-Clause)
+- https://github.com/AcademySoftwareFoundation/OpenImageIO — image I/O library, used as reference for AOV/EXR pass-naming conventions (Apache-2.0)
+- https://github.com/AcademySoftwareFoundation/openvdb — volumetric data format used for atmospheric pass workflows (Apache-2.0)
+- https://github.com/PixarAnimationStudios/OpenUSD — universal scene description carrying render-settings and light-link conventions (Modified Apache-2.0)
+- https://github.com/blender/blender — open production DCC, read for methodology on AOV and light-group conventions (GPL-3.0; read for methodology only, no content copied)
+- https://github.com/AcademySoftwareFoundation/OpenPBR — open shading-model specification used as a reference for energy-balanced lobe AOV decomposition (Apache-2.0)

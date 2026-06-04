@@ -1,0 +1,336 @@
+---
+id: skillsgit-curated/node-based-compositing-pipeline
+version: 1.0.0
+name: Node-Based Compositing Pipeline
+description: Design a node-graph compositing pipeline for a VFX shot — precomp organization, alpha and matte discipline, color management at every node, deep vs flat composite, render-layer integration, denoising, regrain, and deliverable QC.
+authors:
+  - name: skillsgit Curated
+    handle: skillsgit-curated
+    role: author
+category: creative
+tags: [niche:motion-graphics-vfx, compositing, node-graph, color-management, deep-compositing, cryptomatte, regrain]
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6, gpt-4o]
+  tools_required: []
+  tools_optional: []
+  min_context_tokens: 16000
+  estimated_tokens_per_invocation: 5000
+trigger_keywords:
+  - compositing
+  - node graph
+  - precomp
+  - alpha matte
+  - color management
+  - OCIO
+  - ACES
+  - deep compositing
+  - cryptomatte
+  - render passes
+  - denoise
+  - regrain
+  - VFX pipeline
+example_invocations:
+  - "Design the node graph for a CG creature integrated into a live-action plate with rain."
+  - "How do I structure precomps for a 40-shot sequence so notes propagate without breaking the comp?"
+  - "Walk me through color management at every node when the plate is log and the CG render is scene-linear ACEScg."
+  - "When should I use deep compositing instead of flat alpha for an explosion behind a foreground actor?"
+inputs:
+  - name: shot_description
+    type: text
+    required: true
+    description: A description of the shot — plate type (log, raw, ACEScg), CG elements, FX passes, intended look, and downstream deliverable.
+  - name: working_color_space
+    type: choice
+    required: false
+    description: The pipeline's working color space.
+    choices: [ACEScg, scene-linear-rec709, scene-linear-p3, scene-linear-rec2020, log-rec709, custom]
+  - name: composite_complexity
+    type: choice
+    required: false
+    description: A rough complexity tier for the comp.
+    choices: [single-cg-element, multi-element-with-fx, fully-cg-environment, stereo-or-vr, sequence-template]
+  - name: downstream_target
+    type: choice
+    required: false
+    description: Where the finished comp goes next.
+    choices: [editorial-review, color-grading, dailies, final-delivery, online-conform]
+outputs:
+  - name: node_graph_plan
+    type: markdown
+    description: A description of the node graph organized by lane (background, midground, foreground, FX, grade, output) with the role of each node.
+  - name: color_management_plan
+    type: markdown
+    description: The color-space transform at every entry, working, and output node, including view transform handling.
+  - name: matte_discipline_plan
+    type: markdown
+    description: How alpha, holdout, garbage, and ID-based mattes flow through the graph with premultiplication rules.
+  - name: qc_checklist
+    type: markdown
+    description: Per-frame and per-sequence checks the comp must pass before sign-off.
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Initial release.
+---
+
+## When to use
+
+Invoke this skill when a compositor or a generalist needs a structured plan for a node-graph composite before wiring nodes. Typical situations:
+
+- A live-action plate has arrived with one or more CG elements, FX passes, and matte channels that must integrate seamlessly.
+- A sequence of similar shots needs a template comp that propagates notes without forcing per-shot rewiring.
+- The downstream deliverable (color grade, online conform, final master) requires specific render-pass exposure and color tagging that the comp must preserve.
+- The current graph has grown into spaghetti and needs to be rationalized into clear lanes with predictable read order.
+
+Do not invoke this skill for pure motion-graphics finishing without live-action integration — the motion-graphics shot architect skill applies. Do not invoke it for plate keying and roto in isolation; the rotoscoping-and-keying-methodology skill covers that. Do not use it as a substitute for a color-pipeline design; this skill assumes the working color space and view transform have been chosen at the show level.
+
+## How to apply
+
+The methodology arranges the node graph as a left-to-right read with vertical lanes, applies a strict premultiplication and color-space discipline at every boundary, and finishes with a sequence-wide quality-control pass.
+
+### Phase overview
+
+- Phase 1 establishes the working color space and view transform that all subsequent nodes inherit.
+- Phase 2 organizes the graph into lanes so a reader can trace dataflow visually.
+- Phase 3 prepares every input asset with the correct decode, premultiplication, and resolution conform.
+- Phase 4 imposes matte discipline so alpha channels stay consistent through merges.
+- Phase 5 integrates the elements (color, light, atmospheric perspective) without straying into a show grade.
+- Phase 6 decides between deep and flat compositing for the shot's interpenetration profile.
+- Phase 7 handles denoising, regrain, and finalization to deliverable formats.
+- Phase 8 promotes patterns to a sequence-wide template that propagates fixes safely.
+- Phase 9 runs per-frame and per-sequence quality control before submission.
+- Phase 10 documents the self-check the compositor must pass before declaring the comp finaled.
+
+### 1. Establish the working color space and view transform
+
+1. **Identify the working color space.** A scene-linear, wide-gamut space (commonly ACEScg or a scene-linear variant of the show's display gamut) is the standard for modern VFX. Every node operates on values in this space; every read and write transforms into and out of it.
+2. **Identify the view transform.** The view transform maps scene-linear values to display-encoded values for viewing on a monitor. Apply it through the viewer pipeline, never bake it into intermediate writes. Note which display the dailies and final review will use (Rec.709, P3-D65, Rec.2020).
+3. **Use an OCIO config that all departments share.** A single OCIO configuration file pinned to a show version guarantees that 3D, lighting, comp, and editorial agree on every transform. Pin the version; bumping the config mid-show is a re-render risk.
+4. **Declare an input transform per asset class.** Plates arrive in a log encoding (or raw camera RGB); CG renders arrive scene-linear; reference still images arrive in a display-encoded sRGB or P3. Each class has exactly one read-side transform; document it.
+5. **Reject any input you cannot tag.** If an asset comes without a color-space label and the source is unknown, do not guess. Ask, and treat untagged inputs as a pipeline defect.
+
+### 2. Organize the graph in lanes
+
+6. **Adopt left-to-right read order.** Reads on the left, writes on the right, intermediate nodes flow rightward. The visual graph mirrors the dataflow.
+7. **Divide the graph into vertical lanes.** Standard lanes: background plate, midground CG, foreground CG, atmospheric and FX layers, character and roto, grade and finalize, output. Other arrangements are possible; consistency across shots matters more than the specific choice.
+8. **Use backdrop or group nodes to label lanes.** A labeled backdrop tells the next compositor where to look. A grouped subgraph hides complexity but obscures iteration; prefer backdrops for active work, groups only for stable sub-systems.
+9. **Cap graph width.** A graph that needs horizontal scrolling beyond two screens hides bugs. Promote stable sub-sections to grouped subgraphs and document the inputs and outputs of each group.
+10. **Adopt a node naming convention.** Default node names (e.g. `Merge1`, `Merge2`) tell the next compositor nothing. Rename every node whose purpose is not obvious from its position. A name like `merge_creature_over_bg` survives a year on the shelf.
+
+### 3. Read and prepare every input
+
+11. **Read plates with the correct decode.** A raw or log plate must be decoded to scene-linear at the read node, not later. Set the read's input transform explicitly.
+12. **Read CG passes as half-float EXR.** Multichannel EXR with named arbitrary output variables (AOVs) is the standard CG-to-comp handoff. Do not collapse to RGBA at the read — keep the channels available for downstream use.
+13. **Apply per-channel premultiplication rules.** RGB times alpha is the premultiplied convention. If a CG pass arrives unpremultiplied, premultiply at the read; if a key or matte arrives unpremultiplied, premultiply once and only once before the first merge.
+14. **Crop and reformat to the working resolution.** Plates and CG renders frequently arrive at different resolutions and pixel aspect ratios. Conform to the working format at the read; do not let resolution drift propagate downstream.
+15. **Clean the plate before integration.** Dust busting, rig removal, and lens-distortion handling happen at the read stage. Use the same lens-distortion model for plate-undistortion and CG-redistortion so they cancel; never integrate at the undistorted resolution and forget to redistort for output.
+
+### 4. Matte discipline
+
+16. **Distinguish matte types.** Alpha mattes come from a key or a render's coverage channel. Garbage mattes are hand-drawn polygons that exclude regions a key cannot reach. Holdout mattes prevent a CG element from rendering where another element will be composited over it. ID mattes (Cryptomatte-style) are derived from per-pixel object or material IDs.
+17. **Always know whether a stream is premultiplied.** Premultiplication state is the leading cause of edge halos and color shifts. Every node that operates on color values must respect the stream's premultiplication; unpremultiply before color operations that need linear color, then premultiply before the next merge.
+18. **Build the matte hierarchy explicitly.** Foreground key matte minus garbage outside, plus a held-out region for the FX layer behind the actor. Build the final matte by Boolean combination of contributing mattes, and view it at every step.
+19. **Prefer Cryptomatte-style ID mattes over render-time per-object renders.** A single Cryptomatte pass replaces dozens of separate object renders, supports motion blur and depth-of-field, and reduces re-render risk. Generate the mattes downstream in comp by picking IDs from the encoded pass.
+20. **Erode and feather mattes deliberately.** Default edges from a chroma key are seldom usable as-is. Erode by a fractional pixel, then feather, then choke or expand back as the integration demands. Document the values; per-shot edge tuning is one of the most fragile parts of a comp.
+
+### 5. Color and light integration
+
+21. **Match black and white levels first.** Before any look transform, the CG element's deepest shadow should sit at or above the plate's deepest shadow, and its highlights should sit at or below the plate's highlights for the same exposure value. Use a scope, not the eye.
+22. **Match white balance.** The CG was lit with a specific HDRI or light rig; the plate was lit by whatever the day produced. Push the CG toward the plate's white balance with a small chromatic adaptation, not a per-channel grade.
+23. **Integrate atmospheric perspective.** Add a depth-based haze using the Z depth pass, attenuating contrast and saturation with distance. The integration grade is part of the comp, not the plate's color grade.
+24. **Light wrap edges where appropriate.** A light wrap takes background luminance, blurs it, and applies it inside the alpha edge of the foreground. Apply sparingly; over-wrapped edges read as a halo rather than as integration.
+25. **Add screen-space effects in scene-linear.** Lens flares, bloom, depth of field, motion blur reconstruction, and atmospheric fog operate on linear light values; never apply them in a display-encoded space.
+26. **Apply screen-space defocus from depth or motion vectors.** A 2D defocus driven by the Z depth pass is far cheaper than re-rendering with depth-of-field; the same is true for motion blur reconstructed from motion-vector AOVs.
+
+### 6. Deep compositing decision
+
+27. **Use deep compositing when foreground and background interpenetrate.** Deep images carry per-pixel depth samples; merging two deep images by depth handles volumetrics behind partial transparency correctly without rotoscoping holdouts.
+28. **Use deep when motion blur and depth of field overlap.** A blurred foreground and a depth-cued background that pierce each other will betray a flat-alpha holdout; deep merges resolve the overlap automatically.
+29. **Prefer flat compositing for shots without interpenetration.** Flat alpha is faster, simpler, and easier for downstream artists to debug. Reserve deep for the shots that demand it; it is not free.
+30. **Convert deep to flat before exit.** Deliverables rarely accept deep formats. Flatten deep streams once integration is complete, before the grade lane.
+
+### 7. Denoise, regrain, and finalize
+
+31. **Denoise the plate sparingly and only where integrating CG demands it.** A plate that is denoised globally loses texture the audience expects. Denoise only the region where CG must integrate, then re-grain the integrated region to match the plate's untreated areas.
+32. **Match grain by sampling the plate.** Pull a grain plate from a quiet region of the plate (a flat wall, the sky) and apply it to the integrated CG. Match grain size, contrast, and chromatic spread; an over-uniform grain is a tell.
+33. **Apply lens distortion last, before the output transform.** If the plate was undistorted at read, redistort the integrated composite at the same model and parameters before the writer.
+34. **Bake a slate or burn-in only on review outputs.** Slates and burn-ins on the final delivery are a defect; on dailies and review they are a contract.
+35. **Apply the view transform only in the viewer or in the review writer.** Working EXRs stay scene-linear with no view transform baked in.
+
+### 8. Sequence-aware template structure
+
+36. **Build a template comp for the sequence.** Identify the parts of the graph that vary per shot (plate path, matte tweaks, integration grade) and the parts that are stable (color-management transforms, lens model, deliverable settings). The variable parts go in clearly labeled per-shot regions; the stable parts go in a sequence-level group.
+37. **Promote shot-specific values to a single per-shot control.** A single backdrop or group node containing the per-shot knobs accelerates dailies cycles.
+38. **Version the template.** Bump the template version when a stable region changes; document why. The same template should be re-applicable to every shot without breaking per-shot work.
+39. **Avoid cross-shot copy-paste.** Use template references so a fix to the template propagates to every shot using it.
+
+### 9. Per-frame and per-sequence QC
+
+40. **Per-frame QC: alpha integrity.** View the alpha channel of the final output and confirm there are no rogue values where they should not be, particularly near edges.
+41. **Per-frame QC: pre-multiplication.** Toggle premultiplication off in the viewer; the matte and color streams should both make sense independently.
+42. **Per-frame QC: color-space sanity.** View the output through the show's view transform and compare against the reference frame. The first and last frames are insufficient; spot-check mid-action frames where motion blur and DOF stress the integration.
+43. **Per-sequence QC: edge consistency.** Across the shot, edges should breathe consistently; flickering edges almost always trace to a per-frame matte tuning that did not propagate.
+44. **Per-sequence QC: grain consistency.** Confirm the grain match holds in every frame, not only on the reference still. Grain mismatches stand out at full speed.
+45. **Per-sequence QC: render and write settings.** Confirm the writer outputs the correct codec, bit depth, color tag, and frame range; one missed setting forces a re-render.
+
+### 10. Self-check before responding
+
+46. **Did you state the working color space and the view transform separately?** Conflating them is the most common color bug.
+47. **Are every read and write decode and encode explicit?** If a transform is implicit, it is unreliable.
+48. **Is every matte's premultiplication state declared?** If you cannot say whether a stream is premultiplied at every merge, the graph is unsafe.
+49. **Did you separate the integration grade from the show grade?** Integration grade lives in the comp; the show grade lives in the color suite. Comping into the show grade locks a future colorist out of their job.
+50. **Is the QC checklist actionable, not aspirational?** Every check must name a viewer setting or a numeric tolerance.
+
+## Render-pass vocabulary
+
+A compositor reading a CG render expects specific named passes. Standardize on the following vocabulary in the plan; the artist authoring the render then knows what to emit:
+
+- **Beauty.** The full RGBA render with all lighting applied.
+- **Diffuse direct / Diffuse indirect.** Lighting decomposed by direct illumination and indirect bounces; allows the compositor to push or reduce bounce light independently.
+- **Specular direct / Specular indirect.** Same decomposition for specular shading.
+- **Emission.** Emissive material contribution; allows the compositor to dim or boost emissive elements without re-rendering.
+- **Z (depth).** Per-pixel scene depth from the camera. Used for atmospheric perspective, defocus, and depth-based masking.
+- **Position.** Per-pixel world-space position. Used for world-space masking and 3D-aware effects.
+- **Normal.** Per-pixel world or camera-space normal. Used for relighting and surface-direction effects.
+- **Motion vectors.** Per-pixel 2D screen-space velocity. Used for motion-blur reconstruction and retiming.
+- **Ambient occlusion.** Per-pixel local occlusion. Used to boost or reduce contact darkening.
+- **Cryptomatte object / material / asset.** Multi-layer ID encoding supporting motion blur and transparency. Used for selective grading and masking.
+
+A render that emits all of these passes (often called a multichannel AOV render) lets the compositor solve most look problems without re-rendering. A render that emits only beauty forces re-renders for nearly every note.
+
+## Premultiplication discipline in detail
+
+Premultiplication errors are the most common source of comp defects that survive review and ship. Adopt the following rules without exception:
+
+- **An image stream is either premultiplied (RGB×A) or unpremultiplied (RGB, A separate).** Each node either preserves the state or changes it explicitly.
+- **Color operations that need linear color (gamma, log, color-correct in linear space) require unpremultiplied input.** Unpremultiply before, premultiply after.
+- **Merge operations expect premultiplied input.** A merge of two unpremultiplied streams produces incorrect edge math.
+- **Blur and defocus operate on premultiplied data.** Blurring an unpremultiplied stream creates dark fringes at edges where alpha falls off.
+- **Resize and reformat preserve premultiplication state.** Verify after resize that alpha and RGB resampled with the same filter.
+- **Track the state at every junction.** Annotate the node with its expected input/output premultiplication when in doubt.
+
+## Color-space transforms at every node boundary
+
+A simple rule prevents most color defects: every node either preserves the working space or transforms explicitly. Implicit transforms are forbidden. The transform points are:
+
+- **Read.** Decode the input file's encoding to the working space.
+- **Working area.** Every node operates in the working space.
+- **Viewer.** The view transform applies for monitor display; the graph stream is unaffected.
+- **Write.** Encode the working space to the deliverable's expected encoding, or leave scene-linear if the deliverable is a working EXR.
+- **Reference branches.** A branch that exists only to compare with a reference may have its own view transform applied; clearly mark the branch so the comp does not flow through it.
+
+Beyond these points, do not insert color transforms. Every spurious transform is a place where rounding error or gamut mismatch can hide.
+
+## Anti-patterns to surface in the plan
+
+- **A single keyer node feeding the final matte.** Mattes are layered; a single keyer is a brittle pattern.
+- **The view transform applied in the middle of the graph.** Every node after the view transform operates in display space, which is non-linear; lens flares, blurs, and merges all misbehave.
+- **A grade node before the integration is complete.** Show grades belong in the color suite; integration grade is the comp's responsibility.
+- **A read node without an explicit color-space tag.** Implicit color is unreliable color.
+- **A write node with an implicit codec or bit depth.** Every write specifies bit depth, compression, color tag, and channel layout.
+- **A graph that requires horizontal scrolling beyond two screens.** Subdivide into groups or refactor.
+
+## Inputs
+
+- A shot description with plate type, CG elements, FX passes, look intent, and downstream deliverable.
+- Optional: working color space, comp complexity tier, downstream target.
+
+## Outputs
+
+- A node-graph plan with lane structure and node roles.
+- A color-management plan with transforms at every boundary.
+- A matte discipline plan with premultiplication rules and matte hierarchy.
+- A per-frame and per-sequence QC checklist.
+
+## Examples
+
+**Example invocation**
+
+> "Live-action plate of an actor walking through a wet street, log-encoded camera raw. CG element: a hovering drone that follows the actor. FX layer: rain particles in front of the drone. Final delivery to a Rec.709 grade suite."
+
+**Expected high-level output**
+
+Working space: ACEScg with a Rec.709 view transform applied in viewer and review writer only.
+
+Lanes: `bg_plate` (read log, decode to scene-linear, undistort, dust-bust), `cg_drone` (read multichannel EXR with beauty, Z, motion vectors, Cryptomatte), `fx_rain` (read EXR with beauty and motion vectors), `mattes` (Cryptomatte ID picks for drone body and rotors, garbage matte around actor for holdout), `integration` (light wrap, atmospheric depth tint, drone shadow on wet ground reflection), `grade` (per-shot integration grade only), `finalize` (regrain matched to plate, redistort, write).
+
+Color management: plate read transforms log to scene-linear ACEScg; CG and FX reads tag scene-linear ACEScg directly. Viewer applies an ACES Rec.709 view transform. Review write applies the same view transform and tags Rec.709; final EXR write stays scene-linear ACEScg with no view transform baked.
+
+Matte discipline: drone alpha from beauty's coverage channel, premultiplied at read. Rotor sub-matte from Cryptomatte for selective motion-blur boost. Holdout matte from garbage roto around the actor's silhouette plus a few-pixel feather so the rain particles dissolve into the actor's hair, not on a hard line. All mattes premultiplied before the merge stack.
+
+QC checklist: alpha free of speckle at full resolution; premultiplication toggled in viewer with no shift; per-frame check that wet-ground reflection of the drone moves with the drone, not the plate; grain match holds in three sampled frames (start, middle, end); writer emits 16-bit half-float EXR with the ACEScg tag and 24 fps for the master, plus a Rec.709 ProRes 4444 review file with the view transform baked.
+
+## Second example
+
+**Example invocation**
+
+> "Full CG environment with a live-action actor element keyed onto it. CG environment is rendered ACEScg multichannel; actor element was keyed in the rotoscoping-and-keying skill and arrives as RGBA half-float EXR with separate matte channels. Final delivery to a streaming master at Rec.709."
+
+**Expected high-level output**
+
+Working space: ACEScg with Rec.709 view transform in viewer and review writer.
+
+Lanes: `cg_environment_bg` (multichannel EXR read; AOVs include beauty, depth, motion vectors, atmospheric pass), `cg_environment_fg` (foreground CG props that sit in front of the actor), `actor_element` (premultiplied RGBA from the key pipeline; separate matte channels for sub-region tuning), `holdouts` (mattes derived from environment depth and from the actor's silhouette), `integration` (actor light wrap pulling environment colors into the silhouette edge; environment contact shadow under the actor's feet derived from Z), `grade` (per-shot integration grade; no show grade), `finalize` (defocus from depth; motion blur reconstruction on the actor element from motion-vector AOVs from a separately-rendered velocity pass; regrain matched to the actor element source; write).
+
+Color management: every EXR read tagged ACEScg. Viewer applies the Rec.709 view transform. Final master writes ACEScg EXR sequence for archival; review master writes a Rec.709-tagged ProRes 4444 with view transform baked.
+
+Matte discipline: actor matte arrives premultiplied; verified at read with a premultiplication toggle in the viewer. Environment depth derives a holdout for the foreground props that occlude the actor. All mattes feathered before merge; choke values documented per region.
+
+Per-frame QC: alpha check on actor edges, premultiplication toggle test, integration-grade-applied vs not visualization, depth-based defocus sanity. Per-sequence QC: edge breathing consistency, grain match consistency, every write conforms to the deliverables matrix.
+
+## Common cross-tool gotchas
+
+Even with strict color management, certain cross-tool boundaries cause recurring defects. Catalog them in the plan so the compositor watches for them:
+
+- **EXR channel order varies by writer.** Some writers emit channels in alphabetical order; some preserve authoring order. A reader that expects a specific order misreads. Use channel-name access, not index-based access.
+- **Pre-multiplied EXR vs unpre-multiplied EXR.** Both conventions exist; the file metadata does not always declare which. When in doubt, view alpha alone and view RGB toggled premultiplied to verify.
+- **YUV vs RGB for codecs.** Many delivery codecs operate in YUV; a 4:2:0 chroma subsampling silently degrades high-frequency chrominance, which can ruin a keying-derived edge that survived the comp. Verify chroma subsampling on the deliverable codec.
+- **Frame rate drift between tools.** A project default of 24 fps vs 23.976 fps is a frequent silent defect. Set frame rate per render explicitly.
+- **Aspect ratio interpretation.** A pixel aspect ratio of 1.0 (square) is the modern default; older anamorphic plates may have non-square pixel aspects. Conform to square pixels on input.
+- **Color management config drift.** A shop that updates OCIO config mid-show without rerendering the upstream departments creates a near-undetectable color drift in the final master. Pin the OCIO config version per show.
+
+## Versioning the comp file
+
+The comp file (the node graph) needs version discipline as much as the renders do:
+
+- **Save versions on every meaningful change.** Hourly or per-task; never overwrite a previous version.
+- **Use a numeric version pattern.** `proj_shot030_comp_v007.<ext>` versus `comp_final_FINAL_v3.<ext>` is a non-negotiable difference for any project with reviews.
+- **Save a snapshot before any structural change.** Refactoring lanes, restructuring pre-comps, swapping the working color space — all are events that deserve a numbered save before the change.
+- **Save renders into a folder that names the comp version that produced them.** A render that cannot be tied back to its comp version is unreproducible.
+- **Use file-comparison tools to diff comp versions on regressions.** A comp that worked yesterday and broke today usually has a small, identifiable change that a diff finds in seconds.
+
+## Optimization without compromising precision
+
+Comp graphs slow down as they grow. Apply the following discipline to keep the graph responsive without losing precision:
+
+- **Use a proxy resolution for interactive work and full resolution for renders.** A proxy at half or quarter resolution speeds the viewer; the writer renders at full.
+- **Cache stable upstream branches.** A plate read with undistortion applied is the same every iteration; cache it.
+- **Avoid expensive operations in the interactive path.** Heavy denoisers and full-precision blurs slow the viewer; gate them behind a switch that is off during interactive work and on during writes.
+- **Localize iteration.** When tuning a node, view its output directly rather than viewing the final write. The viewer pipeline upstream of the tuned node is unaffected by the tune.
+- **Profile with the tool's performance overlay.** A graph that has slowed unaccountably usually has one or two expensive nodes that profiling identifies.
+
+## Limitations
+
+- This skill plans a graph; it does not author specific node parameter values for a given shot — those require pixel inspection.
+- It assumes the working OCIO config and view transform are chosen at the show level. It does not design a color pipeline from scratch.
+- It does not perform the keying or rotoscoping that feeds the matte lane — the rotoscoping-and-keying-methodology skill applies upstream.
+- It does not author CG render-pass setups; the motion-graphics shot architect and the upstream lighting and FX departments own those decisions.
+- For stereo, immersive, or volumetric deliverables, additional depth-budget and per-eye consistency rules apply beyond what this skill covers.
+
+## Sources reviewed
+
+The methodology synthesized here draws on patterns observed across the following open-source repositories. None of the prose above is derived from any single source. Trademarked product names are confined to URLs and are absent from the body.
+
+- https://github.com/NatronGitHub/Natron (GPL-2.0)
+- https://github.com/AcademySoftwareFoundation/OpenColorIO (Apache-2.0)
+- https://github.com/AcademySoftwareFoundation/OpenColorIO-Config-ACES (Apache-2.0)
+- https://github.com/Psyop/Cryptomatte (BSD-3-Clause)
+- https://github.com/AcademySoftwareFoundation/openvdb (MPL-2.0)
+- https://github.com/cgwire/awesome-cg-vfx-pipeline (MIT)
+- https://github.com/hradec/pipeVFX (GPL-3.0)
+- https://github.com/LumaPictures/openvdb-render (Apache-2.0)

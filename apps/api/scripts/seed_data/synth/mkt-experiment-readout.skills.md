@@ -1,0 +1,165 @@
+---
+id: skillsgit-curated/experiment-readout
+version: 1.0.0
+name: Experiment Readout
+description: Given the results of an A/B test, produce a clear readout — classify the outcome, check sample size and guardrails, segment carefully, draw learnings, and recommend the next step.
+authors:
+  - name: skillsgit Curated
+    handle: skillsgit-curated
+    role: author
+category: marketing
+tags: [niche:conversion-rate-optimization, experiment-analysis, readout, statistical-significance, guardrails, segmentation, learnings, decision]
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6, gpt-4o]
+  tools_required: []
+  min_context_tokens: 32000
+  estimated_tokens_per_invocation: 8500
+trigger_keywords:
+  - experiment readout
+  - ab test results
+  - test analysis
+  - statistical significance
+  - confidence interval
+  - guardrail check
+  - segment analysis
+  - novelty effect
+  - novelty bias
+  - srm check
+  - winner declaration
+  - inconclusive
+  - test learning
+example_invocations:
+  - "We just finished a 3-week test on our pricing page. Help me write the readout."
+  - "Primary metric is up 4.2% but mobile is flat — how should we read this?"
+  - "Our test hit significance after 6 days but we sized for 3 weeks. What do we do?"
+  - "Help me classify this result — win, loss, or inconclusive — and write the decision."
+  - "Guardrail on support contacts moved 0.3% against us. Is that enough to block the ship?"
+inputs:
+  - name: experiment_summary
+    type: text
+    required: true
+    description: What was tested, the hypothesis, the variants, the eligibility rules, the dates, and the audience.
+  - name: results
+    type: text
+    required: true
+    description: Numeric results for the primary metric, secondary metrics, and guardrails per arm — point estimates and confidence intervals if available, or raw counts and rates if not.
+  - name: design_targets
+    type: text
+    required: false
+    description: The pre-registered MDE, sample size, significance level, and decision criteria from the design document. If absent, the skill asks for them.
+  - name: segments
+    type: text
+    required: false
+    description: Segment-level results the requester wants explained (device, geo, channel, plan, tenure). If absent, the readout asks the requester to provide them or to confirm none were pre-registered.
+  - name: prior_tests
+    type: text
+    required: false
+    description: Past tests on the same surface or related metrics that inform interpretation, and any standing rules of thumb (novelty windows, weekly seasonality).
+outputs:
+  - name: readout_document
+    type: markdown
+    description: A one-page-or-two readout structured as headline, classification, primary-metric chart-of-the-mind, guardrail table, segment table, sample-size adequacy, sources of doubt, learnings, and recommended decision.
+  - name: open_followups
+    type: markdown
+    description: A numbered list of follow-up actions ranked by urgency — what to ship, what to retest, what to monitor, what to investigate.
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Initial release.
+---
+
+# Experiment Readout
+
+## When to use
+
+Use this skill when an experiment has reached its scheduled end (or has been stopped for cause), the data is available, and someone needs to write the document that decides what happens next. Typical surfaces are landing-page tests, signup-flow tests, paywall and pricing tests, recommendation-algorithm tests, email subject-line tests, push-notification tests, and any product change that was gated behind a flag for the purpose of measurement.
+
+The readout is the artifact every other downstream conversation hangs on: the engineering team decides whether to delete the flag and bake in the variant, the product team decides whether to fund more work on the area, and the analytics team decides whether to log the result as a confirmed learning or a tentative one. A clear readout pays back many times over its writing cost; a muddled readout produces months of post-hoc disagreement about what the test actually showed.
+
+Skip the skill when the test failed to launch correctly (the right document is an incident note, not a readout), when the test is mid-flight (the right document is a smoke-test summary), or when the request is to design a new test (use the test-designer skill).
+
+## How to apply
+
+1. **Start with the headline.** Write a one-sentence summary that names the test, the result, and the recommendation: "The new pricing-page hero increased paid-signup rate per visitor by 4.1% (95% CI: 1.8% to 6.4%) with no guardrail breach — ship to 100% within the week." Headlines that include the metric, the lift, the confidence interval, and the recommended action are read; headlines that omit one or more produce follow-up questions.
+2. **Classify the result before defending it.** Place the test into one of five buckets so the reader knows what kind of document this is. (a) Confirmed win: primary metric moved favorably with confidence interval excluding zero on the agreed direction, all guardrails non-inferior, no SRM trip — ship. (b) Confirmed loss: primary metric moved unfavorably with tight confidence interval, do not ship, write the learning. (c) Tight null: primary metric flat with confidence interval tight around zero — do not ship, the change does not help; promote the negative result as a learning. (d) Inconclusive: primary metric flat with confidence interval too wide to tell, decide whether to extend or abandon. (e) Mixed: primary metric moved favorably but a guardrail breach, or favorable on one segment and unfavorable on another — do not ship by default; investigate the tradeoff explicitly. Lead with this classification on line two, not in paragraph four.
+3. **Validate the assignment before celebrating the lift.** Re-check the SRM. The chi-square p-value comparing observed allocation to designed split should be above the agreed threshold (commonly 0.001). An SRM trip in either direction invalidates the lift estimate — the populations being compared are not the populations the design intended. If SRM trips, the readout's classification becomes "inconclusive — assignment compromised" and the body is an investigation memo, not a result narrative. Make this a mandatory check, not a footnote.
+4. **Check sample-size adequacy against the design.** Compare the actual sample size at analysis time to the pre-registered minimum. If the test ran shorter than the design (early stopping under business pressure, a bug that paused the test, exposure being lower than projected), state the gap and recalculate what MDE the actual sample could detect with the agreed significance and power. A test that hit "significance" with half the sample it needed has not solved the problem the design intended to solve; it has produced a noisier estimate that happened to land past the cutoff.
+5. **Report the primary metric in three numbers, not one.** The point estimate of the lift, the confidence interval, and the p-value (or a credible interval and posterior probability under a Bayesian framing). Reporting only one of the three invites motivated reading; reporting all three forces the reader to see the uncertainty. State the lift as both relative and absolute, since relative-only on a small-base metric (a "30% lift" on a 0.2% baseline) hides how thin the underlying effect is.
+6. **Annotate the primary-metric direction with one diagnostic.** A lift on signup-completion rate can come from more starts or fewer drop-offs. A lift on revenue per visitor can come from more buyers, larger orders, or higher prices. Name which mechanism produced the result so the next person who reads the document can decide whether the mechanism is durable.
+7. **Walk the guardrails in a table.** One row per guardrail. Columns: pre-registered non-inferiority bar, observed change, confidence interval, breach status (clear / near / breach). A near-bar guardrail (within one confidence interval of the bar) is not a clean pass and must be flagged. Do not collapse guardrails into a single "all green" line; readers who care about a specific guardrail need its number.
+8. **Inspect segment splits with discipline.** Pre-registered segments are confirmatory: their results are treated with the same weight as the primary metric. Exploratory segments (a slice that was not in the design but is asked about now) are weak evidence and must be labeled as such; multiple-comparisons inflation makes p-values on twenty exploratory cuts unreliable by construction. State which segments were pre-registered and which are exploratory. When an exploratory segment shows a striking result, the right next step is a confirmatory follow-up test, not an immediate ship decision.
+9. **Inspect device and channel splits as standard.** Even when not pre-registered, mobile vs. desktop and paid vs. organic are nearly always worth reading as exploratory cuts because the underlying populations behave differently. Report them, label as exploratory, and treat as questions for the next test rather than as decisions for this one. If a segment moves opposite to the overall direction, name the magnitude of the cancellation.
+10. **Check for novelty and primacy effects.** A new variant can outperform control in the first days and then regress as the novelty fades. A new variant can also underperform control in the first days while users adjust, then catch up. Look at week-over-week or 3-day windows of the primary metric. A clear arc that decays toward the control is a novelty signal; a clear arc that climbs toward control is a primacy signal. If either is present, the headline lift overstates the durable effect; recommend an extended run or a holdout. If the data is too sparse to detect novelty, state that as a limitation.
+11. **Check for weekly seasonality.** If the test ran only on weekdays, the result does not generalize to weekend audiences; same for off-business-hours, holidays, and traffic spikes. If the run includes a marketing campaign that altered the inbound mix, call it out.
+12. **Check for spillover.** If a variant could influence the control (referral mechanics, shared inventory, social features, network effects), the analysis is biased downward (variant looks worse than its true effect) or upward (variant looks better than its true effect) depending on the mechanism. Most landing-page tests do not have spillover; many product tests do. Name the risk and what the analysis assumes about it.
+13. **Check for outlier influence.** A few visitors with very high or very low values on the primary metric can move the average a lot. Report a trimmed or windsorized version of the primary metric alongside the raw version. If the trimmed result disagrees with the raw, the test is more uncertain than the raw number suggests.
+14. **State sources of doubt before drawing conclusions.** A standardized block: "What could be wrong here?" lists the three to five most credible threats to the result, ranked by how much they would change the recommendation if true. Common items: a known instrumentation gap in exposure logging; a downstream metric not yet observable in the run window; a confounding launch in the same period; a population shift on the control side; a small effect inside the noise. A readout without a doubt block is overconfident by construction.
+15. **Translate the result into a decision using the pre-registered matrix.** If the design pre-registered decision criteria, apply them literally. If it did not, reconstruct the criteria here for the record, do not move the bar post-hoc to fit the result. "We pre-registered a 1% non-inferiority bar on support contacts; the breach was 0.7%; that is within bar; the ship-criterion is met on that guardrail." Auditability beats narrative grace.
+16. **Name the recommendation and the action.** One of: ship to 100% on a stated timeline; do not ship and delete the variant; do not ship and retain the flag for a follow-up test; extend the test for a stated duration; pause the test and investigate a specific concern. The action has an owner and a date.
+17. **Distinguish the result from the learning.** A test produces both. The result is what happened to the metric on this audience at this time. The learning is the generalizable inference. "Adding social proof to the pricing page lifted paid signups by 4%" is a result. "Pricing-page visitors at this stage of awareness respond to specificity-driven proof more than to volume-driven proof, because the named logos beat the count of logos" is a learning. Promote the learning into a short standalone sentence at the end of the readout so the next test team can find it. Tests that fail to ship still produce learnings worth preserving.
+18. **Recommend the follow-up plan.** Almost every test produces follow-up work. If the test was a win, the follow-ups include extending the change to adjacent surfaces, confirming durability beyond the run window, and watching for late-emerging guardrail effects. If the test was a loss or null, the follow-ups include the new theory of the case, the next variant to consider, and the question that must be answered before another swing. If the test was inconclusive, the follow-ups include either a re-run with corrected design or a switch to a qualitative method. Order follow-ups by urgency, not by topic.
+19. **Right-size the rigor.** A 4% lift on a homepage hero with a tight confidence interval and clean guardrails does not require a fifteen-page memo. A pricing test with a positive lift and a near-bar guardrail breach deserves the longer document. Default to a one-page narrative with a two-page appendix of tables, charts-of-the-mind described in prose if no chart-rendering surface is available, and segment splits.
+20. **Address the politics quietly.** Some tests are read by stakeholders who advocated for the variant or against it. A readout that omits a finding because it embarrasses the advocate is a readout that loses long-run trust. Lead with the data, attribute interpretation to the analysis, and keep the tone neutral. The decision matrix and pre-registered criteria absorb stakeholder pressure that bare prose cannot.
+21. **Audit yourself against the four readout failure modes.** (a) Burying uncertainty — confidence intervals shown only when they are tight, omitted when they are wide. Fix: always show them. (b) Multiple comparisons not labeled — exploratory cuts presented as confirmatory findings. Fix: label every cut as confirmatory or exploratory. (c) Result-to-learning drift — a learning stated more strongly than the result supports. Fix: name the population, the surface, and the time period of the result alongside the learning. (d) Decision criteria moved — the bar shifts to match the observed result. Fix: cite the pre-registered criteria literally.
+22. **Audit the readout against the original hypothesis.** Re-read the hypothesis from the design document and check whether it was tested as written. If the test as run drifted (the variant shipped differs from the variant designed, the eligibility changed mid-run, the metric definition changed at analysis time), the readout names the drift and either treats the result as a different test or labels the analysis as exploratory. Drift is common; hidden drift is corrosive.
+23. **Surface the cost of inaction explicitly.** If the recommendation is "do not ship," the cost of the variant going into the bin is the engineering hours sunk plus the opportunity cost of the next test that could have run instead. If the recommendation is "extend the test," the cost is the additional time and the delay in starting the next test. Naming the cost protects against indefinite extensions.
+24. **Add a one-line note for the next test on this surface.** Even when the readout ends in "ship," the next person who tests the same surface benefits from a single sentence about what kind of variant to try next. Even when the readout ends in "do not ship," the same sentence saves the next team a wasted attempt.
+25. **Return two artifacts.** The readout document is structured with a fixed top — headline, classification, primary-metric block, guardrail table, segment table — and a flexible middle for the narrative, with the recommendation at the bottom. The open-followups document is short, numbered, and lists what to ship now, what to monitor, what to retest, and what to investigate, in that order.
+
+## Inputs
+
+- `experiment_summary` — what was tested, the hypothesis, variants, eligibility, dates, audience.
+- `results` — point estimates and confidence intervals (or counts and rates) per arm for primary, secondary, and guardrail metrics.
+- `design_targets` (optional) — pre-registered MDE, sample size, significance level, and decision matrix.
+- `segments` (optional) — segment results and which were pre-registered.
+- `prior_tests` (optional) — past tests on the same surface and standing rules of thumb.
+
+## Outputs
+
+- A structured readout: headline, classification, primary-metric block (point estimate, CI, p-value or posterior probability, mechanism diagnostic), guardrail table, segment table with confirmatory and exploratory labels, sample-size adequacy, novelty and seasonality checks, sources of doubt, decision, and learning.
+- A numbered follow-up list ranked by urgency: ship now, monitor, retest, investigate.
+
+## Examples
+
+**Example 1: Pricing-page hero win, clean read.**
+
+*Input* — test: replace value-prop paragraph with three-step component on pricing page; run: 3 weeks at 50/50 on 42k weekly visitors; primary: paid-signup rate per visitor, control 3.2%, variant 3.33%; CI on the relative lift: 1.8% to 6.4%; guardrails: support contacts non-inferior (0.0% change), revenue per visitor non-inferior (+0.4%); SRM p-value 0.42; sample size at analysis: 125,000 per arm against pre-registered 110,000.
+
+*Readout sketch* — Headline: "Variant lifted paid-signup rate by 4.1% (95% CI 1.8%–6.4%), guardrails clean, recommend ship to 100% this week." Classification: confirmed win. Primary-metric mechanism: lift driven by an increase in plan-select clicks rather than a change in bounce, suggesting clarity not engagement is the active ingredient. Guardrails: table with three rows, all clear. Segments: pre-registered desktop and mobile both move favorably (desktop 4.4%, mobile 3.6%); exploratory geo cut shows EU at 5.2%, NA at 3.7% — label exploratory, do not over-read. Sample-size adequacy: 14% above design. Sources of doubt: the test ran during a moderate inbound marketing campaign that shifted source mix toward paid search; the lift may compress on a less paid-search-heavy mix. Decision: ship to 100% over 5 business days, watch primary metric daily for the first two weeks for late guardrail moves. Learning: on this audience, specificity in the value-prop block beats volume — three concrete steps beat a four-line paragraph. Follow-up: test a four-step variant against the new three-step baseline; consider porting the structure to the homepage hero.
+
+**Example 2: Onboarding-step removal, mixed result.**
+
+*Input* — test: skip the "invite teammates" step for trial signups; run: 8 weeks + 2 weeks observation; primary: trial-to-paid within 14 days, control 9.1%, variant 9.3%, CI on relative lift: −2% to +6%; pre-registered guardrail: teammate adoption at day 30, control 47%, variant 38%, CI on the gap: −13% to −6%; SRM p-value 0.61; sample size at analysis: matches design.
+
+*Readout sketch* — Headline: "Skipping the invite step left trial-to-paid statistically flat (relative lift −2% to +6%) and reduced day-30 teammate adoption by 9 points (CI −13% to −6%) — do not ship; revisit with a deferred-invite variant." Classification: mixed (primary inconclusive, guardrail breach confirmed). Mechanism: the friction was real but appears to have served a function — accounts that did not invite teammates at signup are not catching up by day 30. Decision: do not ship; do not delete the variant — explore a "defer invite to day 3" variant in a follow-up. Learning: on this trial flow, the invite step is friction that produces durable network value; removing it without a replacement loses adoption. Follow-up: design a follow-up test that defers but does not remove the invite step; in parallel, run qualitative interviews with the eight accounts in the variant arm that converted to paid without inviting teammates to understand whether they intend to add seats.
+
+**Example 3: Subject-line test, novelty risk.**
+
+*Input* — test: email subject-line variant "Open by Friday" vs. control "Your weekly roundup"; run: 1 send, 80k recipients per arm; primary: open rate per recipient, control 22%, variant 28%; CI on relative lift: 22%–32%; guardrails: unsubscribe rate non-inferior (control 0.3%, variant 0.4%, CI on the gap: 0.0% to 0.2%), spam-complaint rate non-inferior (control 0.04%, variant 0.05%, CI overlaps); SRM clean.
+
+*Readout sketch* — Headline: "Urgency subject lifted open rate by 27% (CI 22%–32%) with near-bar unsubscribe drift; recommend conditional ship with a 2-week monitoring plan." Classification: mixed (primary win, guardrail near bar). Novelty risk is high: this is a single-send result, and urgency framing is known to fatigue with repeated use. Decision: ship to the next two sends with reduced traffic share (25/75 in favor of control) and remeasure; if unsubscribe drift compresses and open rate holds, ship to 100%; if either degrades, revert and try a less urgent framing. Learning: on this list at this time, urgency in the subject line is currently underused. Follow-up: monitor unsubscribe and complaint rates daily for the next four sends; design a 3-arm test of urgency vs. curiosity vs. status-update framings to estimate novelty decay.
+
+## Limitations
+
+- The skill does not run the analysis; it interprets results the requester or an analytics surface has already produced.
+- Bayesian readouts are supported in framing but the skill does not compute posterior distributions; if the requester has them, the skill incorporates them.
+- For tests on platforms that use sequential or always-valid confidence intervals, the skill flags the framework but does not derive new boundaries.
+- Cluster-randomized and switchback designs require analyses this skill does not produce; the readout flags the design and recommends an analyst pairing.
+- The skill cannot detect data-quality issues the requester does not surface; missing exposure events, double-counted conversions, and broken funnels are invisible without the underlying instrumentation.
+- The skill does not arbitrate organizational disagreement; it provides a structure and a recommendation, but a contested ship decision still needs a human owner.
+- Long-horizon outcomes (annual retention, LTV) need follow-up readouts as data matures; this skill produces an initial readout, not a series.
+
+## Sources reviewed
+
+- https://github.com/growthbook/growthbook
+- https://github.com/PostHog/posthog
+- https://github.com/spotify/confidence
+- https://github.com/zalando/expan
+- https://github.com/facebookarchive/planout
+- https://github.com/Unleash/unleash
+- https://github.com/Alephbet/gimel

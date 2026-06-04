@@ -1,0 +1,357 @@
+---
+id: skillsgit-curated/battlecard-builder
+version: 1.0.0
+name: Sales Battlecard Builder
+description: Produces a one-page sales battlecard for a named competitor — their strengths, weaknesses, common objections you will hear, your counter-positioning, proof points, traps to set, and traps to avoid.
+authors:
+  - name: skillsgit Curated
+    handle: skillsgit-curated
+    role: author
+category: sales
+tags: [battlecard, competitive-intelligence, sales-enablement, positioning, objection-handling, b2b-sales]
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6, gpt-4o]
+  tools_required: [web_search]
+  min_context_tokens: 32000
+  estimated_tokens_per_invocation: 6000
+trigger_keywords:
+  - battlecard
+  - competitive battlecard
+  - competitor analysis
+  - sales battlecard
+  - competitor positioning
+  - win loss
+  - competitive intelligence
+  - counter positioning
+  - sales enablement
+  - competitor objections
+  - landmines
+  - traps to set
+example_invocations:
+  - "Build a battlecard against [Competitor X] for our customer support automation product."
+  - "Create a one-page sales battlecard for our CRM against [Established Incumbent]."
+  - "Generate competitor positioning for our analytics tool vs [Big-Co BI platform]."
+inputs:
+  - name: competitor_name
+    type: text
+    required: true
+    description: The named competitor this battlecard targets. One competitor per card.
+  - name: our_product
+    type: text
+    required: true
+    description: What we sell, in plain buyer language.
+  - name: our_positioning
+    type: text
+    required: true
+    description: Our positioning statement — for whom, what category, what unique value.
+  - name: our_proof_points
+    type: text
+    required: false
+    description: Optional list of customer logos, metrics, or third-party validations we can credibly cite.
+  - name: known_win_loss_themes
+    type: text
+    required: false
+    description: Optional themes from past win/loss interviews involving this competitor.
+  - name: deal_context
+    type: text
+    required: false
+    description: Optional — segment, region, or stage this card will primarily be used in.
+outputs:
+  - name: battlecard
+    type: markdown
+    description: One-page battlecard structured for at-a-glance reading during live calls.
+  - name: objection_responses
+    type: markdown
+    description: A separate block of objection-to-response pairs the rep can rehearse.
+  - name: discovery_landmines
+    type: markdown
+    description: Diagnostic questions the rep can ask to expose this competitor's weaknesses early.
+  - name: do_not_say_list
+    type: markdown
+    description: A short list of things the rep should never say about the competitor — phrases that backfire.
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Initial release.
+---
+
+## When to use
+
+Invoke this skill when a sales team needs an at-a-glance battlecard for a specific named competitor — typically because that competitor is showing up in deals, in inbound conversations, or in win/loss reports. The output is a one-page artifact the rep reads in the five minutes before a call where the competitor is likely to come up.
+
+Use this skill when the user can name a single competitor and articulate their own positioning. The skill is single-competitor by design — one battlecard per competitor — because trying to fight three competitors on one page produces an unreadable document. If a user wants multiple cards, run the skill multiple times.
+
+Do not use this skill to write a generic competitive matrix (feature-by-feature comparison spreadsheets serve a different purpose), to disparage a competitor publicly (the do-not-say list explicitly forbids this), or to draft public-facing marketing content (battlecards are internal documents; tone is more direct than what a buyer should ever read).
+
+## How to apply
+
+A battlecard is a tactical artifact, not a strategy document. Its job is to compress what the sales team has learned about how a deal goes when this competitor is in the room — so a rep walking into a live call can read it in under five minutes and walk out knowing which questions to ask, which objections to expect, and which traps to set.
+
+The methodology below pulls from how high-functioning product marketing teams build battlecards: rooted in win/loss themes rather than feature lists, written in language the rep can use verbatim, and explicit about what not to say.
+
+### Step 1 — Validate the inputs
+
+Confirm the user has given a single named competitor (not a category, not a list), a product they sell, and a positioning statement. If any are missing, ask before proceeding. Generic battlecards are worse than no battlecards because they create false confidence.
+
+If `known_win_loss_themes` is provided, treat it as the most important input. Battlecards built from primary win/loss data outperform battlecards built from feature comparisons by a wide margin. If it is not provided, mark this clearly in the output and flag that the card should be refreshed once win/loss data exists.
+
+### Step 2 — Build the competitor profile
+
+The first section of the card is a tight competitor profile — three or four lines, no more:
+
+- One-line description of what the competitor sells, in your category's language.
+- Their stated positioning, summarized in their own words where possible.
+- Their typical buyer (segment, size, role) so the rep can recognize a competitor-aligned account when they see one.
+- Their pricing model and rough price band, if known. ("Per-seat, $X–$Y per user per month, often discounted at the enterprise tier.")
+
+Avoid editorializing in this section. Let their facts be their facts; you will earn the right to interpret them in the next sections.
+
+### Step 3 — Identify the competitor's genuine strengths
+
+This is the section sellers most often want to skip and most often need most. Listing a competitor's strengths honestly does three things: it earns the rep's trust in the card, it equips them to acknowledge the competitor in calls (acknowledging strength is a credibility move), and it forces you to differentiate where it actually matters.
+
+For each strength:
+
+- Name the strength in one sentence using buyer-relevant language ("Strong native integrations with the Microsoft ecosystem", not "Good integrations").
+- Note when it shows up in deals — usually a segment, a use case, or a deal stage. ("Comes up most in IT-led evaluations at 5000+ employee companies.")
+- Note the buyer pattern that values this strength most.
+
+Three to five strengths is the right number. Fewer feels evasive; more clutters the card.
+
+### Step 4 — Identify the competitor's structural weaknesses
+
+A weakness is structural when it is rooted in the competitor's architecture, business model, or strategic choices — not in a missing feature that could be added in a quarter. Structural weaknesses are durable; feature gaps are not.
+
+For each structural weakness:
+
+- Name it in one sentence ("Single-tenant architecture forces long provisioning cycles for new environments", not "Slow setup").
+- Explain in one sentence why it is structural rather than fixable in the short term.
+- Map it to the type of buyer who feels it most acutely.
+
+Three to five weaknesses, same as strengths. Feature gaps that you know the competitor is closing in their next release should be omitted or clearly flagged as time-sensitive — battlecards that bet on a non-existent feature being permanent embarrass the team three months later.
+
+### Step 5 — Build the common objections list
+
+When this competitor is in the room, what does the rep hear from the prospect? These are not the rep's objections to the competitor; they are objections the prospect raises against the rep's product, usually informed by what the competitor has told them. Examples by category:
+
+- **Trust-based objections:** "Competitor has been around longer." "We've used Competitor at our last company."
+- **Feature-based objections:** "Competitor has X integration native; you don't."
+- **Commercial objections:** "Competitor said they'd give us a 30% discount."
+- **Risk objections:** "Competitor has more enterprise references in our vertical."
+- **Workflow objections:** "Our team is already trained on Competitor's UI."
+
+For each objection, in the response block (Step 7), produce a calibrated bridge — not a rebuttal. A rebuttal positions the rep against the competitor; a bridge re-positions the conversation around buyer outcomes.
+
+### Step 6 — Build the counter-positioning frame
+
+This is the heart of the card. Counter-positioning is the single sentence that, if internalized by the rep, lets them speak about the competitor without sounding defensive or aggressive.
+
+Format:
+
+- One sentence on the structural fact about the competitor. ("Competitor optimized for the on-prem enterprise era and inherits that architecture.")
+- One sentence on what that means for the buyer. ("Which is why their deployments take 60–90 days and require professional services.")
+- One sentence on why your product is different. ("We are multi-tenant from day one, which is why our median time-to-value is 14 days with no PS engagement.")
+
+Three sentences, no more. The rep should be able to say it aloud and have it land in 20 seconds.
+
+### Step 7 — Build the objection-to-response pairs
+
+For each objection from Step 5, produce a calibrated response. Each response follows this shape:
+
+- **Acknowledge** — in one phrase, validate that the objection is a reasonable thing to raise.
+- **Reframe** — name what the buyer actually cares about underneath the objection (it is rarely the literal thing they said).
+- **Bridge** — connect the reframe to a value driver your product offers.
+
+Example structure:
+
+> Objection: "Competitor has been around longer."
+> Response: "Fair — they have a longer history. What we hear from teams who pick us is that the question that mattered for them wasn't tenure; it was time-to-first-value. Their median is 60–90 days because of how their architecture works; ours is 14 days. Worth talking about what your team actually needs to be measuring in 90 days, and what that implies?"
+
+Generate four to six response pairs. Use language the rep would actually say aloud, not corporate-speak.
+
+### Step 8 — Build the discovery-landmines list
+
+Landmines (also called "diagnostic questions" or "traps to set") are questions the rep asks during discovery that, if the answer is honest, will surface the competitor's structural weaknesses without the rep having to attack the competitor directly. This is the highest-leverage section of any battlecard.
+
+For each landmine:
+
+- The question, in plain language ("When you talked to [Competitor], did they walk you through what provisioning a new environment looks like?").
+- The weakness it exposes (provisioning latency).
+- What you do with the answer (if they did not get walked through it, offer to walk through yours; if they did, ask how long the projected timeline is).
+
+Generate three to five landmines. The best landmines are questions a procurement-savvy buyer should have asked anyway — they make the rep look helpful, not adversarial.
+
+### Step 9 — Build the do-not-say list
+
+Equally important: things the rep should never say about the competitor. These backfire — they either insult the prospect's intelligence, signal weakness in your own product, or expose the rep to compliance and reputational risk. Examples:
+
+- Never name a specific contract loss at the competitor or specific customer churn. (Legally risky; reputationally risky.)
+- Never mock the competitor's UI, founders, or marketing. (Makes the rep look small.)
+- Never quote third-party metrics from the competitor's own marketing as if they are facts.
+- Never tell the prospect "Competitor will be acquired" or any rumor as if it were fact.
+- Never frame the choice as "us versus them" — frame it as "what does your team need, and which of us fits."
+
+Generate four to six items. This list earns the rep's confidence that the card is honest; reps trust battlecards that openly mark the boundaries.
+
+### Step 10 — Add the proof-point block
+
+A short, scannable block of three to five proof points the rep can deploy in the call. Each one:
+
+- A specific customer or metric, named only if cleared for external mention.
+- The outcome the customer or metric represents, in one sentence.
+- The competitive context — was this customer switched from this competitor? Was it a head-to-head win? Was it a third-party benchmark?
+
+If the user does not supply proof points, flag this in the output — a battlecard with no proof points is half-armed.
+
+### Step 11 — Calibrate the card to deal context
+
+If the user supplied `deal_context` (e.g., "mid-market, manufacturing vertical, North America"), tune the card:
+
+- Foreground the strengths and weaknesses that show up most in that segment.
+- Bring proof points from that segment to the top.
+- Tune the counter-positioning sentence to the language of that buyer (a manufacturing buyer reads about uptime and integration with their MES; a DTC e-commerce buyer reads about agility and time-to-value).
+
+A battlecard built for the median deal across all segments is less useful than a tightly-targeted one. If the team needs multiple, generate multiple — do not over-generalize.
+
+### Step 12 — Format for at-a-glance reading
+
+Constraints on the final artifact:
+
+- Total length: fits on a single printable page. Roughly 350–500 words.
+- Hierarchy: bold headers, bullet lists where possible, no walls of prose.
+- Counter-positioning sentence is set apart visually so the rep can find it instantly.
+- Do-not-say list is the last block on the page so the rep ends their pre-call read on the boundaries.
+
+Generate a second artifact — the longer, behind-the-card document — for use during prep and training. This contains the rationale, the win/loss themes, and the deeper context. The single page is for the live call; the longer document is for the rep's homework.
+
+### Step 13 — Mark uncertainty explicitly
+
+Where the card relies on inferred or third-party information rather than primary win/loss data, mark it. Sales teams should know which claims are battle-tested and which are hypotheses awaiting confirmation. Format:
+
+- `[VERIFIED]` — sourced from primary win/loss interviews or direct rep observation.
+- `[INFERRED]` — derived from public competitor materials and reasoning.
+- `[HYPOTHESIS]` — your best guess, awaiting verification.
+
+This is the single most important habit for keeping battlecards trustworthy over time.
+
+### Step 14 — Provide a maintenance recommendation
+
+At the bottom of the longer document, include a short maintenance note:
+
+- This battlecard will degrade in 60–90 days as the competitor's positioning, pricing, and feature set evolve.
+- Refresh triggers: a public product launch from the competitor, a known leadership change, a shift in their messaging, three or more lost deals where this competitor was the winning vendor.
+- Owner: someone has to own the card. Note explicitly in the artifact that the card needs an owner; battlecards without owners become wrong quickly and quietly.
+
+### Step 15 — Refuse to invent competitor facts
+
+If the user has not given you a basis for a specific claim about the competitor, do not make one up. Mark missing sections as `[NEEDS RESEARCH]` rather than fabricating. The fastest way to discredit a battlecard is for a rep to repeat a claim that the prospect immediately disproves.
+
+## Inputs
+
+- **competitor_name** (required) — one competitor, named precisely.
+- **our_product** (required) — what we sell.
+- **our_positioning** (required) — our positioning statement.
+- **our_proof_points** (optional) — customers, metrics, validations.
+- **known_win_loss_themes** (optional) — primary win/loss themes for this competitor.
+- **deal_context** (optional) — segment, region, vertical.
+
+## Outputs
+
+- A one-page battlecard ready to read before a live call.
+- An objection-to-response block the rep can rehearse.
+- A discovery-landmines list of diagnostic questions.
+- A do-not-say list.
+- A separate longer document for prep and training, with rationale and uncertainty markers.
+
+## Examples
+
+### Worked example — Building a battlecard against an established CRM incumbent
+
+**Inputs given to the skill:**
+
+- competitor_name: "[Established CRM Incumbent]" (placeholder for a real, large CRM company).
+- our_product: "A modern, opinionated CRM purpose-built for sales-led B2B SaaS teams under 500 reps."
+- our_positioning: "The CRM your reps actually use — because it was built for how modern sales motions actually run, not how they ran in 2005."
+- our_proof_points: "30 named customers in the 50–500 rep range, NPS of 62, median deployment time 11 days vs. industry-typical 60+ for enterprise CRMs, several reference customers willing to take calls."
+- known_win_loss_themes: "Reps tell us the incumbent loses on rep adoption — admins love it, individual contributors don't. We also see the incumbent's professional services attach as a deal-killer for budget-conscious VPs of Sales."
+- deal_context: "B2B SaaS, mid-market, North America."
+
+**Output produced by the skill (the one-page artifact, abridged):**
+
+> **[Competitor] Battlecard — for B2B SaaS mid-market deals**
+>
+> **Their positioning, summarized:** the system of record for the modern enterprise sales organization. Their typical buyer: VP of Sales Operations at companies over 1000 reps. Pricing model: per-seat, complex tiering, frequent professional-services attach.
+>
+> **Their genuine strengths** [VERIFIED]:
+> - Deep, mature ecosystem of integrations — most third-party sales tools build for them first.
+> - Extreme configurability for sophisticated enterprise sales processes.
+> - Strong brand-name trust among CIOs and CFOs evaluating risk.
+>
+> **Their structural weaknesses** [VERIFIED on items 1–2, INFERRED on item 3]:
+> - Architecture and UX inherited from an earlier era — reps complain about per-task click counts, which translates directly to lower adoption rates.
+> - Professional-services dependency for non-trivial configuration — a budget line item that surprises mid-market buyers.
+> - Pricing tiering forces teams to over-buy to unlock features they actually need.
+>
+> **Counter-positioning (rep says this aloud, ~20 seconds):**
+>
+> > [Competitor] was built for the 1000+ rep enterprise sales org of fifteen years ago, and the architecture reflects that — which is why their median deployment is 60+ days and most mid-market buyers end up budgeting for professional services. We were built for sales teams under 500 reps that need rep adoption to be high on day one. That's why our median deployment is 11 days and our NPS is 62.
+>
+> **Common objections (responses in the separate block):**
+> - "[Competitor] is the industry standard."
+> - "Our ops team is already trained on [Competitor]."
+> - "[Competitor] has more integrations."
+> - "We get a discount on [Competitor]."
+>
+> **Discovery landmines:**
+> - "When you've evaluated CRM previously, what did rep adoption rate look like in month three?"
+> - "Did [Competitor] walk you through what configuration changes require professional services?"
+> - "What's your team's tolerance for a 60-day deployment versus a 14-day one — what does the difference cost you in pipeline visibility?"
+>
+> **Do not say:**
+> - Never mock [Competitor]'s product. The buyer's ops team probably worked with it at their last job.
+> - Never repeat a rumor about [Competitor]'s strategy as fact.
+> - Never frame this as "[Competitor] is bad" — frame it as "[Competitor] is great for a different shape of sales org."
+> - Never quote churn numbers about [Competitor]'s customers.
+>
+> **Proof points to deploy:**
+> - 30 named mid-market B2B SaaS customers (subset cleared for naming on call).
+> - NPS 62 from a recent customer survey.
+> - Median 11-day deployment, no PS attach.
+
+**Objection-to-response block (abridged):**
+
+> Objection: "[Competitor] is the industry standard."
+> Response: "Fair — they've been the default for the enterprise segment for a long time. The question we hear from teams choosing us is whether the standard built for 1000+ rep enterprise teams is also the right standard for a 200-rep B2B SaaS sales org running on a 30-day evaluation cycle. Worth talking about which standard fits your motion?"
+
+**Maintenance note (on the longer document):**
+
+> This card will degrade in 60–90 days. Refresh triggers: any major UX revamp announcement from [Competitor], pricing model change, three or more deals lost head-to-head where this card was used. Card owner: [assign]. Last verified: [date].
+
+## Limitations
+
+This skill produces a tactical sales artifact, not a marketing claim about a competitor. The artifact is internal-only — language that is appropriate on a battlecard is not appropriate on a public website or in marketing emails. Confidentiality and tone differ.
+
+The skill can only reflect what the user supplies plus reasoning from public information about the competitor's category. If the user has no win/loss data, the card will be heavier on inference and lighter on evidence — and the output will mark that explicitly. Battlecards built without primary win/loss data are starting points, not finished work.
+
+The skill cannot verify claims about the competitor. Statements like "their median deployment is 60+ days" must come from the user or from public, citable sources. If the user supplies a claim that turns out to be wrong, the resulting card will be wrong; the do-not-say list reduces the worst risks but cannot eliminate them.
+
+Competitor positioning shifts. A battlecard built today may be wrong in a quarter — explicitly so if the competitor ships a major product update, pivots their positioning, or restructures pricing. The maintenance note in the output is not optional; it is the difference between a battlecard that stays useful and one that quietly turns into a liability.
+
+Legal and reputational sensitivity vary by jurisdiction and by industry. Some industries (healthcare, finance, defense) have stricter rules on what a vendor may claim about a competitor; the do-not-say list is a general-purpose starting point and not a legal review. Run material claims past legal before deploying to a sales team in a regulated industry.
+
+The skill produces a single-competitor card per invocation. If a team needs cards for five competitors, run it five times — do not collapse them, because mixing competitors on one page produces an unreadable artifact.
+
+## Sources reviewed
+
+- https://github.com/phuryn/pm-skills
+- https://github.com/0xmetaschool/competitor-analyst
+- https://github.com/alirezarezvani/claude-skills
+- https://github.com/ericosiu/ai-marketing-skills
+- https://github.com/sales-skills/sales
+- https://github.com/Salesably/awesome-ai-agents-for-sales
+- https://github.com/topics/competitor-analysis

@@ -1,0 +1,310 @@
+---
+id: skillsgit-curated/resilience-pattern-picker
+version: 1.0.0
+name: Resilience Pattern Picker
+description: For a given service-to-service interaction, recommend concrete timeouts, retry strategies with jitter, circuit breakers, bulkheads, idempotency keys, and dead-letter handling with defaults you can ship today.
+authors:
+  - name: skillsgit Curated
+    handle: skillsgit-curated
+    role: author
+category: engineering
+tags:
+  - niche:distributed-systems
+  - resilience
+  - circuit-breaker
+  - retries
+  - timeouts
+  - idempotency
+  - bulkhead
+  - dead-letter
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6, gpt-4o, gpt-4.1, gemini-1.5-pro]
+  tools_required: [file_io]
+  tools_optional: [web_search]
+  min_context_tokens: 24000
+  estimated_tokens_per_invocation: 6500
+trigger_keywords:
+  - resilience pattern
+  - timeout and retry
+  - circuit breaker config
+  - retry with jitter
+  - idempotency key
+  - bulkhead pattern
+  - dead-letter queue
+  - service call hardening
+  - exponential backoff
+  - rate limiting downstream
+  - fault tolerance
+  - hedged requests
+  - failover strategy
+  - service-to-service call
+  - flaky downstream
+example_invocations:
+  - "Our checkout calls a third-party tax API that goes flaky for 30 seconds twice a day — what should the resilience policy look like?"
+  - "Walk me through timeout, retry, and breaker settings for an internal gRPC call from our API gateway to the orders service."
+  - "Design idempotency and dead-letter handling for a webhook receiver that gets duplicate deliveries."
+inputs:
+  - name: interaction
+    type: text
+    required: true
+    description: One sentence per fact about the caller and callee — protocol, expected p50/p99 latency, traffic volume, whether the operation is read or write, whether retries are safe, and whether the user is waiting.
+  - name: failure_modes
+    type: text
+    required: false
+    description: Observed or expected failure modes — transient 5xx, slow responses, full outages, partial outages, rate-limiting, deserialization errors, timeouts in the middle of a write.
+  - name: criticality
+    type: choice
+    required: false
+    description: How important the operation is. Affects how aggressive degradation strategies are.
+    choices: [user-blocking-critical, user-blocking-degradable, background-best-effort, background-must-eventually-succeed]
+  - name: downstream_owner
+    type: choice
+    required: false
+    description: Who controls the downstream. Affects what guarantees you can rely on.
+    choices: [same-team, other-team-same-company, external-third-party, legacy-with-no-owner]
+  - name: existing_stack
+    type: text
+    required: false
+    description: Languages, frameworks, and libraries already in use — affects which concrete client and breaker libraries get recommended.
+outputs:
+  - name: resilience_policy
+    type: markdown
+    description: A policy document with concrete numbers (timeout ms, retry count, jitter type, breaker thresholds) and the rationale per setting.
+  - name: implementation_notes
+    type: markdown
+    description: Library-specific notes for plugging the policy into common stacks, with the few configuration knobs that matter most.
+  - name: failure_drill_checklist
+    type: markdown
+    description: A short list of injected failures the team should run against the policy before declaring it shipped.
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Initial release.
+---
+
+# Resilience Pattern Picker
+
+## When to use
+
+Use this skill when a team is about to introduce, harden, or audit a single service-to-service interaction and needs concrete settings rather than abstract principles. The output is a small policy with numbers a developer can paste into a client configuration today.
+
+The skill is calibrated for the common case: a synchronous request from one internal service to another internal service or a third party, over HTTP or gRPC, where the caller has to decide what to do when the callee misbehaves. It also covers the asynchronous side: a worker pulling from a queue or topic that has to decide how to handle a poison message.
+
+Common triggers:
+
+- A new endpoint is being wired up and the team is about to copy timeout settings from another service without thinking.
+- An incident review surfaced retry storms, thundering herds, or a synchronous chain that collapsed under load.
+- A third-party dependency had an outage and the team's wrapper around it had no breaker.
+- A webhook receiver is duplicating writes because no idempotency key check exists.
+- A queue is silently dropping messages or piling up because there is no dead-letter destination.
+
+Do not use this skill for:
+
+- Database-level resilience (replication topology, failover, leader election) — that needs a different vocabulary.
+- Front-end retry strategies for browser clients — the constraints are different (user attention, perceived latency, app-level UX).
+- Choosing between sync and async at the architectural level. Use the eventing-architect skill first; this skill assumes the interaction model is already decided.
+
+## Inputs
+
+- `interaction` (required) — Be specific. "API gateway calls orders service over gRPC, p50 8ms, p99 70ms, 4k RPS, write operation that creates an order, retries unsafe without idempotency key" is a usable input. "We call the orders service" is not.
+- `failure_modes` — If known, paste what has been observed in production. If new, describe the worst plausible failure (full outage, slow responses, partial degradation).
+- `criticality` — Drives the trade-off between availability and consistency. User-blocking-critical operations favor fast failover with degradation; background-must-eventually-succeed operations favor durable retries.
+- `downstream_owner` — Affects how much you can change the downstream. With an external third party you cannot add idempotency keys to the protocol; you can only add them on top.
+- `existing_stack` — Affects implementation. The policy is library-agnostic; the implementation notes are not.
+
+## How to apply
+
+Apply the steps in order. Each step adds entries to the output policy. Numbers below are defaults; revise based on inputs.
+
+### 1. Establish the latency budget
+
+1.1. Identify the **end-to-end deadline** the caller has. If the caller is itself responding to an HTTP request, the deadline is the caller's own SLO minus a buffer.
+
+1.2. Compute the **per-call budget**. If a request fans out to N downstreams, no single downstream may consume more than budget / N. If the calls are sequential, sum their budgets and add a small slack.
+
+1.3. Set the **timeout** at the per-call budget. Default: 95th-percentile observed latency times 2, capped at the budget. Never set a timeout to infinity. If observed latency is unknown, start with 1000 ms for an internal call and 5000 ms for a third-party call, then tighten after a week of observation.
+
+1.4. Set a separate **connect timeout** when the protocol distinguishes it. Default: 250 ms for internal calls, 1000 ms for third-party calls.
+
+1.5. Document the budget so the next person knows why the number is what it is. Timeouts copied without a rationale rot.
+
+### 2. Decide whether retry is safe
+
+2.1. The retry decision starts with idempotency. A call is **safe to retry** when repeating it produces the same business outcome. Pure reads are safe. Writes are safe only if the protocol supports idempotency keys or if the operation is naturally idempotent (e.g. setting a state).
+
+2.2. If the operation is a write without natural idempotency, add an **idempotency key** before considering retries. The caller generates a UUID per logical operation; the callee deduplicates on it for at least the retry window. Persist the key on the callee side; do not rely on in-memory deduplication.
+
+2.3. If you cannot add an idempotency key (external third party that does not support one), retries on write are unsafe. Choose between: (a) at-most-once and accept some lost writes, (b) a manual reconciliation job, (c) a separate verification call before retrying.
+
+2.4. Distinguish **retryable errors** from **non-retryable errors**. Retryable: connection refused, connection reset, request timeout, 502/503/504, gRPC UNAVAILABLE/DEADLINE_EXCEEDED. Non-retryable: 400, 401, 403, 404, 409 (usually), 422, gRPC INVALID_ARGUMENT, PERMISSION_DENIED. A 429 is retryable only with the server-provided Retry-After honored.
+
+### 3. Pick a retry strategy
+
+3.1. Default: **three attempts total** (one original, two retries) for user-blocking work. For background work that must eventually succeed, use durable retries via a queue, not in-process retries.
+
+3.2. Use **exponential backoff with full jitter**. Sleep before retry N is a random value in `[0, base * 2^(N-1)]`. Default base: 100 ms. This avoids the thundering herd that fixed or decorrelated-equal backoffs cause when many callers fail simultaneously.
+
+3.3. Cap the maximum backoff. Default cap: 10 seconds. Without a cap, late retries are useless and consume budget for no benefit.
+
+3.4. Enforce a **retry budget** at the caller. The sum of retry attempts across all in-flight callers must not exceed a small fraction (5–10%) of total traffic. When the downstream is in trouble, retries make it worse; the budget caps the damage.
+
+3.5. Disable retries automatically when the breaker is open. Retrying through an open breaker defeats the breaker.
+
+3.6. Do not retry on the same connection if the failure was a connection error. Force a new connection (or a new resolved IP) to avoid getting stuck on a single bad node.
+
+### 4. Configure the circuit breaker
+
+4.1. The breaker has three states: **closed** (calls flow), **open** (calls fail fast), **half-open** (a few probe calls). Default thresholds:
+
+- Closed → Open: 50% failure rate over a rolling window of 100 requests or 10 seconds, whichever fills first.
+- Open duration before half-open: 30 seconds.
+- Half-open probe count: 5 requests; if 3 succeed, close; otherwise reopen.
+
+4.2. **Slow calls count as failures.** Define a slow-call threshold (default: 80% of timeout) and count anything slower than that as a failure even if it eventually returned. Latency degradation collapses systems before error degradation does.
+
+4.3. Make the breaker **per-instance and per-route**, not per-service. A single open breaker on the whole downstream over-trips when only one route is broken.
+
+4.4. Decide the fallback for an open breaker. Options:
+
+- **Fail-fast** — return an error to the caller. Best for user-blocking critical work.
+- **Static fallback** — return a cached or stub response. Best when the data is non-critical (e.g. recommendations).
+- **Degraded path** — call a simpler downstream or skip optional work. Best for read-heavy paths.
+- **Async fallback** — enqueue the work and return acknowledgment. Best for background-must-eventually-succeed work.
+
+4.5. Emit metrics: state transitions, calls by state, fallback rate. A breaker without observability is a silent failure.
+
+### 5. Apply bulkheads
+
+5.1. The point of a bulkhead is to prevent one downstream from consuming the resources another downstream needs. Without it, one slow service exhausts the caller's thread pool or connection pool and everything stops.
+
+5.2. Default form: **separate client and connection pool per downstream**. No shared pool across logically distinct callees.
+
+5.3. Add **semaphore limits** per downstream when the runtime allows it. Default: max concurrent in-flight requests = expected RPS × p99 latency in seconds × 2. Reject above the limit rather than queuing; queues just shift the failure mode.
+
+5.4. For thread-based runtimes, use a separate executor per downstream class. Configure with the same arithmetic.
+
+5.5. When a downstream is known to be flaky, isolate it more aggressively. The bulkhead is the cost of bad neighbors.
+
+### 6. Handle idempotency end-to-end
+
+6.1. The caller generates a stable idempotency key per logical operation. The key must be stable across retries of the same operation and unique across logical operations. Use a UUID v4 by default; for derived operations include a deterministic component for tracing.
+
+6.2. The callee persists the key with the result. On a duplicate key, return the previously stored result instead of re-executing.
+
+6.3. Retain idempotency records for at least **24 hours**, longer if the caller's retry window is longer. Garbage-collect older keys to keep the table small.
+
+6.4. Beware of compound operations. If the callee writes to two systems and only one succeeds, the idempotency record must reflect the partial state correctly. Either make the operation atomic or record an explicit "in-flight" marker so a retry can resume the right step.
+
+6.5. Document the idempotency semantics in the API contract. Buyers of the API need to know how long the key is honored and what happens on a key collision with different payloads.
+
+### 7. Plan the dead-letter path
+
+7.1. For asynchronous consumers, every message that fails permanently must have a destination. The destination is the **dead-letter queue** (DLQ). Without a DLQ, the consumer either loops forever on a poison message or silently drops it.
+
+7.2. Define the retry-to-DLQ threshold. Default: 5 attempts with exponential backoff up to 1 hour between attempts, then move to DLQ.
+
+7.3. Distinguish **redeliverable** failures from **permanent** failures. Redeliverable: transient downstream errors, dependency outages. Permanent: deserialization failures, schema mismatches, missing required fields. Move permanent failures to the DLQ on the first attempt; do not waste retries on a malformed message.
+
+7.4. Build a **DLQ replay tool** as part of shipping the consumer. The tool inspects messages, lets an operator fix or filter, and re-enqueues to the main topic. A DLQ without a replay path is a graveyard.
+
+7.5. Alert on DLQ growth, not DLQ existence. A DLQ that gets a few messages a day is normal; a DLQ that grew by 10× overnight is an incident.
+
+### 8. Add hedged requests where appropriate
+
+8.1. Hedged requests reduce tail latency: start the call, and if no response in the p95 latency, start a second request to a different replica. Use the first response that arrives and cancel the other.
+
+8.2. Hedging is appropriate for read-heavy paths with available replicas and a low cost of duplicate execution. It is inappropriate when duplicate execution has side effects.
+
+8.3. Default hedge delay: observed p95 latency. Default hedge cap: at most one hedge per original request, with a per-caller hedge budget of 5–10% of total traffic.
+
+8.4. Combine hedging with bounded retries; do not stack both aggressively. They serve different failure modes (tail latency vs error rate).
+
+### 9. Verify with failure drills
+
+9.1. The policy is not real until it survives an injected failure. Plan three drills before shipping:
+
+- Latency injection — slow the downstream to twice its p99 for ten minutes. Confirm timeouts trip, breaker opens, fallback engages.
+- Error injection — return 5xx from the downstream at 60% rate. Confirm retries cap at the budget, breaker opens, no retry storm.
+- Connection reset — abruptly close TCP connections for 30 seconds. Confirm the client reconnects, does not pin to the dead node, and respects the retry budget.
+
+9.2. Run the drills against a staging environment that mirrors production traffic shape. Synthetic load is acceptable when the shape is right.
+
+9.3. Capture the drill in a runbook. The next person to touch the policy needs to repeat the drills before changing the numbers.
+
+### 10. Emit the policy
+
+10.1. Lead with a short rationale paragraph: who calls whom, the criticality class, and the headline numbers (timeout, retry count, breaker thresholds).
+
+10.2. Provide the policy as a table: setting, value, rationale, source signal (observed or estimated).
+
+10.3. Include implementation notes for the team's stack. Reference the concrete library and the small number of knobs that matter; do not paste full configuration files.
+
+10.4. Provide the failure drill checklist as a separate section so the team can use it before declaring the work done.
+
+### Decision rules and heuristics
+
+- **Timeouts before retries before breakers.** A retry without a timeout is a deadlock; a breaker without timeouts protects nothing.
+- **No retry without idempotency.** If you cannot establish idempotency, do not retry writes; design around at-most-once or build a reconciliation job.
+- **Jitter always.** Fixed backoffs synchronize callers; equal-jitter backoffs only partially solve it. Full jitter is the simple default.
+- **Bulkheads beat backpressure in chained systems.** Backpressure helps within a service; bulkheads stop one bad neighbor from killing every neighbor.
+- **Open the breaker on latency, not just errors.** Most cascading failures start with slow responses, not error responses.
+- **DLQ is mandatory for every queue.** A queue without a DLQ is a memory leak waiting to be filled.
+- **Numbers without a budget are theater.** Every retry budget, hedge budget, and timeout traces back to the caller's deadline. Numbers picked from blog posts without a deadline are guesses.
+
+### Edge cases
+
+- **Third party with no retry-friendly errors.** Some APIs return 200 with an error body. Detect application-level errors and treat them as you would HTTP 5xx for retry purposes, but only if idempotency is established.
+- **Asynchronous downstream with synchronous façade.** If the downstream is async but exposes a sync API that polls, your timeout must accommodate the polling. Prefer to expose the async nature instead.
+- **Webhook receivers.** Treat the caller as untrusted: deduplicate on a header-supplied delivery id, but verify the signature first, before doing any database work.
+- **Streaming or long-lived calls.** Timeouts here are per-message, not per-connection. Use keepalives; the breaker thresholds need to be expressed in message rate, not request count.
+- **Multi-region failover.** Failover within a region is the cheap case. Cross-region failover requires data replication strategy decisions that exceed this skill's scope; the policy here applies after the failover decision is made.
+- **Cold cache after breaker recloses.** When a breaker reopens traffic, a cold downstream cache can cause a second outage. Ramp probe traffic gradually; do not slam from zero to full.
+
+## Outputs
+
+- `resilience_policy` — A markdown document with the headline summary, the policy table (timeout, retries, breaker, bulkhead, idempotency, DLQ, hedging), and the rationale per setting.
+- `implementation_notes` — Stack-specific guidance keyed off `existing_stack`. Calls out the small number of configuration knobs that matter and warns about the common default that is wrong.
+- `failure_drill_checklist` — A short list of injected failures with expected behaviors. Intended to be copied into a runbook.
+
+## Examples
+
+### Worked example
+
+Input excerpt:
+
+> Internal API gateway calls payments service over gRPC. p50 12ms, p99 90ms, 1500 RPS, write operation (charge), idempotency key supported on the protocol. Caller is responding to a user HTTP request with a 1500 ms SLO. Failure modes seen: payments service has had two 60-second slow-response incidents this quarter where p99 climbed to 4 seconds.
+
+Expected output sketch:
+
+- Headline: user-blocking-critical write, 1500 ms caller deadline, 250 ms gateway overhead, 1250 ms budget for payments.
+- Timeout: 600 ms (8× p99, capped under budget).
+- Retries: 2 retries, full jitter base 50 ms, cap 300 ms, retry budget 7% of traffic.
+- Idempotency: caller-generated UUID v4 per charge attempt, persisted on payments for 7 days.
+- Breaker: per-route, open at 40% failure or 20% slow-call (slow > 480 ms) over 50 requests; half-open after 20 seconds; 3-of-5 probes to close.
+- Bulkhead: dedicated gRPC channel pool to payments, semaphore at 350 concurrent.
+- Fallback: fail-fast with a user-readable error and a queued reconciliation entry for the support team.
+- DLQ: not applicable (synchronous), but the reconciliation entry is the durable record.
+- Drills: latency injection at p99 × 5 for 10 minutes; 5xx injection at 60% for 5 minutes; gRPC channel reset for 30 seconds.
+
+## Limitations
+
+- The skill reasons from the input description; if the latency numbers are wrong, the resulting policy is wrong. Encourage callers to attach a percentile distribution from monitoring rather than a single number.
+- It does not pick between client libraries; it assumes one is already chosen.
+- It is biased toward conservative defaults. Teams that have measured a different equilibrium and have the observability to defend it should override the recommendations.
+- It cannot reason about coupled failures across multiple downstreams without an explicit description; the per-call policy can still misbehave when many policies interact.
+- It does not solve correctness questions — what to do if a write succeeds at the database but the response is lost. Those answers come from the data model, not the call policy.
+
+## Sources reviewed
+
+- https://github.com/resilience4j/resilience4j
+- https://github.com/App-vNext/Polly
+- https://github.com/sony/gobreaker
+- https://github.com/alibaba/Sentinel
+- https://github.com/dapr/dapr
+- https://github.com/hibiken/asynq
+- https://github.com/eko/gocache

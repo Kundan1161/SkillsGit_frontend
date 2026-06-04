@@ -1,0 +1,93 @@
+---
+id: skillsgit-curated/imported-sickn33-content-creator
+version: 1.0.0
+name: Content Creator
+description: Professional-grade brand voice analysis, SEO optimization, and platform-specific content frameworks for cross-channel publishing strategies.
+authors:
+  - name: sickn33 community
+    handle: sickn33
+    role: author
+  - name: skillsgit-curated
+    handle: skillsgit-curated
+    role: maintainer
+category: marketing
+tags: [imported, source-sickn33, content-strategy, brand-voice, social-media]
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6, gpt-4o]
+  min_context_tokens: 32000
+  estimated_tokens_per_invocation: 6000
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Imported from sickn33/antigravity-awesome-skills under MIT (code) / CC BY 4.0 (content).
+---
+
+# Content Creator
+
+## Overview
+
+This skill provides structured approaches for content professionals managing brand messaging, search engine optimization, and cross-platform publishing strategies.
+
+## When to use
+
+Use this skill when establishing brand voice for a new product, drafting a blog post that must also rank in search, adapting a single message across platforms (LinkedIn, X, Instagram, newsletter), or organizing a quarter's content production calendar.
+
+## How to apply
+
+### Core Tools
+
+Two analysis passes streamline optimization:
+- **Brand Voice Analyzer**: Evaluate existing content for tone consistency and characteristic phrasing
+- **SEO Optimizer**: Score keyword integration, structural elements, and search-friendliness
+
+### Structured Workflows
+
+**Brand Voice Workflow**: Establish personality foundations first - tone words, vocabulary do/don't lists, sample sentences. All subsequent content checks against this foundation.
+
+**Blog Creation Workflow**: Prioritize keyword research and intent mapping before drafting. Outline against the SERP for the target query, then write to fill identified gaps.
+
+**Social Media Workflow**: Adapt the same core message per platform. Native formatting, character limits, and hook conventions differ; don't cross-post verbatim.
+
+**Calendar Workflow**: Organize batch production around themes and campaign moments. Plan a quarter at a time; let weekly schedules handle reactive content.
+
+### Quality Standards
+
+Successful content typically achieves:
+- SEO score 75/100 or higher
+- Readability aligned to the target audience (most B2C aims for Grade 6-8; B2B can run higher)
+- Consistent voice treatment across surfaces
+
+### Integration Points
+
+This skill coordinates with:
+- Analytics platforms (Google Analytics, Mixpanel)
+- SEO research tools (Ahrefs, Semrush)
+- Design software (Figma, Canva)
+- Content scheduling (Buffer, Hootsuite, Sprout)
+- Email marketing (Mailchimp, ConvertKit, Klaviyo)
+
+### Process Discipline
+
+1. Research audience needs before writing
+2. Follow structured templates
+3. Optimize iteratively rather than expecting perfect-on-first-draft
+4. Measure performance through organic traffic, engagement rates, and business conversion metrics
+
+## Limitations
+
+- Use this skill only when the task clearly matches the scope described above.
+- Do not treat the output as a substitute for environment-specific validation, testing, or expert review.
+- Stop and ask for clarification if required inputs, permissions, safety boundaries, or success criteria are missing.
+
+## Attribution
+
+This skill was imported from `sickn33/antigravity-awesome-skills` under the MIT license (code) and CC BY 4.0 license (content/documentation). Original community author. Modifications by skillsgit: frontmatter normalization; rewrote condensed summary prose into structured sections; addition of attribution and sources sections.
+
+## Sources reviewed
+
+- https://github.com/sickn33/antigravity-awesome-skills/tree/main/skills/content-creator (MIT / CC BY 4.0)

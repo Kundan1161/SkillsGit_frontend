@@ -1,0 +1,421 @@
+---
+id: skillsgit-curated/journal-entry-author
+version: 1.0.0
+name: Journal Entry Author
+description: Given a transaction description, propose the journal entry with debits, credits, accounts, supporting documentation memo, and reviewer sign-off requirements.
+authors:
+  - name: skillsgit Curated
+    handle: skillsgit-curated
+    role: author
+category: finance
+tags: [niche:accounting-close, journal-entry, debits-credits, gaap, documentation, materiality, signoff, audit-trail]
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6, gpt-4o, gpt-4.1, gemini-1.5-pro]
+  tools_required: [file_io]
+  tools_optional: [web_search]
+  min_context_tokens: 16000
+  estimated_tokens_per_invocation: 5500
+trigger_keywords:
+  - journal entry
+  - book this entry
+  - propose the je
+  - debits and credits
+  - record this transaction
+  - adjusting entry
+  - accrual entry
+  - reversing entry
+  - je documentation
+  - entry memo
+  - support package
+  - audit trail
+example_invocations:
+  - "We received goods worth $42k on March 31 but the vendor invoice arrived April 5 — book the accrual."
+  - "Propose the journal entry for the $1.2M annual software prepaid expense we paid on April 1."
+  - "I sold a piece of equipment with a $30k NBV for $25k cash — give me the entry and the support memo."
+inputs:
+  - name: transaction_description
+    type: text
+    required: true
+    description: Plain-language description of what happened, the parties involved, the amount, the date, and any contractual terms.
+  - name: chart_of_accounts_excerpt
+    type: text
+    required: false
+    description: The relevant subset of the company's chart of accounts so the entry uses real account ids; if absent, the agent uses standard GAAP account names.
+  - name: accounting_basis
+    type: choice
+    required: false
+    description: Cash or accrual basis. Default accrual.
+    choices: [cash, accrual]
+  - name: materiality_threshold
+    type: number
+    required: false
+    description: Dollar threshold above which two-eyes review is required. Default $10000.
+  - name: company_policies
+    type: text
+    required: false
+    description: Capitalization threshold, revenue recognition method, lease accounting standard, or any other policy that shapes the entry.
+outputs:
+  - name: journal_entry
+    type: markdown
+    description: The proposed entry with debits, credits, accounts, amounts, and explanation; plus the support memo and review requirements.
+  - name: entry_json
+    type: json
+    description: Machine-readable entry suitable for ERP import — header and line items with account, debit, credit, memo, dimension tags.
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Initial release.
+---
+
+# Journal Entry Author
+
+## When to use
+
+Use this skill when an accountant or controller describes a transaction and needs the corresponding journal entry — the accounts, the debit and credit amounts, the entry memo, the supporting documentation package, and the review requirements. The skill is designed for the moment when a real economic event has happened (a payment, a contract signature, an accrual, an asset purchase, a write-off) and someone needs to record it correctly in the general ledger with enough support that an auditor a year from now can reconstruct what happened and why.
+
+It applies whether the user is a junior staff accountant booking a routine entry, a controller making a year-end adjusting entry, an FP&A analyst documenting a reclassification, or an automated process whose entry needs human-readable explanation. The skill is built for accrual-basis accounting by default (the dominant convention for any business above the simplest cash-basis bookkeeping) and falls back to cash basis if the user requests it.
+
+Do not use this skill for valuation work (DCFs, fair-value estimates, impairment calculations) — those require domain valuation methodology. Do not use it for tax provision entries, which require tax-domain expertise and jurisdiction-specific rules; the skill will produce the entry structure but flag the calculations as out of scope. Do not use it to design the chart of accounts; that is a structural decision upstream of any single entry.
+
+The skill is opinionated about documentation: an undocumented journal entry is worse than no entry. Every entry the skill proposes comes with a memo describing why the entry exists, what the amount is based on, who can verify it, and what would invalidate it. This matches what an external auditor will demand and what next month's controller will need to understand the entry without calling the original preparer.
+
+## Inputs
+
+| Input | Required | Purpose |
+| --- | --- | --- |
+| `transaction_description` | yes | The narrative the entry will represent; the richer this is, the better the entry. |
+| `chart_of_accounts_excerpt` | no | Maps entries to the company's specific account ids; without it, the agent uses standard names. |
+| `accounting_basis` | no | Defaults to accrual; switches the entry shape when set to cash. |
+| `materiality_threshold` | no | Drives the review-requirement decision; default $10k. |
+| `company_policies` | no | Overrides GAAP defaults with company-specific policies (capitalization threshold, etc.). |
+
+## How to apply
+
+The skill runs a deterministic pipeline that converts narrative into entry structure, then into entry-with-support.
+
+### Stage 1 — Classify the transaction
+
+1. Read the transaction description and classify it into one of the standard transaction families: cash receipt, cash disbursement, accrual, deferral, reclassification, depreciation/amortization, impairment, gain/loss on disposal, equity transaction, intercompany, payroll, tax, foreign currency revaluation, reversing entry. Most entries fit cleanly; ambiguous ones get classified by the dominant element and flagged.
+2. Determine the event date. The event date is the economic date — when the goods were received, the service was rendered, the contract was signed — not necessarily the date the invoice arrived. Distinguish the event date from the posting date if they differ; the entry uses the event date for accrual basis.
+3. Identify the parties: the company side and the counterparty side. Some entries are entirely internal (depreciation, reclassification) and have no external counterparty.
+4. Determine whether the entry is a one-time event or part of a series (lease payment, prepaid amortization, depreciation schedule). For series entries, the skill produces both the current entry and the schedule of future entries.
+
+### Stage 2 — Identify the affected accounts
+
+5. For each side of the transaction, identify the account family: asset, liability, equity, revenue, expense, contra-account. Apply the standard rules:
+   - Asset increases are debits; asset decreases are credits.
+   - Liability increases are credits; liability decreases are debits.
+   - Equity increases are credits; equity decreases are debits.
+   - Revenue is credit; expense is debit.
+   - Contra-accounts flip the parent's normal balance.
+6. Find the specific account names. If a chart of accounts excerpt was provided, match against it. If not, use canonical GAAP names: "Cash," "Accounts Receivable," "Allowance for Doubtful Accounts," "Prepaid Expenses," "Accrued Liabilities," "Deferred Revenue," "Accumulated Depreciation," "Property, Plant and Equipment," "Cost of Revenue," "Selling, General and Administrative Expense," "Interest Expense," "Foreign Currency Translation Adjustment."
+7. For multi-line entries (any entry touching more than two accounts), enumerate every account that should move. A common mistake is to under-list accounts: the disposal of a fixed asset, for example, touches Cash, the asset account, Accumulated Depreciation, and Gain/Loss — four lines, not two.
+8. For sub-ledger postings, identify the sub-ledger control account vs. the sub-ledger detail. The entry posts to the control; the sub-ledger detail is updated by the source system. Note in the memo when the entry is a top-side adjustment that bypasses the sub-ledger.
+
+### Stage 3 — Determine amounts
+
+9. Pull the amount(s) from the transaction description. For simple events, there is one amount. For complex events, multiple amounts may be needed: a payroll entry has gross wages, employer taxes, withholdings, and net pay; a fixed asset acquisition has the purchase price, capitalized installation costs, and any trade-in.
+10. Apply allocation rules where multiple periods are affected. A $12,000 annual insurance premium paid on April 1 splits across 12 months — the entry on April 1 debits Prepaid Expense $12,000 and credits Cash $12,000; subsequent monthly entries debit Insurance Expense $1,000 and credit Prepaid Expense $1,000.
+11. Apply capitalization rules. If the company's policy capitalizes items above $5,000 and the transaction is $7,500, the debit goes to a fixed asset account (with depreciation schedule starting next month); below the threshold, the debit goes to expense. Note the policy applied.
+12. Apply revenue recognition rules. For accrued revenue not yet billed, debit Unbilled AR (or "Contract Asset" under ASC 606), credit Revenue. For deferred revenue invoiced but not yet earned, debit AR or Cash, credit Deferred Revenue. The recognition pattern (point-in-time vs. over-time) drives whether the entry recognizes revenue immediately or moves it through Deferred Revenue.
+13. Apply foreign-currency rules where applicable. The entry records the transaction at the spot rate on the event date for transactional entries; at the period-end rate for revaluation of monetary balances. Note the rate source.
+
+### Stage 4 — Confirm debits equal credits
+
+14. Sum the proposed debits and the proposed credits. They must be equal. If they are not, the entry is wrong; the skill returns to Stage 2 and finds the missing account(s).
+15. Sanity-check that every line has a non-zero amount. Zero-value lines are usually leftovers from a draft and should be removed.
+16. Sanity-check that no account appears as both a debit and a credit on the same entry. If it does, the entry should be re-stated more compactly — one net movement per account.
+
+### Stage 5 — Write the memo
+
+17. The memo answers: what happened, when, why this entry now, how the amount was calculated, what evidence supports it, what would invalidate it. The memo is two to four sentences for routine entries; longer for material or unusual entries.
+18. Default memo structure:
+    - **What:** one-sentence description of the economic event.
+    - **Why now:** why this entry is being booked in this period (e.g., "to accrue services rendered in March but not yet invoiced as of April 5").
+    - **How calculated:** the basis for the amount (e.g., "based on the executed services agreement with Acme dated 2026-01-15 at $14,000 per month").
+    - **Support:** the document or system reference where the underlying evidence lives (e.g., "Agreement on file at /contracts/acme-msa-2026.pdf; PO #2401 in the procurement system").
+    - **Reverses on:** for accruals and deferrals, the date the entry reverses or amortizes.
+19. Never write a memo that just restates the entry. "Debit accrued expense, credit cash" is not a memo; the entry already says that. The memo's job is to explain the why, not the what.
+20. Avoid memos that say only "to record [account name]." That tautology has zero audit value.
+
+### Stage 6 — Build the support package
+
+21. Identify the source documents that support the entry. Default support library by transaction family:
+    - Cash disbursement: vendor invoice, payment confirmation, approval evidence.
+    - Cash receipt: customer invoice, bank deposit reference, payment instructions.
+    - Accrual: contract or PO, estimate of work performed, prior-period comparable, materiality note.
+    - Deferral: invoice or contract showing the period covered, allocation schedule.
+    - Reclassification: original entry reference, reason for reclass, approval.
+    - Depreciation: fixed asset register entry, depreciation schedule, method (straight-line, accelerated), salvage value, useful life.
+    - Disposal: disposal authorization, proceeds documentation, original cost, accumulated depreciation as of disposal date.
+    - Impairment: impairment indicator, fair value estimate methodology, asset's prior carrying amount.
+    - Equity: board resolution, share issuance documents, cap table update, 409A reference if relevant.
+    - Intercompany: matching entry on the counterparty entity, intercompany settlement schedule, FX rate.
+    - Payroll: payroll register, employer tax calculation, withholding summary.
+22. Reference the support documents by location (file path, ticket id, system reference). The reference is the trail an auditor follows; it must be specific enough to retrieve.
+23. If the support is incomplete, the entry is provisional. Flag this and propose what would make it final.
+
+### Stage 7 — Determine review requirements
+
+24. Compare the entry amount to the materiality threshold (default $10,000 or per input). At or above the threshold, the entry requires two-eyes review: preparer and reviewer are different humans, both initial the entry's support package, the reviewer attests the calculation is supported and the entry posts to the right accounts.
+25. Some entry types always require review regardless of amount: any entry touching equity, any entry creating a new account, any reclassification, any entry that bypasses a sub-ledger, any manual top-side adjustment near year-end, any entry posting to suspense.
+26. Entries below the materiality threshold and outside the always-review list can be single-sign-off, but the entry still preserves preparer attribution and a memo.
+27. Recurring entries (depreciation, prepaid amortization) can be approved once at the schedule level rather than monthly, provided the schedule was reviewed when established and the monthly run-out is mechanical.
+
+### Stage 8 — Reversing rules
+
+28. Accrual entries reverse in the following period by default. The entry payload includes a "reverse on" date — typically the first day of the next period — and the reversal entry is identical to the original with debits and credits swapped.
+29. Deferral entries do not reverse; they amortize on a schedule. The entry payload includes the amortization schedule (period count, monthly amount, account flow).
+30. Reclassifications do not reverse; they stand.
+31. Depreciation and amortization do not reverse; they continue per the schedule until the asset is fully depreciated or disposed of.
+32. If a reversing entry is appropriate but the calling system does not auto-reverse, the skill outputs both the current entry and the reversing entry pre-dated to the next period's day 1.
+
+### Stage 9 — Validate against company policy
+
+33. If `company_policies` was supplied, walk through each relevant policy and confirm the entry complies. Examples:
+    - Capitalization threshold: amount above threshold goes to fixed asset; below goes to expense.
+    - Revenue recognition method: point-in-time vs. over-time changes the entry's revenue/deferred-revenue split.
+    - Lease accounting: operating vs. finance lease changes the entry shape entirely (operating lease — single lease expense; finance lease — interest expense plus amortization expense plus ROU asset depreciation).
+    - Inventory costing: FIFO, LIFO, weighted average changes the COGS calculation.
+34. If a policy conflicts with the entry as drafted, surface the conflict explicitly: "Per company policy, items above $5,000 are capitalized. This transaction is $7,500 and was described as an expense. The entry has been re-classed to a fixed asset; if expense was intended, override and document the reason."
+
+### Stage 10 — Output the entry
+
+35. Emit `journal_entry` (markdown) with sections:
+    - Header: entry id (placeholder), date, accounting period, total amount, classification.
+    - Lines: a table with columns account, debit, credit, line memo.
+    - Memo: the full memo from Stage 5.
+    - Support: the list of source documents.
+    - Review: the review requirement (single sign-off, two-eyes, always-review reason).
+    - Reverses on: if applicable.
+    - Schedule: for series entries, the full schedule of future entries.
+36. Emit `entry_json` with header object and line array. Each line has `account`, `debit`, `credit` (one is zero), `memo`, optional `dimensions` (cost center, project, department), optional `tax_code`. The JSON is structured so an ERP import process can consume it directly.
+
+### Stage 11 — Self-check
+
+37. Verify debits equal credits.
+38. Verify every line has a real account name (not "TBD," not blank).
+39. Verify the memo explains "why this entry now" — not just "what."
+40. Verify the support references are specific (a file path or document id, not "vendor invoice").
+41. Verify the review requirement is set and matches the threshold rule.
+42. Verify the reversing logic matches the entry family.
+
+## Entry pattern library
+
+The skill carries a set of canonical entry shapes for recurring transaction types. Each pattern is a template the skill instantiates with the actual amounts and dates.
+
+### Pattern J1 — Goods received not invoiced (AP accrual)
+
+When goods or services are received in a period but the vendor invoice arrives in the following period, accrue at period end:
+
+```
+DR  Expense (specific line)     X
+    CR  Accrued Liabilities          X
+```
+
+Reverses on day 1 of the following period. When the actual invoice arrives, the reversal nets out and the regular AP entry stands.
+
+### Pattern J2 — Prepaid expense
+
+When the company prepays for a service that covers multiple periods:
+
+```
+At payment:
+DR  Prepaid Expense             X
+    CR  Cash                         X
+
+Monthly amortization (X/N for N months):
+DR  Expense (specific line)     X/N
+    CR  Prepaid Expense              X/N
+```
+
+The schedule is the auditor's trail; the schedule is referenced in the memo of every monthly entry.
+
+### Pattern J3 — Deferred revenue
+
+When the company invoices in advance of delivery:
+
+```
+At invoice:
+DR  Accounts Receivable         X
+    CR  Deferred Revenue             X
+
+At cash collection:
+DR  Cash                        X
+    CR  Accounts Receivable          X
+
+As revenue is earned (over N periods):
+DR  Deferred Revenue            X/N
+    CR  Revenue                      X/N
+```
+
+For ASC 606 over-time recognition, the X/N split follows the measurement of progress (input or output method) rather than a straight-line default.
+
+### Pattern J4 — Fixed asset acquisition
+
+```
+At purchase (capitalized):
+DR  Property, Plant & Equipment X (purchase + installation + freight)
+    CR  Cash or AP                   X
+
+Monthly depreciation (straight-line):
+DR  Depreciation Expense        X / useful_life_months
+    CR  Accumulated Depreciation     X / useful_life_months
+```
+
+Depreciation starts the month placed in service, not the month purchased. The fixed asset register is the support; the entry memo references the register entry id.
+
+### Pattern J5 — Disposal of fixed asset
+
+For an asset with original cost X, accumulated depreciation Y, net book value (X−Y), sold for proceeds P:
+
+```
+DR  Cash (or AR)                P
+DR  Accumulated Depreciation    Y
+    CR  Property, Plant & Equipment  X
+    CR  Gain on Disposal             (P − (X − Y))   [if positive]
+
+or
+
+DR  Cash                        P
+DR  Accumulated Depreciation    Y
+DR  Loss on Disposal            ((X − Y) − P)         [if positive]
+    CR  Property, Plant & Equipment  X
+```
+
+The accumulated depreciation is removed entirely (the asset leaves the books). Memo references the disposal authorization.
+
+### Pattern J6 — Accrued payroll at period end
+
+For wages earned in the period but paid in the next:
+
+```
+DR  Wages Expense               X
+DR  Employer Tax Expense        T
+    CR  Accrued Payroll              X + T
+```
+
+Reverses on day 1 of the next period; the regular pay run posts gross-to-net normally.
+
+### Pattern J7 — Allowance for doubtful accounts
+
+Reserve method based on aging:
+
+```
+At reserve adjustment (to bring allowance to target balance):
+DR  Bad Debt Expense            delta
+    CR  Allowance for Doubtful AR    delta
+
+At write-off of a specific receivable:
+DR  Allowance for Doubtful AR   write_off
+    CR  Accounts Receivable          write_off
+```
+
+The reserve calculation methodology (aging buckets and applied percentages, or expected credit loss model under CECL/IFRS 9) is referenced in the memo.
+
+### Pattern J8 — Stock-based compensation expense
+
+Straight-line over the vesting period for service-condition awards:
+
+```
+DR  Stock-Based Compensation Expense   X / vesting_period
+    CR  Additional Paid-In Capital         X / vesting_period
+```
+
+The grant-date fair value (Black-Scholes or other model output) is referenced; forfeiture rate treatment (estimated forfeitures or actual forfeitures as they occur) is noted.
+
+### Pattern J9 — Foreign-currency revaluation at period end
+
+For a monetary asset or liability denominated in a foreign currency:
+
+```
+For a remeasurement gain:
+DR  Foreign Currency Asset/Liability   delta
+    CR  Foreign Currency Gain/Loss          delta
+
+For a remeasurement loss, reverse.
+```
+
+Period-end rate source and revaluation date are explicit in the memo.
+
+### Pattern J10 — Reclassification
+
+Moving a balance from one account to another for presentation:
+
+```
+DR  Account_target              X
+    CR  Account_source                X
+```
+
+The memo states what was originally booked, why the reclass is needed (presentation, error correction, policy alignment), and references the original entry id.
+
+## Outputs
+
+The skill returns two artifacts:
+
+1. `journal_entry` — markdown of the proposed entry with memo, support, review requirement, and reversing/scheduling instructions.
+2. `entry_json` — machine-readable entry suitable for ERP import.
+
+## Examples
+
+**Input (placeholder):** "On April 30, we identified that consulting services worth $18,500 were rendered by Acme Consulting during April. The vendor invoice arrived on May 8 dated April 28. Default materiality $10,000. We are on accrual basis. Chart of accounts uses '6320 — Professional Services' and '2110 — Accrued Liabilities.'"
+
+**Agent reasoning (abbreviated):**
+
+- Classification: accrual (services rendered, invoice received after period end).
+- Event date: April 30 (effective service completion in April).
+- Accounts: 6320 (expense, debit), 2110 (liability, credit).
+- Amount: $18,500.
+- Above materiality threshold; two-eyes review required.
+- Reverses on May 1; regular AP entry replaces it when the invoice posts.
+- Memo must explain: services received in April, invoice arrived after cutoff, accrual sized to invoice; reversed on May 1; AP entry from the invoice nets out the reversal.
+
+**Output (abbreviated):**
+
+```
+### Journal Entry — Acme Consulting accrual
+
+Period: 2026-04
+Date: 2026-04-30
+Classification: AP accrual (J1)
+Total: $18,500
+Review: two-eyes required (above $10,000 materiality)
+
+| Account | Debit | Credit | Memo |
+|---|---|---|---|
+| 6320 Professional Services | 18,500.00 |   | Acme Consulting Apr services |
+| 2110 Accrued Liabilities |   | 18,500.00 | Acme Consulting Apr services |
+
+Memo:
+What: Consulting services rendered by Acme Consulting during April 2026.
+Why now: Vendor invoice received May 8 (after April cutoff); services were complete and benefit recognized in April.
+How calculated: Per invoice #ACM-2026-104 dated 2026-04-28 received May 8, $18,500 flat fee for engagement scope.
+Support: Invoice ACM-2026-104 at /ap/april-2026/acme-104.pdf; MSA at /contracts/acme-msa-2026.pdf.
+Reverses on: 2026-05-01.
+```
+
+## Limitations
+
+- The skill does not have access to the company's actual ERP and does not post entries; it produces a proposal that a person or downstream system posts. Account numbers from the chart-of-accounts excerpt are used verbatim if supplied but cannot be validated for existence.
+- The skill produces GAAP-flavored entries by default. IFRS-specific entries (notably leases and revenue) may differ in presentation; the skill flags but does not silently apply IFRS-specific treatments unless requested.
+- The skill does not perform fair-value measurements, impairment testing, or valuation modeling. Where an entry requires such a measurement, the skill names the input it needs and treats the supplied value as authoritative.
+- Tax-provision entries are produced structurally but the underlying tax calculations are out of scope; the skill flags every tax entry as requiring tax-specialist review.
+- The skill assumes the user's narrative is accurate. If the description misstates the economic event (e.g., calls a sale a service contract), the resulting entry will be wrong. The memo's "what" clause is the user's opportunity to catch this before posting.
+- The skill applies default materiality and review thresholds; companies with different thresholds should supply them via `materiality_threshold` and `company_policies`.
+- For intercompany entries, the skill produces the entry for the entity in scope and a placeholder for the counterparty entry, but it cannot confirm the two entries match unless both inputs are provided in the same call.
+- The skill does not generate the source documents (invoices, agreements); it references them. The user is responsible for ensuring those documents exist and are filed where the memo claims.
+
+## Sources reviewed
+
+- https://github.com/ledger/ledger (BSD-3-Clause)
+- https://github.com/ekmungai/python-accounting (MIT)
+- https://github.com/imetaxas/double-entry-bookkeeping-api (MIT)
+- https://github.com/apache/fineract-cn-accounting (Apache-2.0)
+- https://github.com/SolidInvoice/SolidInvoice (MIT)
+- https://github.com/panshak/accountill (MIT)
+- https://github.com/plaintextaccounting/plaintextaccounting (community hub / docs)

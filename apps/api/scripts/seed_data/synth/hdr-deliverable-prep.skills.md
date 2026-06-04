@@ -1,0 +1,147 @@
+---
+id: skillsgit-curated/hdr-deliverable-prep
+version: 1.0.0
+name: HDR Deliverable Prep
+description: Prepare HDR deliverables end to end — PQ vs HLG choice, MaxCLL and MaxFALL measurement, SDR trim from an HDR master, mastering display metadata, and dynamic metadata authoring for HDR10+ and proprietary dynamic-metadata variants.
+authors:
+  - name: skillsgit Curated
+    handle: skillsgit-curated
+    role: author
+category: creative
+tags: [niche:color-grading, hdr, pq, hlg, hdr10, dynamic-metadata, tone-mapping, deliverables]
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6, claude-haiku-4-5, gpt-4o, gpt-4.1, gemini-1.5-pro]
+  tools_required: []
+  tools_optional: [web_search]
+  min_context_tokens: 24000
+  estimated_tokens_per_invocation: 5500
+trigger_keywords:
+  - hdr delivery
+  - hdr10
+  - hdr10 plus
+  - dolby vision
+  - pq hlg
+  - maxcll maxfall
+  - sdr trim
+  - tone mapping
+  - mastering display metadata
+  - dynamic metadata
+  - hdr qc
+example_invocations:
+  - "Plan the HDR delivery for a feature mastered at 1,000 nit PQ."
+  - "How do I derive a clean SDR trim from a PQ master?"
+  - "Walk me through MaxCLL and MaxFALL measurement and what tolerance the platform expects."
+  - "Author the dynamic metadata for an episodic streaming delivery."
+inputs:
+  - name: master_format
+    type: choice
+    required: true
+    description: The mastering transfer function and primaries.
+    choices: [pq_rec2020, pq_p3_d65, hlg_rec2020, hlg_p3_d65]
+  - name: mastering_peak_nits
+    type: choice
+    required: true
+    description: The peak luminance the program is mastered to.
+    choices: ["600", "1000", "2000", "4000", "hlg_nominal"]
+  - name: deliverable_set
+    type: text
+    required: true
+    description: HDR variants required (HDR10, HDR10+, proprietary dynamic-metadata variant), SDR trim requirements, and broadcast HLG requirements.
+  - name: target_platform_specs
+    type: text
+    required: false
+    description: Platform-specific delivery specifications — peak luminance caps, metadata requirements, codec, container.
+  - name: tooling
+    type: text
+    required: false
+    description: Grading suite, encoder, dynamic-metadata authoring tool, and QC station capabilities.
+outputs:
+  - name: delivery_plan
+    type: markdown
+    description: The ordered plan to produce each HDR variant, the SDR trim, and the HLG conversion from the source master.
+  - name: metadata_spec
+    type: markdown
+    description: The static metadata (mastering display primaries and luminance, MaxCLL, MaxFALL) and the dynamic metadata (per-scene values where applicable) per deliverable.
+  - name: qc_protocol
+    type: markdown
+    description: The QC checks per deliverable — scope readings, metadata verification, consumer-display tone-mapping spot checks.
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Initial release.
+---
+
+# HDR Deliverable Prep
+
+## When to use
+
+Use this skill once a program is graded and the deliverable phase begins, or earlier if the delivery requirements need to drive the grading plan. It covers what the colorist and the deliverables coordinator have to produce — encoded HDR files with the right transfer function, the right primaries, accurate metadata, and a derivative SDR that respects the HDR intent. It assumes a graded HDR master exists; it does not cover the act of grading.
+
+Use the color-pipeline-architect skill first to land the mastering format. Use this skill to ship the result.
+
+## How to apply
+
+1. **Confirm the master's transfer function and primaries.** The master is either PQ (ST.2084) or HLG (ARIB B.67 / ITU BT.2100), with primaries in Rec.2020 or P3-D65 (P3-D65 content carried in a Rec.2020 container is the common case). The container and codec preserve the master's color space; the metadata declares it. Verify the master's encoded transfer function with a scope reading on a known reference — PQ is absolute (a given code value is a given nit), HLG is relative.
+2. **Choose PQ or HLG per deliverable.** PQ is the dominant streaming and packaged-media format; the consumer display tone-maps PQ to its own peak. HLG is the broadcast-friendly format because it is backward-compatible with SDR receivers via the lower portion of its curve. If both are required, the PQ deliverable is the master and the HLG is derived. Conversion between PQ and HLG is a published mapping, not a creative pass — verify on a test clip and accept the result if it stays inside the target window.
+3. **Measure MaxCLL and MaxFALL** on the final master. MaxCLL (maximum content light level) is the brightest single pixel value in the program, in nits. MaxFALL (maximum frame-average light level) is the highest frame-averaged luminance across the program, in nits. Both are computed from the encoded master after the final color and finishing pass; they cannot be estimated. The values are passed as static HDR10 metadata in the deliverable's encoding parameters. Use a measurement tool that linearizes the PQ-encoded master before computing values; the math does not work on encoded (non-linearized) pixels.
+4. **Author the mastering display metadata.** HDR10 static metadata block carries the primaries (CIE xy chromaticity coordinates) and the peak/black luminance of the mastering display the colorist sat in front of. That is the display the program was graded on, not the target peak the program is mastered to — though for most productions the two match. Authoring this correctly is required by streaming platforms; mismatched values trigger QC rejections.
+5. **Plan the SDR trim from the HDR master.** Two paths: a colorist-driven trim pass (the colorist sits at an SDR reference display and re-grades the HDR master into Rec.709, producing a separately-graded SDR deliverable) or an automatic tone-map (a published tone-mapping algorithm applied to the HDR master). Colorist-driven trim is the streaming-platform standard for premium content; automatic tone-map is acceptable for budget-constrained projects with QC review. Budget the colorist-driven trim at a fraction of the HDR grade time, not zero.
+6. **In the SDR trim, preserve creative intent, not absolute luminance.** A highlight at 800 nits in HDR does not become 800 IRE in SDR — it becomes whatever luminance preserves the look of the highlight (a specular preserved as specular, a sky preserved as bright but contained). The trim adjusts the tone curve, the saturation in highlights, and the per-scene look to land an SDR image that reads as the same shot. The colorist watches the cuts back-to-back at speed.
+7. **Author dynamic metadata** for deliverables that require it. Dynamic HDR formats carry per-scene metadata describing how a consumer display should tone-map each scene when its peak is lower than the master's. The authoring is a separate colorist pass with a tool that ingests the master and a target display peak (typically 100 nit for the SDR-fallback trim, plus 1,000 nit and possibly 4,000 nit reference targets). The colorist trims the tone-map per scene; the result is encoded into the deliverable. Validate the dynamic metadata against the reference targets.
+8. **For proprietary dynamic-metadata pipelines**, follow the licensor's authoring workflow. Those pipelines have specific authoring tools, certified colorists, certified mastering environments, and explicit QC partners. The metadata is not interchangeable with HDR10+; the two formats author separately and may coexist on the same deliverable in some platforms.
+9. **Encode the deliverable**. For each HDR variant: pick the codec (HEVC main 10 profile is the common case; recent streaming pipelines use AV1 main profile); set the container (MP4, MKV, IMF as required); inject the static metadata; mux the dynamic metadata as a sidecar or in-stream as the deliverable spec requires. Confirm the encoded file's metadata via a verification tool, not by trusting the encoder log.
+10. **QC each deliverable on a calibrated reference display.** Watch the program through — eyes on the screen, scopes alongside. Check that bright highlights tone-map gracefully on a consumer-class HDR display set to a lower peak (a deliberate spot check); check that the SDR trim plays acceptably; check that the dynamic metadata produces the correct per-scene behavior on a target-display preview. QC catches encoder errors, metadata mismatches, and content clipping that linear measurements miss.
+11. **Run automated QC** for technical compliance — IMF or container validators, MaxCLL/MaxFALL re-verification on the encoded master, transfer-function spot checks. Streaming platforms run their own automated QC on ingest; matching it locally surfaces rejections before submission.
+12. **Document the deliverable bundle.** Each deliverable is shipped with a delivery report: master format, encoded variants, metadata values, MaxCLL/MaxFALL, mastering display primaries and luminance, codec parameters, container, and signoff. The report is the audit artifact the platform's delivery team validates against.
+13. **Archive the linear master and the transforms.** Beyond shipping, preserve a graded master in the working scene-linear space (or in PQ at the mastering peak) at the original bit depth, along with the OCIO config and any custom view transforms used. A future re-deliverable for a format that does not yet exist (a higher peak HDR, a new dynamic-metadata variant, a new gamut) is feasible only if the linear master and its transforms survive.
+14. **Plan the consumer-display tone-mapping sanity check.** Most viewers do not own a 1,000-nit mastering display, let alone a 4,000-nit one. They watch on consumer HDR TVs at 400-700 nit peak. Tone-map verification means previewing the master with a consumer-display tone-map approximation (a target-peak preview in the grading suite or an actual consumer-class TV in the QC room). Highlights that look spectacular on the mastering display can crunch unpleasantly on a 500-nit TV; this check catches that before delivery.
+
+## Inputs
+
+- The master's transfer function and primaries.
+- The mastering peak luminance.
+- The list of deliverables required.
+- Target platform delivery specifications.
+- Available tooling for grading, encoding, dynamic-metadata authoring, and QC.
+
+## Outputs
+
+- A delivery plan covering each HDR variant, the SDR trim, and any broadcast conversion.
+- A metadata specification with static and dynamic values per deliverable.
+- A QC protocol with scope and visual checks plus consumer-display spot checks.
+
+## Examples
+
+**Episodic drama, mastered PQ 1,000 nit Rec.2020 container with P3-D65 primaries.** Deliverables: HDR10 master, HDR10+ variant, proprietary dynamic-metadata variant, SDR Rec.709 trim, broadcast HLG conversion. Plan: HDR10 is the primary deliverable with measured MaxCLL and MaxFALL from the encoded master, mastering display metadata declaring the colorist's reference display (1,000 nit P3-D65 mastered in a controlled grading suite). SDR trim is colorist-driven, one pass per episode, working from the HDR master toward Rec.709 100 nit. Dynamic metadata authored as a separate pass with target peaks at 100 nit and 600 nit and 1,000 nit. Proprietary variant authored in the licensor's workflow with the certified colorist. HLG conversion via published mapping, QC reviewed but not separately graded. Encoding: HEVC main 10, separate output per variant. QC: scope verification, consumer-display spot check on a 700 nit consumer set, dynamic metadata behavior verified at each target.
+
+**Feature, mastered PQ 4,000 nit, theatrical-plus-streaming bundle.** Deliverables: HDR10 4,000-nit-tagged master, HDR10 1,000-nit-tone-mapped variant (some platforms require a 1,000-nit cap), SDR Rec.709 trim, theatrical DCP (separate workflow). MaxCLL and MaxFALL measured on the 4,000-nit master. The 1,000-nit variant is generated via dynamic metadata target trim — the colorist authors the 1,000-nit target then the 1,000-nit variant is rendered with that trim baked. SDR trim is colorist-driven from the 1,000-nit master to keep the perceptual range manageable. DCP is a separate workflow: P3-XYZ encoding at theatrical gamma, generated from the graded master through the theatrical output transform, packaged per DCI specification. QC: separate passes per deliverable.
+
+**Budget commercial, mastered HLG 1,000 nit nominal, broadcast and streaming.** Deliverables: HLG broadcast master (the actual native master), PQ streaming variant via published mapping, SDR Rec.709 trim. MaxCLL/MaxFALL irrelevant for HLG (it is a relative format and broadcast does not require static-luminance metadata). PQ variant generated via published HLG-to-PQ mapping, scope-verified. SDR trim is automatic tone-map for budget, QC reviewed and any failed scene re-trimmed manually by the colorist. Encoding: HEVC main 10 for streaming PQ, vendor-specified codec for broadcast HLG.
+
+**Re-deliver an existing program for a new HDR variant.** Two years ago the program shipped HDR10 only; the platform now wants a dynamic-metadata variant. If the archive contains the graded PQ master at full bit depth, the workflow is: load the master in the dynamic-metadata authoring tool, set the source as the original mastering peak, set target peaks (100 nit, 600 nit, 1,000 nit), have the colorist trim per scene, encode and deliver. If the archive contains only the final delivered HDR10 file (because nobody preserved the master), the workflow degrades — the colorist is trimming a tone-mapped artifact rather than the original creative intent. Push hard on the production to preserve the master.
+
+**QC catches a metadata mismatch at the platform.** The platform rejects the file with a metadata-mismatch error indicating mastering display primaries do not match expected values. Diagnose: open the encoded file with a metadata verification tool and compare the static-metadata block against the documented mastering environment. Likely cause: the encoder used a default mastering-display primaries setting (often Rec.2020 maxima) rather than the actual P3-D65 the program was mastered on. Fix: re-encode with the correct mastering display metadata or inject the corrected metadata block into the existing encode if the tool supports it. Re-submit.
+
+## Limitations
+
+- This skill assumes a calibrated reference HDR display. HDR QC on an uncalibrated display is not QC; the colorist and finisher must have access to a calibrated grading suite or accept that the deliverable cannot be QCed locally.
+- MaxCLL and MaxFALL measurement requires the computation to operate on linearized values, not encoded PQ. Tools that compute on encoded pixels produce wrong numbers; verify the tool with a known test pattern before relying on it.
+- Streaming platform specifications change frequently (peak luminance caps, accepted codecs, required metadata blocks). Verify the current spec for each target platform before encoding; rejection on metadata mismatch is common.
+- Proprietary dynamic-metadata authoring requires licensor certification of the colorist and the mastering environment. This skill names the workflow but cannot substitute for the licensor's certification path.
+- Broadcast deliverables have country-specific and broadcaster-specific compliance requirements (loudness, captions, technical envelopes) outside the scope of this color-focused skill.
+
+## Sources reviewed
+
+- https://github.com/HDRWCG/HDRStaticMetadata — MaxCLL and MaxFALL computation reference for 16-bit TIFF measurement (license check before use)
+- https://github.com/jessielw/HDR-Multi-Tool — HDR10+ and dynamic-metadata parsing reference for inspection and verification (license check before use)
+- https://github.com/AcademySoftwareFoundation/OpenColorIO — PQ and HLG output transform configuration patterns (BSD-3-Clause)
+- https://github.com/aces-aswf/aces — HDR output device transform references (Modified BSD 3-Clause)
+- https://github.com/colour-science/colour — PQ ST.2084 and HLG transfer-function implementations (BSD-3-Clause)
+- https://github.com/colour-science/colour-hdri — HDR image processing reference for linearization patterns (BSD-3-Clause)
+- https://professionalsupport.dolby.com/s/article/Calculation-of-MaxFALL-and-MaxCLL-metadata — measurement methodology reference (proprietary; read for methodology only)
+- https://www.movielabs.com/md/practices/color/ManifestPractices_HDR_v1.0.pdf — HDR/WCG metadata delivery practice reference (proprietary; read for practice patterns only)

@@ -1,0 +1,15 @@
+node_modules
+.next
+.turbo
+dist
+build
+out
+coverage
+.venv
+__pycache__
+*.lock
+pnpm-lock.yaml
+package-lock.json
+yarn.lock
+apps/api/alembic/versions
+.git

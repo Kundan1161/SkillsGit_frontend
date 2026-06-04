@@ -1,0 +1,239 @@
+---
+id: skillsgit-curated/biotech-clinical-protocol-author
+version: 1.0.0
+name: Clinical Trial Protocol Author
+description: Draft a structured clinical-trial protocol skeleton — objectives, endpoints, eligibility, intervention, safety monitoring, statistical considerations, ethics — aligned with SPIRIT and ICH E6/E9 structure.
+authors:
+  - name: skillsgit Curated
+    handle: skillsgit-curated
+    role: author
+category: biotech
+tags: [niche:clinical-trial-design, protocol, spirit, ich-e6, ich-e9, gcp, endpoints, eligibility]
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6, gpt-4o]
+  tools_required: []
+  tools_optional: [file_io, web_search]
+  min_context_tokens: 64000
+  estimated_tokens_per_invocation: 18000
+trigger_keywords:
+  - draft clinical trial protocol
+  - protocol skeleton
+  - spirit checklist protocol
+  - trial protocol outline
+  - phase 2 protocol draft
+  - phase 3 protocol draft
+  - randomized trial protocol
+  - protocol synopsis
+  - clinical study protocol
+  - ich e6 protocol
+example_invocations:
+  - "Draft a Phase 2 randomized double-blind protocol skeleton for an anti-inflammatory drug in moderate rheumatoid arthritis."
+  - "Build a SPIRIT-aligned protocol outline for a single-arm pediatric oncology trial."
+  - "Generate the protocol scaffold including objectives, endpoints, eligibility, randomization, and safety monitoring sections."
+inputs:
+  - name: indication
+    type: text
+    required: true
+    description: The disease, condition, or population being studied (e.g. "moderate-to-severe plaque psoriasis in adults", "metastatic non-small-cell lung cancer second-line").
+  - name: intervention
+    type: text
+    required: true
+    description: The investigational product or procedure, including formulation, dose range, and route of administration if known.
+  - name: phase
+    type: choice
+    required: true
+    description: Clinical development phase. The methodology adapts emphasis (Phase 1 prioritizes safety and PK; Phase 3 prioritizes confirmatory efficacy and regulatory-grade endpoints).
+    choices: [phase_0, phase_1, phase_1b, phase_2, phase_2b, phase_3, phase_4, investigator_initiated]
+  - name: design_type
+    type: choice
+    required: false
+    description: High-level design family. If omitted, the skill proposes a fit based on indication and phase.
+    choices: [single_arm, two_arm_parallel, three_or_more_arm_parallel, crossover, factorial, cluster, stepped_wedge, adaptive, basket, umbrella, platform, undecided]
+  - name: primary_hypothesis
+    type: text
+    required: false
+    description: A one-sentence statement of the primary clinical question. If absent, the skill drafts candidates and flags them for sponsor confirmation.
+  - name: regulatory_context
+    type: choice
+    required: false
+    description: Anticipated regulatory pathway. Drives endpoint selection conservatism and the SAP-alignment depth.
+    choices: [fda_ind, ema_ctr, mhra, pmda, multi_region, academic_irb_only, not_yet_determined]
+  - name: known_constraints
+    type: json
+    required: false
+    description: Sponsor- or site-imposed constraints (max recruitment window, max site count, budget bands, specific endpoint preferences, comparator availability).
+outputs:
+  - name: protocol_skeleton
+    type: markdown
+    description: Section-by-section protocol skeleton with placeholder language flagged for sponsor input, internal cross-references, and SPIRIT/ICH alignment notes.
+  - name: protocol_synopsis
+    type: markdown
+    description: One-page synopsis suitable for early sponsor review or IRB pre-submission.
+  - name: open_questions
+    type: json
+    description: Structured list of decisions the sponsor must make before the skeleton becomes a draftable protocol (endpoint hierarchy, comparator, blinding feasibility, dose-escalation rules, etc.).
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Initial release.
+---
+
+# Clinical Trial Protocol Author
+
+## When to use
+
+**This skill produces methodology guidance, not regulatory advice or final clinical-trial documents. Every output must be reviewed by qualified clinical-research staff, biostatisticians, and regulatory counsel. No skill output may be submitted to a regulator or used to enroll a patient without sponsor sign-off.**
+
+A protocol is the document that defines, in advance, the entire scientific and operational logic of a clinical trial. Regulators, ethics committees, sponsors, monitors, investigators, statisticians, and data managers all read the same protocol and rely on it to coordinate their work. Mistakes baked into a protocol cascade: ambiguous endpoints feed ambiguous statistical analyses, generous eligibility produces underpowered subgroups, and undefined stopping rules force ad-hoc decisions under time pressure. The cost of fixing a problem at the protocol-skeleton stage is a paragraph rewrite; the cost of fixing it after randomization begins is an amendment, ethics re-review, and possibly a re-power.
+
+Use this skill at the **earliest drafting stage**, when the sponsor team has a candidate indication, a candidate intervention, and a target phase, and wants a structured starting document that surfaces every decision needing a human answer. Typical entry points:
+
+- A protocol writer or medical writer starting from a blank document and looking for an opinionated scaffold rather than a generic template.
+- A clinical operations lead aligning the team on what sections must exist and what each must say, before vendor RFPs (CRO, central lab, IRT, EDC) go out.
+- An investigator-initiated trial team converting a grant aim into a structured study design.
+- A regulatory-affairs reviewer auditing whether a draft protocol covers the items SPIRIT and ICH E6/E9 expect.
+
+Do **not** use this skill to produce the protocol that will actually go to a regulator, ethics committee, or site. The output is a methodology-aligned scaffold with placeholder language and explicit open-question markers. It is intentionally not a finished document. It is also not a substitute for a sponsor's protocol-template SOP — if the sponsor has a corporate template, the skeleton must be reconciled with it before drafting proceeds.
+
+Out of scope: pediatric-investigation plans (PIPs) under EU regulation, paediatric-specific FDA written requests, accelerated-approval surrogate-endpoint justifications, post-marketing safety surveillance protocols, real-world-evidence study protocols (these need a different scaffold), animal studies, and human-factors studies for medical devices (those follow IEC 62366 / FDA Human Factors guidance and have their own structure).
+
+## How to apply
+
+Treat protocol authoring as building a tree of decisions that must each be either answered (with rationale) or explicitly deferred to the sponsor team. Move from the outside in: regulatory pathway → trial phase → indication-specific endpoint norms → design family → operational structure → safety and ethics. Where a decision cannot be made without sponsor input, leave a labeled placeholder and add an open-question entry — do not invent the answer. The skill's value is in the structure and the surfacing of decisions, not in fabricating clinical or regulatory positions.
+
+1. **Anchor on phase and regulatory pathway.** The protocol's audience, depth, and emphasis shift across phases. Phase 1 protocols prioritize safety, pharmacokinetics, dose-finding rules, and stopping criteria; eligibility is narrow; statistics are descriptive with limited inferential claims. Phase 2 protocols prioritize proof-of-concept efficacy, dose selection for Phase 3, and refinement of the patient population; primary endpoints are often surrogate or biomarker-based. Phase 3 protocols are confirmatory: registration-grade endpoints, controlled designs, pre-specified statistical analysis, sufficient sample size, and integration with the statistical analysis plan. Phase 4 protocols address post-marketing safety, comparative effectiveness, or label-expansion questions. Each phase has a different sponsor risk posture; mirror that posture in tone and prescriptiveness throughout the skeleton.
+
+2. **Draft the synopsis first.** Before populating the full skeleton, write a one-page synopsis covering: title and short title, sponsor and protocol number placeholders, phase, indication, intervention and comparator, primary objective and primary endpoint, key secondary objectives and endpoints, design type, total sample size with a one-line rationale, key eligibility statements, treatment duration, follow-up duration, and primary analysis approach. The synopsis is the discipline mechanism — if the synopsis cannot be drafted coherently, the protocol cannot be either, and the missing pieces become open questions before further drafting wastes effort.
+
+3. **Build the objectives hierarchy.** Distinguish primary, secondary, exploratory, and safety objectives. Each objective must pair with at least one endpoint. The primary objective is singular wherever feasible; multiple primary objectives invite multiplicity adjustment and increase the risk of an inconclusive trial. Secondary objectives should be ranked in a hierarchy that will inform the multiplicity-controlled testing order in the SAP. Exploratory objectives are explicitly hypothesis-generating and should be labeled as such to discourage post-hoc claims. Safety objectives are always present and need not be inferentially powered, but their endpoints (AE rates by severity, laboratory shifts, ECG changes, immunogenicity signals) must be defined.
+
+4. **Define endpoints with operational precision.** Each endpoint needs five attributes: definition (what is measured), timepoint (when, with permitted windows), measurement instrument (which instrument or laboratory method, version, and operator-training requirements), aggregation rule (single timepoint, change from baseline, area under the curve, time-to-event, responder definition), and analysis population (intention-to-treat, modified ITT, per-protocol, safety, evaluable). Use the **estimand framework** under ICH E9(R1) for the primary endpoint: state the population, treatment condition of interest, variable, intercurrent-event strategy (treatment-policy, hypothetical, composite, while-on-treatment, principal-stratum), and population-level summary. Estimands defined sloppily produce sensitivity-analysis disagreements; estimands defined precisely make the SAP almost mechanical.
+
+5. **Construct the design section.** Cover: design family (parallel, crossover, factorial, adaptive, cluster, stepped-wedge, basket, umbrella, platform), number of arms with names and allocation ratio, randomization mechanism (simple, blocked, stratified, minimization, response-adaptive), stratification factors, blinding level (open-label, single-blind, double-blind, double-dummy, triple-blind) and who is blinded to what, comparator selection rationale (placebo, active, historical, no-treatment), screening period, treatment period, follow-up period, total study duration per participant, and a study schema diagram. For adaptive designs, name the adaptations (sample-size re-estimation, arm dropping, response-adaptive randomization, group-sequential interim analyses), the decision rules, and the firewall between blinded and unblinded data.
+
+6. **Write eligibility criteria.** Inclusion and exclusion criteria must be (a) operationally testable at a site visit, (b) consistent with the population in the estimand, and (c) ethically defensible (no exclusions that are unnecessary or that introduce inequity). Cluster the criteria: demographic (age, sex assigned at birth where clinically relevant, geographic), disease (diagnostic criteria with named instruments and thresholds, disease severity, prior-treatment exposure, washout periods), safety (organ function thresholds, comorbidities, concomitant medications), and reproductive (contraception requirements with rationale, pregnancy exclusion, lactation exclusion — with explicit reasoning when exclusion is not strictly necessary). Flag each criterion that materially affects enrollability and the criteria that the sponsor may want to relax for generalizability versus tighten for safety.
+
+7. **Specify the intervention.** Document: investigational product (name, formulation, strength, manufacturer placeholder, source, storage), dose levels with rationale referencing prior clinical or nonclinical data (cite location, not content), route, frequency, escalation/de-escalation rules for dose-finding, duration, accountability (drug accountability log, return, destruction), and compliance assessment (pill counts, electronic dosing devices, biomarker confirmation). For the comparator (if any), the same level of detail. For combination therapies, the components and their interactions. For procedures or devices, the device specification, training requirements, and operator-experience thresholds.
+
+8. **Define schedule of activities (SoA).** The SoA is a table with visits as columns and procedures as rows. Procedures cover: informed consent, eligibility confirmation, randomization, study-drug administration, vital signs, physical examination, laboratory tests (with the test names, lab type — central or local — and the visit's window), efficacy assessments (named instruments and the personnel training requirement), safety assessments (AE collection windows, concomitant-medication review), pharmacokinetic sampling (with the exact times relative to dose), pharmacodynamic sampling, biomarker sampling, patient-reported outcomes, and end-of-study procedures. Be explicit about which procedures are pre-randomization (baseline), on-treatment, and follow-up. Cross-reference each procedure to the protocol section that defines it.
+
+9. **Write the statistical considerations section.** This is the protocol's preview of the SAP; the SAP itself is a separate document. Cover: primary estimand summary, sample-size calculation with assumptions stated (effect size, variability, dropout, significance level, power, sided-ness), analysis populations defined by name, primary analysis method, secondary analysis methods, handling of missing data (referencing the estimand's intercurrent-event strategy), multiplicity control approach (Bonferroni, Holm, hierarchical, gatekeeping, graphical), interim analyses if any (number, timing, decision rules, alpha-spending function), and sensitivity analyses. Each numeric assumption gets a citation placeholder — the sponsor team confirms or replaces. Do not invent effect sizes; flag them as decisions.
+
+10. **Address safety monitoring.** Cover: adverse-event definitions (consistent with ICH E2A and the current MedDRA version placeholder), serious adverse-event definition, suspected unexpected serious adverse reaction (SUSAR) handling, expedited reporting timelines (consistent with ICH E2A/E2B and the applicable regulatory regime), AE causality assessment process and grading scale (e.g., CTCAE version placeholder for oncology), the Data Monitoring Committee (DMC) charter requirement when applicable, stopping rules (dose-limiting toxicity definition in early phase, futility and efficacy boundaries in adaptive designs), and pregnancy reporting. State explicitly that the protocol's safety governance is for sponsor-medical-monitor and DMC review, not for the protocol author to finalize.
+
+11. **Address ethics and regulatory.** Cover: declaration of Helsinki and Good Clinical Practice references, informed-consent process (initial, reconsent triggers, assent for minors, surrogate consent for impaired capacity), confidentiality and data protection (referencing GDPR, HIPAA, or applicable framework), insurance and indemnification placeholders, protocol-amendment process, deviation reporting, end-of-trial notification, results disclosure (clinicaltrials.gov or analogous registry), publication policy, and conflict-of-interest disclosure. Each item is structural in the skeleton; the sponsor team owns the substance.
+
+12. **Address data management and quality.** Cover: case-report-form (CRF) source identification, electronic data capture (EDC) requirements, data-entry timelines, data-cleaning approach, source-data verification scope (risk-based monitoring is the current norm), database lock criteria, and CDISC SDTM/ADaM alignment for analysis datasets if regulatory submission is anticipated. If the protocol will feed an FDA or EMA submission, the analysis datasets will be expected in ADaM with traceability to SDTM, so build the data-management section with this end-state in mind.
+
+13. **List appendices.** Standard appendices: schedule of activities (full version), instrument copies or references (PRO instruments, scales, scoring manuals), laboratory normal ranges or reference-lab protocol, sample informed-consent form, contact list placeholders, signature pages, abbreviation list, change history. The appendix list itself becomes part of the skeleton.
+
+14. **Cross-check internal consistency.** Before returning, verify: every objective has at least one endpoint; every endpoint appears in the SoA at the expected timepoint(s); every eligibility criterion is operationally testable with a procedure in the SoA; every analysis population is defined; the sample-size assumptions match the primary-endpoint definition; the schedule of activities matches the visit list in the design section; the intervention dose/duration matches the treatment-period duration in the design section.
+
+15. **Surface open questions.** Every decision the sponsor must make to convert the skeleton into a draft becomes a labeled item in the open-questions JSON. Categories include: endpoint hierarchy and gatekeeping order, comparator selection, blinding feasibility, sample-size assumptions, dose-escalation rules, stopping rules, interim-analysis structure, eligibility relaxation points, biomarker collection scope, central-versus-local lab routing, and registry-disclosure timing. Each question gets a recommended default plus the alternatives.
+
+16. **Self-check before returning.** Confirm: phase emphasis is correct; SPIRIT items have a place to live in the skeleton (objectives, design, methods, ethics, data management, dissemination); the estimand framework appears in the statistics section; safety monitoring is structurally adequate; ethics and informed-consent topics are present; the open-questions list is non-trivial (a skeleton with zero open questions is suspicious and likely fabricates positions).
+
+## Inputs
+
+- `indication` (required, text) — disease, condition, population.
+- `intervention` (required, text) — investigational product or procedure.
+- `phase` (required, choice) — clinical development phase; sets the emphasis.
+- `design_type` (optional, choice) — design family; the skill proposes a fit if absent.
+- `primary_hypothesis` (optional, text) — one-line clinical question; the skill drafts candidates if absent.
+- `regulatory_context` (optional, choice) — anticipated regulatory pathway.
+- `known_constraints` (optional, JSON) — sponsor- or site-imposed constraints.
+
+## Outputs
+
+- `protocol_skeleton` (markdown) — section-by-section skeleton from synopsis to appendices, with placeholders flagged and SPIRIT/ICH-alignment notes.
+- `protocol_synopsis` (markdown) — one-page synopsis suitable for early sponsor review.
+- `open_questions` (JSON) — decisions the sponsor must make, with recommended defaults and alternatives. Schema: `[{section, decision, recommended_default, alternatives, rationale, urgency}]`.
+
+## Examples
+
+### Example 1 — Phase 2b RCT, type-2 diabetes, dose-finding
+
+**Inputs:**
+- `indication`: "adults aged 18–75 with type-2 diabetes mellitus inadequately controlled on metformin monotherapy (HbA1c 7.5–10.0%)"
+- `intervention`: "investigational oral once-daily small molecule, 5 mg / 10 mg / 20 mg dose groups, plus placebo"
+- `phase`: phase_2b
+- `design_type`: two_arm_parallel (the skill will recommend four-arm parallel given the dose-finding goal)
+- `regulatory_context`: fda_ind
+
+**Output protocol_skeleton (excerpt of relevant sections):**
+
+> **1. Synopsis** — Phase 2b, randomized, double-blind, placebo-controlled, parallel-group, dose-finding study of [INVESTIGATIONAL PRODUCT] (5 mg, 10 mg, 20 mg) versus placebo administered once daily for 24 weeks in adults with type-2 diabetes mellitus inadequately controlled on metformin. Primary endpoint: change from baseline in HbA1c at Week 24. Approximately N participants randomized 1:1:1:1 across approximately K sites in 1–2 countries.
+>
+> **3. Objectives and Endpoints**
+>
+> | Type | Objective | Endpoint |
+> |---|---|---|
+> | Primary | Evaluate the dose-response of [IP] on glycemic control | Change from baseline in HbA1c at Week 24, by treatment arm |
+> | Secondary (key, hierarchical) | Proportion achieving HbA1c < 7.0% at Week 24 | Responder analysis |
+> | Secondary | Change from baseline in fasting plasma glucose at Week 24 | Continuous |
+> | Safety | Incidence and severity of treatment-emergent adverse events | Per CTCAE [VERSION] |
+> | Exploratory | Pharmacokinetic exposure-response relationship | PK/PD modeling |
+>
+> [Open question: secondary endpoint hierarchy and gatekeeping order — recommended default below.]
+>
+> **4. Estimand for Primary Endpoint** — Population: randomized adults meeting eligibility. Treatment condition of interest: [IP] 5 mg / 10 mg / 20 mg versus placebo, administered as randomized for 24 weeks. Variable: HbA1c change from baseline to Week 24. Intercurrent events: treatment discontinuation (recommended strategy: treatment-policy, with sensitivity analyses using hypothetical and composite strategies); rescue medication (recommended strategy: hypothetical — patients are analyzed as if rescue had not occurred — with treatment-policy sensitivity). Population summary: difference in least-squares mean change from baseline, by dose, versus placebo.
+>
+> **5. Eligibility** — [Skeleton sections with placeholder thresholds. Key open question: minimum baseline HbA1c threshold tightens patient pool but increases observed effect; sponsor decision.]
+>
+> **9. Statistical Considerations** — Sample-size calculation placeholder requires sponsor confirmation of assumed Week-24 HbA1c reduction in the top-dose group, placebo response, standard deviation, dropout, and significance level. Provisional plan: dose-response trend test as primary, with pairwise comparisons in a hierarchical fallback. [Open question: dose-response test selection — MCP-Mod, Williams trend, or hierarchical pairwise.]
+
+**Excerpt of open_questions:**
+
+```json
+[
+  {"section":"endpoints","decision":"secondary endpoint hierarchy order","recommended_default":"responder→FPG→body weight→fasting insulin","alternatives":["FPG→responder→body weight","weight-first if commercial positioning"],"rationale":"clinical relevance to label and regulatory precedent","urgency":"before SAP drafting"},
+  {"section":"sample_size","decision":"placebo HbA1c response assumption","recommended_default":"0.2% reduction at week 24","alternatives":["0.1%","0.3%"],"rationale":"recent metformin-background studies suggest 0.1–0.3% placebo improvement","urgency":"required for any sample-size finalization"},
+  {"section":"design","decision":"primary test framework","recommended_default":"MCP-Mod dose-response","alternatives":["hierarchical pairwise vs placebo","Williams trend test"],"rationale":"MCP-Mod is regulatory-accepted and efficient for dose-finding","urgency":"protocol finalization"}
+]
+```
+
+### Example 2 — Phase 1 first-in-human, healthy volunteers
+
+**Inputs:**
+- `indication`: "healthy adult volunteers aged 18–55"
+- `intervention`: "investigational monoclonal antibody, single ascending dose, intravenous infusion"
+- `phase`: phase_1
+- `regulatory_context`: fda_ind
+
+**Output protocol_skeleton (excerpt):**
+
+> **Design** — Randomized, double-blind, placebo-controlled, single ascending dose. Sentinel dosing at each dose level: two participants randomized 1:1 to [IP] or placebo dosed first, with at least a 48-hour safety review prior to dosing the remainder of the cohort. Subsequent cohorts at pre-specified ascending dose levels, with the safety review committee approval required between cohorts.
+>
+> **Dose escalation rules** — Standard 3+3 unsuitable for healthy volunteers; recommended adaptive scheme based on observed adverse-event grade per CTCAE [VERSION] with halt criteria. [Open question: precise stopping-rule thresholds — sponsor and SRC decision; provisional defaults in protocol appendix.]
+>
+> **Statistical considerations** — Descriptive; no formal hypothesis testing. Sample size driven by safety-detection probability at the maximum tolerated dose. Cohort size of 8 (6 active : 2 placebo) provides approximately 60% probability of observing at least one event with true incidence 12%; flag for sponsor confirmation against the IB risk profile.
+
+## Limitations
+
+- **Skeleton, not a finished protocol.** Placeholder language must be replaced by sponsor team. Many sections require specific clinical, regulatory, or operational expertise that the skill cannot supply.
+- **No regulatory submission readiness.** A protocol that has not been reviewed by the sponsor's regulatory, clinical, and medical-safety teams is not submission-ready. The skill produces a starting point, not a finished document.
+- **Effect-size assumptions are not invented.** The skill flags every numeric assumption (effect size, variability, dropout, response rate) as a sponsor decision. If the user pushes for a default value, the skill provides a plausible range with explicit "confirm against your IB / prior trials / literature" caveats — but the user remains responsible.
+- **Indication-specific endpoint norms.** Each therapeutic area has accepted primary endpoints (PFS / OS / ORR in oncology, HbA1c in T2D, ACR-N / DAS28 in RA, MADRS / HAM-D in depression, ARR in MS, etc.) and instrument-version expectations. The skill suggests but does not finalize these; therapeutic-area expert review is essential.
+- **Pediatric, rare-disease, and oncology subtypes** have additional structural needs (pediatric investigation plan, master-protocol structures, RECIST-aligned endpoint assessment, central radiology review) that the skill flags but cannot resolve.
+- **Regulatory pathway specificity.** FDA, EMA, MHRA, PMDA, and country-specific regimes have distinct expectations on protocol structure, safety reporting, and registry disclosure. The skill provides a multi-pathway baseline; jurisdictional fine-tuning is owned by regulatory affairs.
+- **Device and combination products** have additional structure under 21 CFR 812, EU MDR, and ISO 14155 that the skill notes but does not implement fully.
+- **Vendor selection and operational feasibility** (CRO scope, central lab, IRT, EDC vendor) are flagged as cross-references but not designed by this skill.
+- **The skill is not a SPIRIT auditor.** The SPIRIT 2025 checklist requires item-by-item compliance; the skill aligns with SPIRIT's structure but a formal SPIRIT compliance review is a separate pass.
+
+## Sources reviewed
+
+The methodology synthesis here is informed by reviewing permissively-licensed open-source clinical-research repositories on GitHub plus public regulatory and methodology references. **Source-thinness disclosure:** this niche is genuinely sparse on permissively-licensed GitHub content — most well-regarded clinical-trial methodology tooling ships under GPL-2, GPL-3, LGPL-3, or CC-BY-NC-SA terms (which were rejected). The accepted source set therefore leans on the pharmaverse Apache-2.0 ecosystem (which addresses the analysis-dataset and SDTM-mapping side of trial execution rather than protocol authoring per se) plus public statutory and methodology references. Sub-threshold (< 100 stars) repositories were retained where they uniquely illuminate operational structure; they are disclosed below.
+
+- https://github.com/pharmaverse/admiral (Apache-2.0, ~298 stars)
+- https://github.com/pharmaverse/sdtm.oak (Apache-2.0, ~72 stars; sub-threshold but informs end-state SDTM mapping for the data-management section)
+- https://github.com/pharmaverse/pharmaversesdtm (Apache-2.0, ~33 stars; sub-threshold; SDTM test-data structure)
+- https://github.com/atorus-research/xportr (MIT, ~52 stars; sub-threshold; CDISC-compliant export structure)
+- https://github.com/fastdatascience/clinical_trial_risk (MIT, ~12 stars; sub-threshold; informed the "open-questions surfacing" pattern by inverting a protocol-risk-scoring posture)
+- https://www.spirit-statement.org/ (SPIRIT statement public guidance)
+- https://database.ich.org/sites/default/files/E9_Guideline.pdf (ICH E9 — Statistical Principles for Clinical Trials, public regulatory guideline)
+- https://www.ema.europa.eu/en/ich-e9-statistical-principles-clinical-trials-scientific-guideline (EMA guidance on E9 and the E9(R1) estimand addendum)

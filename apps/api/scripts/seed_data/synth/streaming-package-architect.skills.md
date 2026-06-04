@@ -1,0 +1,195 @@
+---
+id: skillsgit-curated/streaming-package-architect
+version: 1.0.0
+name: Streaming Package Architect
+description: Package an encoded rendition ladder for HLS, DASH, or unified CMAF delivery — pick segment shapes, ad markers, DRM scaffolding, and caption/audio integration.
+authors:
+  - name: skillsgit Curated
+    handle: skillsgit-curated
+    role: author
+category: creative
+tags: [niche:video-encoding-delivery, hls, dash, cmaf, fmp4, drm, scte-35, packaging]
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6, gpt-4o]
+  min_context_tokens: 32000
+  estimated_tokens_per_invocation: 9000
+trigger_keywords:
+  - streaming package
+  - hls dash
+  - cmaf packaging
+  - fmp4 segment
+  - manifest design
+  - segment duration
+  - scte-35 markers
+  - drm scaffolding
+  - common encryption
+  - multi-track audio
+  - subtitle track
+  - low latency hls
+example_invocations:
+  - "Package this ABR ladder for HLS and DASH from the same fMP4 segments."
+  - "Design segment shape and IDR cadence for a live LL-HLS workflow."
+  - "Plan a CMAF unified manifest with DRM placeholders and SCTE-35 ad markers."
+  - "Wire captions, audio descriptions, and multi-language audio into the manifest."
+inputs:
+  - name: ladder
+    type: text
+    required: true
+    description: The encoding ladder being packaged — resolutions, bitrates, codecs, frame rates, GOP cadence, audio rungs.
+  - name: delivery_mode
+    type: choice
+    required: true
+    description: Mode of delivery for which the package is being built.
+    choices: [VOD, live, low-latency-live, hybrid]
+  - name: client_targets
+    type: text
+    required: true
+    description: Player and device families that must play the package — native iOS/tvOS, Android ExoPlayer, web HLS.js, web Shaka Player, smart-TV apps, custom players.
+  - name: feature_needs
+    type: text
+    required: false
+    description: Required features beyond playback — server-side ad insertion (SSAI), client-side ad insertion (CSAI), DRM, multiple audio languages, caption tracks, trick play, chapters.
+outputs:
+  - name: package_design
+    type: markdown
+    description: A description of the segment shape, container format, manifest structure, and the trade-offs being made.
+  - name: manifest_outline
+    type: markdown
+    description: An annotated outline of the HLS playlist and/or DASH MPD with the tags and attributes that matter for the chosen feature set.
+  - name: integration_checklist
+    type: markdown
+    description: Concrete steps to wire encoder output, packager, captions, DRM provider, and CDN into a working pipeline.
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Initial release.
+---
+
+## When to use
+
+Invoke this skill when an agent is asked to take an encoded set of renditions and produce the streaming package — the segmented media files plus the manifests — that players consume. Common framings:
+
+- "We have the encodes; now design the HLS and DASH outputs."
+- "Should we use TS or fMP4 segments? CMAF for both protocols?"
+- "Design a low-latency-HLS configuration with partial segments."
+- "Wire captions, audio descriptions, and DRM placeholders into the manifest."
+- "Plan SCTE-35 ad markers for a server-side ad insertion workflow."
+
+Out of scope: choosing which renditions to encode (use the encoding-ladder-designer skill), authoring caption content (use the captions-and-accessibility-deliverable-pipeline skill), and the live ingest topology (use the live-streaming-stack-architect skill). Do not use this skill to negotiate DRM vendor contracts or to author player code.
+
+This skill is vendor-neutral about packagers and DRM key servers. It assumes the operator can run an open-source packager (license tags collected in `## Sources reviewed`) or an equivalent commercial one. It does not endorse a specific DRM provider.
+
+## How to apply
+
+Run the procedure in order. Skip a step only when the inputs do not call for it, and state the skip in the design output.
+
+1. Restate the input ladder. List every video rung (resolution, frame rate, codec, profile, bitrate, GOP duration in seconds and frames, scene-cut policy) and every audio rung (codec, channel layout, bitrate, language tag). Confirm that all rungs share aligned IDR placement and matching segment duration boundaries. If GOP cadence is inconsistent across rungs, flag the problem and recommend a re-encode pass — without aligned IDRs the package will not switch cleanly.
+
+2. Identify the delivery mode and its segment-duration sweet spot. VOD tolerates longer segments (6 to 10 seconds) which reduce overhead and improve compression. Live tolerates medium segments (2 to 6 seconds). Low-latency live needs short segments (1 to 2 seconds) plus partial-segment delivery (CMAF chunks of 200 to 500 ms). Hybrid catalogs commit to one number across the catalog for operational simplicity; pick the live number.
+
+3. Choose the container family. Two options remain in mainstream production:
+   - **fMP4 / CMAF**: ISO Base Media File Format fragments. Encrypts cleanly with Common Encryption (CENC). Supported by modern HLS (Apple devices iOS 10+, tvOS 10+, Safari 10+) and by DASH. Lets one set of segments serve both protocols. Industry default for new builds.
+   - **MPEG-TS**: Legacy HLS container. Required only if a population of devices in scope cannot decode fMP4 HLS. Cannot be reused for DASH. Doubles storage if both HLS-TS and DASH-fMP4 must coexist.
+
+   Recommend CMAF/fMP4 unless a known device population blocks it.
+
+4. Decide whether one set of segments serves both HLS and DASH. CMAF makes this possible: a single fMP4 segment is referenced from an HLS media playlist and from a DASH MPD. The win is halved storage and a single content invalidation surface on the CDN. The constraint is that segment shape (duration, fragmentation) must satisfy both protocols. Recommend a unified package unless a feature need (for example, MPEG-TS HLS for legacy devices) forces a split.
+
+5. Set the segment duration. The numbers above are starting points. Adjust for the GOP cadence: segment duration must be a multiple of GOP duration so every segment starts on an IDR. If the ladder uses 2-second GOPs and you want 6-second segments, that works; 5-second segments would not.
+
+6. Decide fragment shape inside the segment. For CMAF live and low-latency, segments contain multiple fragments (moof/mdat pairs) that can be delivered incrementally. For VOD, a single fragment per segment is simplest. Specify the fragment-per-segment count explicitly so the packager configuration is unambiguous.
+
+7. Author the HLS variant playlist. List every video rung as an `EXT-X-STREAM-INF` entry with BANDWIDTH, AVERAGE-BANDWIDTH, RESOLUTION, FRAME-RATE, CODECS (the precise four-character code matters: `avc1.640028`, `hvc1.2.4.L150.B0`, `av01.0.13M.10`). Reference the audio rendition groups by AUDIO=. Reference the subtitle rendition groups by SUBTITLES=. Reference the closed-caption groups by CLOSED-CAPTIONS=. List alternate audio in `EXT-X-MEDIA` entries grouped by GROUP-ID with DEFAULT, AUTOSELECT, LANGUAGE, and CHARACTERISTICS attributes.
+
+8. Author the DASH MPD. Use a multi-Period structure if ad breaks are time-bound; use a single Period otherwise. Inside the Period define AdaptationSets per content type (video, audio per language, text per language). Each Representation inside an AdaptationSet describes a rendition with id, bandwidth, codecs, width, height, frameRate. Use SegmentTemplate with `$Number$` (or `$Time$` for variable segment durations) so the MPD does not need to enumerate every segment URL. Include presentationTimeOffset where the source timeline does not start at zero.
+
+9. Decide on the manifest profile. For DASH, prefer `urn:mpeg:dash:profile:isoff-live:2011` for live and `urn:mpeg:dash:profile:isoff-on-demand:2011` for VOD. The on-demand profile uses SegmentBase with byte ranges into a single big MP4; the live profile uses SegmentTemplate over many small segments. CMAF dual-output favors the live profile for both VOD and live because the segments are the same shape.
+
+10. Plan low-latency where required. For LL-HLS, configure partial segments (CMAF chunks) under `EXT-X-PART` and advertise them in the playlist with `EXT-X-PART-INF:PART-TARGET`. Configure preload hints via `EXT-X-PRELOAD-HINT`. Configure rendition reports with `EXT-X-RENDITION-REPORT` so the player can switch low-latency rungs without round-tripping the manifest. For LL-DASH, advertise availabilityTimeOffset and use chunked transfer encoding from the origin. Aim for sub-3-second glass-to-glass when the upstream contribution feed and CDN allow it.
+
+11. Plan DRM scaffolding. Common Encryption (CENC) defines two protection schemes: cenc (CTR mode) and cbcs (CBC mode with patterning). For unified HLS+DASH, prefer cbcs because HLS sample-aes uses CBC; cenc requires separate HLS+DASH encryption paths. Specify a default key per content (or per Period) and reference the key in the manifest:
+    - HLS: `EXT-X-KEY` with METHOD=SAMPLE-AES, URI to the key delivery endpoint, IV, KEYFORMAT for each DRM system (FairPlay, Widevine, PlayReady).
+    - DASH: a ContentProtection element per DRM system with the system UUID, a default_KID, and a pssh box.
+    
+    Do not embed real keys in the manifest. The skill produces a key-acquisition placeholder; the operator wires it to a key server in production.
+
+12. Plan ad insertion. For SSAI, the manifest the player sees has ad content stitched in by the SSAI service; the origin manifest exposes ad-break markers but not ad content. Place SCTE-35 markers in the source segments and surface them in the manifest:
+    - HLS: `EXT-X-DATERANGE` with SCTE35-OUT and SCTE35-IN attributes carrying the base64 SCTE-35 payload.
+    - DASH: `EventStream` and `Event` elements with schemeIdUri set to a SCTE-35 URN.
+    
+    For CSAI, the player decides the ad call; the manifest only carries cue-out and cue-in signals.
+
+13. Wire audio renditions. List every audio language and variant (stereo, surround, audio description, dialog-enhanced). Tag each with the right LANGUAGE code (BCP 47), with CHARACTERISTICS where appropriate (`public.accessibility.describes-video` for audio description tracks), and with DEFAULT and AUTOSELECT flags. For multi-language catalogs, set DEFAULT=YES on the catalog's primary language and AUTOSELECT=YES on the rest so the player can pick a user-preference match.
+
+14. Wire subtitle renditions. Subtitle text is delivered as WebVTT segments (HLS) or as WebVTT/IMSC1 in fMP4 wrappers (DASH). For each subtitle track set GROUP-ID, NAME, LANGUAGE, CHARACTERISTICS (the SDH flag `public.accessibility.transcribes-spoken-dialog,public.accessibility.describes-music-and-sound` for subtitles for the deaf and hard of hearing), FORCED=YES only for forced narrative subtitles, and DEFAULT=NO for accessibility tracks unless the title's primary delivery is subtitled.
+
+15. Wire trick play. If the catalog supports scrubbing previews, generate an I-frame-only playlist (HLS `EXT-X-I-FRAME-STREAM-INF`) or an image-thumbnail AdaptationSet (DASH with mimeType="image/jpeg" tiles) at a chosen cadence (typically one image every two to ten seconds). Tag the source so the packager produces these alongside the playback ladder.
+
+16. Decide segment naming and CDN cacheability. Prefer URI shapes that include the rendition identifier and segment number (`/video/720p/1234.m4s`) so a CDN cache key is stable and an invalidation can target a single rendition. Avoid query strings that vary per request. Set Cache-Control on segments to a long max-age (segments are immutable) and on manifests to a short max-age (manifests change for live and rotate for VOD).
+
+17. Plan the player capability matrix. Some players require quirks: native iOS HLS needs `EXT-X-INDEPENDENT-SEGMENTS`; HLS.js benefits from `EXT-X-START` to seed live playback; some Smart TVs choke on CODECS strings with the wrong four-character form; older Android ExoPlayer versions need specific `EXT-X-MEDIA` GROUP-ID conventions. Surface known quirks in the design so the implementation does not surprise the operator.
+
+18. Plan the origin and the manifest update cycle. For VOD the manifest is static and a single object on the CDN. For live the manifest is mutable: define how often it rolls, how many segments are referenced (a rolling window of 3 to 6 segments for live, with a DVR window of minutes to hours for time-shift), and what `EXT-X-ENDLIST` semantics signal end of event. Document the time-source the packager uses for live program time so multiple packagers in a redundant setup produce identical manifests.
+
+19. Build the integration checklist. Translate every decision above into a wiring step: encoder hand-off format, packager input convention, key server endpoint, subtitle inputs, CDN configuration, monitoring on segment continuity and manifest freshness. Include a smoke-test list: native iOS plays the HLS manifest, web HLS.js plays it, Shaka plays the DASH manifest, every audio and subtitle track is selectable, the SCTE-35 markers appear in the player's metadata stream, the DRM placeholder resolves to a 401 when the key server has no entitlement.
+
+20. Plan the manifest update strategy for VOD republishes. A title may be re-encoded with a richer ladder, re-mastered audio, or new caption tracks long after first publish. The package design must specify whether re-publish replaces the original manifest (and invalidates the CDN), publishes under a new manifest version (and lets existing playback sessions continue), or both. State the rules so an editor knows which path to take.
+
+21. Plan the publication audit. Before a manifest goes live, the package must satisfy a checklist: every rendition listed in the playlist resolves at the origin; every codec string is precise and accurate; every audio and subtitle track listed is fetchable; the DRM placeholders resolve to the configured key server; the SCTE-35 markers are well-formed; the manifest validates against an HLS or DASH validator; the manifest renders on at least one representative player from each target device family. Block publish on any failure.
+
+22. State known gaps. Call out features that the design defers (for example, "audio description tracks listed but content not provided yet", "DRM scheme cbcs assumed; FairPlay-only routing is not yet covered"). Without an explicit gap list, the design will be mis-read as complete.
+
+23. Note the skill's dependencies. The package consumes the rendition ladder from the encoding-ladder-designer skill and the caption deliverables from the captions-and-accessibility-deliverable-pipeline skill. If either is missing, the package design has placeholders; it is not deliverable. Surface those handoffs so downstream owners can be sequenced.
+
+## Inputs
+
+- Ladder: rendition list with codecs, GOP cadence, audio rungs.
+- Delivery mode: VOD, live, low-latency live, hybrid.
+- Client targets: player and device families.
+- Feature needs: ads, DRM, languages, captions, trick play, chapters.
+
+## Outputs
+
+- Package design narrative covering container, segment shape, manifest profile, dual-output decisions.
+- Manifest outlines for HLS playlists and DASH MPD with the tags that matter.
+- Integration checklist wiring encoder, packager, key server, captions provider, CDN.
+
+## Anti-patterns
+
+- **Mismatched IDR cadence across the ladder.** If GOPs do not align, the player cannot switch cleanly between renditions and the package design quietly fails in production.
+- **Embedding key material in the manifest.** The manifest references a key delivery endpoint; it does not carry the key. Embedding a key, even in a placeholder, sets a habit that leaks real keys eventually.
+- **Mixed-encryption HLS+DASH.** Using cenc for DASH and sample-aes for HLS forces double encryption of the same content. cbcs unifies the schemes; prefer it.
+- **Manifest TTLs as long as segment TTLs.** Long-cached manifests serve stale rendition lists and break live behavior. Manifests are mutable; segments are immutable; cache them differently.
+- **Hand-rolled HLS playlists.** Strings concatenated by ad-hoc scripts will drift away from the spec and break on at least one player. Use a packager.
+- **No publication audit.** A manifest that has not been played end-to-end on every target device class is a manifest that will break in production.
+
+## Examples
+
+**Premium VOD catalog, unified HLS+DASH, Widevine/PlayReady/FairPlay.** Recommend CMAF fMP4, 6-second segments, closed GOP at 2 seconds, cbcs encryption with a per-title key. HLS playlist references the same fMP4 segments as the DASH MPD via SegmentTemplate. Audio rendition group `aud-main` with stereo AAC-LC and a parallel `aud-ad` group for audio description. Subtitle group `sub` with WebVTT in fMP4. ContentProtection for cenc/cbcs system UUIDs and a pssh placeholder. CDN invalidation on per-rendition paths.
+
+**24×7 live channel, low-latency HLS plus DASH, SSAI.** Recommend CMAF, 2-second segments with 500 ms partial chunks, EXT-X-PART configuration, EXT-X-PRELOAD-HINT for the next part, EXT-X-RENDITION-REPORT for fast rendition switching. SCTE-35 markers via EXT-X-DATERANGE for ad-break in/out. Rolling DVR window of 30 minutes. Origin in active-active with shared program time so both packagers produce byte-identical manifests.
+
+**Educational on-demand library, no DRM, multi-language, accessibility-first.** Recommend CMAF fMP4, 6-second segments, no encryption, audio rendition group per language, subtitle rendition group per language with SDH characteristics, audio description rendition group flagged with `describes-video`. Trick play with I-frame-only HLS playlist and thumbnail tiles. CDN with public caching since DRM is absent.
+
+## Limitations
+
+- Real DRM integration requires a contracted key server; this skill produces placeholders only.
+- Manifest tag and attribute conventions evolve as the HLS and DASH specs evolve; verify the targeted client versions support the features used.
+- Low-latency live performance is dominated by upstream contribution, packager throughput, CDN edge support for chunked transfer, and player buffering — the manifest is only part of the budget.
+- The skill does not generate working manifests, only outlines and decisions; the operator must run a packager to produce the actual playlists.
+- Multi-DRM "any device, any DRM" is a license and integration project, not a manifest exercise; the design only scaffolds it.
+
+## Sources reviewed
+
+- https://github.com/shaka-project/shaka-packager — Shaka Packager, DASH and HLS packaging and CENC encryption (BSD-3-Clause).
+- https://github.com/axiomatic-systems/Bento4 — Bento4 MP4 / DASH / HLS / CMAF SDK and tools (GPL-2.0 with commercial alternative).
+- https://github.com/gpac/gpac — GPAC framework including LL-HLS and DASH packaging (LGPL-2.1 / commercial alternative).
+- https://github.com/AirenSoft/OvenMediaEngine — sub-second LL-HLS and LL-DASH origin (AGPL-3.0; reviewed for methodology, no code reused).
+- https://github.com/video-dev/hls.js — HLS.js web player; informs HLS manifest authoring quirks (Apache-2.0).
+- https://github.com/w3c/webvtt — WebVTT specification source (W3C Software and Document License).
+- https://github.com/thijsl/ott-resources — curated OTT engineering notes including low-latency references (no declared license; reviewed for methodology, no content reused).

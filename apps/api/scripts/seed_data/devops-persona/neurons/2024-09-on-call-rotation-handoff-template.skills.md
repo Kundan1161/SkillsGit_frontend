@@ -1,0 +1,139 @@
+---
+id: jane-devops-demo/2024-09-on-call-rotation-handoff-template
+version: 1.0.0
+name: 2024-09 On-call handoff template — 25-min sync to 4-line note
+description: "[sample data] Replaced a daily on-call handoff sync with a structured template; recovered ~2.5 hours per engineer per rotation while losing zero context."
+authors:
+  - name: Jane Devops (sample)
+    handle: jane-devops-demo
+    role: author
+category: personas
+tags:
+  - sample-data
+  - on-call
+  - process
+  - handoff
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models:
+    - claude-opus-4-7
+trigger_keywords:
+  - on-call handoff
+  - rotation
+  - on-call process
+example_invocations:
+  - "Our on-call handoff sync runs 30 minutes and we still miss context. How would you redesign it?"
+kind: memory_neuron
+parent_occupation_id: skillsgit-curated/ai-devops-engineer
+links:
+  - target: base/ops-incident-commander
+    relation: see-also
+  - target: base/ops-runbook-generator
+    relation: applies
+  - target: base/alert-policy-architect
+    relation: see-also
+neuron:
+  situation: |
+    Our 5-engineer SRE rotation ran a daily 9am handoff sync. Average
+    duration crept from 15 minutes (originally) to 25 minutes over
+    six months, and post-mortems showed that incidents within 24 hours
+    of a handoff still missed context that had been verbally shared.
+  decision: |
+    Killed the standing sync. Replaced it with a 4-line written handoff
+    template posted in Slack by the off-going on-call between 8:45 and
+    9:00, plus an optional 5-minute walk-up sync only if the in-going
+    on-call replied with a question.
+  outcome: |
+    Recovered ~2.5 hours per engineer per week-long rotation. Optional
+    sync triggered ~1.5 times per rotation on average. Handoff-related
+    post-mortem callouts dropped from 4 in the prior quarter to 0 in
+    the following quarter. One downside: more written context to read,
+    which we judged a fair trade.
+  recorded_at: "2024-09-15"
+  confidence: 0.85
+---
+
+# 2024-09 On-call handoff template — collapsing a 25-minute meeting to a 4-line note
+
+> SAMPLE DATA — this neuron is part of the seeded `@jane-devops-demo`
+> persona shipped alongside the Cycle-1 demo. Real persona neurons are
+> published by named DevOps practitioners and replace this content.
+
+## When to use
+Apply this when your on-call rotation has a standing daily sync that
+has grown past 15 minutes, OR when post-mortems repeatedly cite
+"context lost at handoff" as a contributing factor. The pattern works
+best in 4-8 person rotations where engineers are senior enough to
+trust each other's written notes.
+
+## How to apply
+1. Cancel the standing sync. Tell the rotation it's being replaced
+   for a 6-week trial and you'll measure.
+2. Define a 4-line template (last 24h pages, open threads,
+   deploy/flag changes, watch this) and pin it in the on-call
+   Slack channel.
+3. Require an explicit reply from the in-going on-call within 2
+   hours — either questions in-thread or "claimed, no questions."
+4. Track handoff-cited context loss in post-mortems for the trial
+   period. If non-zero, hold the optional sync as a default once
+   per week instead of daily.
+
+## What happened
+The rotation was 5 engineers, week-long shifts, with a 9am daily
+sync between the off-going and in-going on-call. Originally 15
+minutes; six months in it was running 25-30 minutes because we'd
+layered on "status of the noisy alerts," "anything I should know
+about deploys today," and "what's the customer escalation list look
+like." We were also stuck in our own timezone — late-night incidents
+on the West Coast meant the off-going was sometimes presenting at 6am
+their local time.
+
+Two signals pushed us to change. First, a post-mortem on a Wednesday
+incident found that the engineer who took the page hadn't been told
+about a feature flag flip that had happened during a Tuesday
+afternoon spike — the off-going Tuesday had mentioned it verbally in
+Tuesday's 9am sync but it never made it into the Wednesday slot.
+Second, our newest hire candidly said the sync was the most stressful
+part of her week because she felt she had to "perform" awareness.
+
+We replaced the sync with a Slack-posted template:
+
+```
+[on-call handoff Mon -> Tue]
+last 24h pages: <count + 1-line each>
+open threads: <issue link + 1-line state>
+deploy/flag changes today: <none | who + what + when>
+watch this: <thing the next person should glance at>
+```
+
+Rule: in-going on-call replies in-thread within 2 hours, either with
+questions OR with the literal text "claimed, no questions." Sync is
+optional and only triggered by an in-thread question.
+
+After 6 weeks: average 1.5 syncs per rotation (8 engineers had it
+trigger zero times, 2 had it trigger once, the most-active rotation
+had it trigger 4 times during a tricky migration week). Handoff-cited
+context loss in post-mortems went to zero.
+
+The downside we accepted: the in-going on-call now reads more written
+text. Engineers reported this as preferable because they could re-read
+the handoff at any point during their shift, where the verbal sync
+notes had to be reconstructed from memory.
+
+## Lessons
+- A standing daily meeting is the wrong shape for asynchronous
+  context handoff. Written-first with optional sync inverts the
+  default and only spends synchronous time when there's real signal.
+- The "claimed, no questions" reply is load-bearing. Without it
+  there's no way to distinguish "the in-going read it and is fine"
+  from "the in-going hasn't seen Slack yet."
+- The template's four lines map exactly to the four things that
+  caused context loss in post-mortems. Don't add a fifth bucket
+  unless a post-mortem demands it; bucket creep undoes the
+  compression.
+- Time-zone-friendly is a feature. The off-going writes when they're
+  finished; the in-going reads when they're up. Nobody gets paged at
+  6am local just to talk.

@@ -1,0 +1,74 @@
+# Layer-C demo prompts — Wave 4, T-13 seed.
+#
+# Cross-refs:
+#   - team/05-mvp-plan.md §T-13
+#   - team/decisions.md ADR-014 (CLI demo), ADR-018 (reference loader, not runtime)
+#   - team/dev-diary-devops-persona-wave4.md §sample neurons covered
+#
+# 5 demo prompts the Layer-C demo CLI can run against the
+# AI DevOps Engineer occupation + @jane-devops-demo/incident-veteran
+# persona overlay. Each prompt is a realistic DevOps question that
+# matches the coverage of the 7 sample neurons + the 30 curated
+# methodology skills.
+#
+# Usage:
+#   uv run python -m scripts.demo_devops_agent --prompt-id flaky-ci
+#
+# Each prompt's `id` is a short kebab-case slug. The CLI's
+# `--prompt-id` flag mutually-excludes `--prompt` so a reviewer can
+# round-trip through the demo without typing a long prompt.
+
+prompts:
+  - id: flaky-ci
+    text: "my CI just started failing intermittently after an upgrade"
+    expected_neurons:
+      - personas/jane-devops-demo/incident-veteran/neurons/2024-08-flaky-tests-after-redis-upgrade.md
+    notes: |
+      Covers the canonical "intermittent CI failure after a dependency
+      bump" scenario the 2024-08 neuron records (Redis 7.0 → 7.2
+      WAIT-semantics regression). The agent should reach for the
+      pipeline-architect + gha-workflow-optimizer base skills plus the
+      neuron's pin-and-bisect-then-rewrite-the-helper pattern.
+
+  - id: cost-spike
+    text: "AWS bill is up 40% this month, no obvious deploy that caused it"
+    expected_neurons:
+      - personas/jane-devops-demo/incident-veteran/neurons/2024-11-cost-spike-egress-debug.md
+    notes: |
+      Mirrors the 2024-11 neuron (38% spike in 9 days traced to a
+      typo'd backup-bucket name in a Lambda retry loop). The agent
+      should reach for cloud-cost-audit + cloud-cost-alert-designer
+      base skills and the neuron's VPC-Flow-Logs + Athena workflow.
+
+  - id: blue-green-rollback
+    text: "blue/green deploy failed mid-rollout — what's the runbook?"
+    expected_neurons:
+      - personas/jane-devops-demo/incident-veteran/neurons/2024-10-blue-green-rollback-at-3am.md
+    notes: |
+      Tests the rollback-runbook recall path. The 2024-10 neuron
+      records a rollback runbook that was itself the bug (shared
+      connection-pool warmer assumed warm cache state). The agent
+      should surface the "pause the runbook, look at telemetry"
+      intervention from the neuron.
+
+  - id: secret-rotation
+    text: "we need to rotate our database secret with zero downtime"
+    expected_neurons:
+      - personas/jane-devops-demo/incident-veteran/neurons/2025-01-secret-rotation-zero-downtime.md
+    notes: |
+      The 2025-01 neuron records the two-credential overlap-window
+      pattern for rotating a shared Postgres password across 14
+      services. Pairs with the base secrets-architecture-designer +
+      workload-identity-architect methodology skills.
+
+  - id: alert-fatigue
+    text: "on-call is drowning in pages — how do we cut noise without missing real incidents?"
+    expected_neurons:
+      - personas/jane-devops-demo/incident-veteran/neurons/2025-03-paging-policy-rewrite.md
+      - personas/jane-devops-demo/incident-veteran/neurons/2025-02-dashboard-cardinality-cleanup.md
+    notes: |
+      Two neurons apply: 2025-03 (paging-policy rewrite — gate on
+      user-impact OR irreversibility; 38 → 14 pages, 24% → 79%
+      precision) and 2025-02 (dashboard cardinality cleanup —
+      collateral signal-quality improvement). Pairs with the base
+      alert-policy-architect + slo-designer methodology skills.

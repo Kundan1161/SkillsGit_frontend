@@ -1,0 +1,241 @@
+<mxfile host="app.diagrams.net" agent="skillsgit-arch" version="24.7.17" type="device">
+  <diagram name="request-pipeline" id="request-pipeline-skillsgit">
+    <mxGraphModel dx="1422" dy="827" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2280" pageHeight="1884" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="title" value="End-to-end request pipeline — example GET /v1/catalog/skills?q=devops  (mirrors the middleware chain installed in apps/api/src/main.py)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=none;fontSize=18;fontStyle=1;align=left;" vertex="1" parent="1">
+          <mxGeometry x="40" y="20" width="922" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="p-browser" value="Buyer Browser" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;align=center;" vertex="1" parent="1">
+          <mxGeometry x="40" y="90" width="180" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="lifeline-browser" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#999999;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="129" y="150" width="2" height="1694" as="geometry"/>
+        </mxCell>
+        <mxCell id="p-cors" value="CORSMiddleware" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontStyle=1;align=center;" vertex="1" parent="1">
+          <mxGeometry x="260" y="90" width="180" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="lifeline-cors" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#999999;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="349" y="150" width="2" height="1694" as="geometry"/>
+        </mxCell>
+        <mxCell id="p-trace" value="TraceIdMiddleware" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontStyle=1;align=center;" vertex="1" parent="1">
+          <mxGeometry x="480" y="90" width="180" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="lifeline-trace" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#999999;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="569" y="150" width="2" height="1694" as="geometry"/>
+        </mxCell>
+        <mxCell id="p-rate" value="slowapi Limiter" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontStyle=1;align=center;" vertex="1" parent="1">
+          <mxGeometry x="700" y="90" width="180" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="lifeline-rate" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#999999;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="789" y="150" width="2" height="1694" as="geometry"/>
+        </mxCell>
+        <mxCell id="p-router" value="catalog.router" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1;align=center;" vertex="1" parent="1">
+          <mxGeometry x="920" y="90" width="180" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="lifeline-router" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#999999;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="1009" y="150" width="2" height="1694" as="geometry"/>
+        </mxCell>
+        <mxCell id="p-service" value="catalog.service" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1;align=center;" vertex="1" parent="1">
+          <mxGeometry x="1140" y="90" width="180" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="lifeline-service" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#999999;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="1229" y="150" width="2" height="1694" as="geometry"/>
+        </mxCell>
+        <mxCell id="p-orm" value="SQLAlchemy 2.x&#10;async session" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ede9fe;strokeColor=#5b21b6;fontStyle=1;align=center;" vertex="1" parent="1">
+          <mxGeometry x="1360" y="90" width="180" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="lifeline-orm" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#999999;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="1449" y="150" width="2" height="1694" as="geometry"/>
+        </mxCell>
+        <mxCell id="p-pg" value="Postgres 16" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ede9fe;strokeColor=#5b21b6;fontStyle=1;align=center;" vertex="1" parent="1">
+          <mxGeometry x="1580" y="90" width="180" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="lifeline-pg" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#999999;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="1669" y="150" width="2" height="1694" as="geometry"/>
+        </mxCell>
+        <mxCell id="p-log" value="structlog JSON" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#999999;fontStyle=1;align=center;" vertex="1" parent="1">
+          <mxGeometry x="1800" y="90" width="180" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="lifeline-log" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#999999;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="1889" y="150" width="2" height="1694" as="geometry"/>
+        </mxCell>
+        <mxCell id="p-err" value="install_exception_handlers" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fee2e2;strokeColor=#b91c1c;fontStyle=1;align=center;" vertex="1" parent="1">
+          <mxGeometry x="2020" y="90" width="180" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="lifeline-err" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#999999;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="2109" y="150" width="2" height="1694" as="geometry"/>
+        </mxCell>
+        <mxCell id="grp-1" value="alt: over budget" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fee2e2;strokeColor=#b91c1c;opacity=30;fontStyle=2;align=left;verticalAlign=top;spacingLeft=8;spacingTop=2;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="30" y="880" width="2240" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="grp-2" value="else: under budget" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;opacity=30;fontStyle=2;align=left;verticalAlign=top;spacingLeft=8;spacingTop=2;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="30" y="1042" width="2240" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="note-1" value="GET /v1/catalog/skills" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="912" y="200" width="196" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="note-2" value="list_skills(filters)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1132" y="260" width="196" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="note-3" value="tables: skills, skill_versions, categories, reviews_agg" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1572" y="320" width="196" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="note-4" value="every log line carries trace_id (via contextvar)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1792" y="380" width="196" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="note-5" value="handles AppError, HTTPException, RequestValidationError, Exception" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="2012" y="440" width="196" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="msg-1" value="1. GET /v1/catalog/skills?q=devops" style="endArrow=classic;html=1;rounded=0;strokeColor=#6c8ebf;" edge="1" parent="1" source="p-browser" target="p-cors">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="130" y="500" as="sourcePoint"/>
+            <mxPoint x="350" y="500" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="note-6" value="Origin: http://localhost:3000" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="32" y="540" width="416" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="msg-2" value="2. pass (allow_origins from settings.CORS_ORIGINS)" style="endArrow=classic;html=1;rounded=0;strokeColor=#6c8ebf;" edge="1" parent="1" source="p-cors" target="p-trace">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="350" y="600" as="sourcePoint"/>
+            <mxPoint x="570" y="600" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-3" value="3. incoming X-Trace-Id or new uuid4().hex" style="endArrow=classic;html=1;rounded=0;strokeColor=#6c8ebf;curved=1;" edge="1" parent="1" source="p-trace" target="p-trace">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="570" y="640" as="sourcePoint"/>
+            <mxPoint x="570" y="670" as="targetPoint"/>
+            <Array as="points">
+              <mxPoint x="690" y="640"/>
+              <mxPoint x="690" y="670"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="note-7" value="set _trace_id_var (contextvar)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="472" y="680" width="196" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="msg-4" value="4. forward" style="endArrow=classic;html=1;rounded=0;strokeColor=#6c8ebf;" edge="1" parent="1" source="p-trace" target="p-rate">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="570" y="740" as="sourcePoint"/>
+            <mxPoint x="790" y="740" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-5" value="5. key = user.id if request.state.user else remote IP" style="endArrow=classic;html=1;rounded=0;strokeColor=#6c8ebf;curved=1;" edge="1" parent="1" source="p-rate" target="p-rate">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="790" y="780" as="sourcePoint"/>
+            <mxPoint x="790" y="810" as="targetPoint"/>
+            <Array as="points">
+              <mxPoint x="910" y="780"/>
+              <mxPoint x="910" y="810"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="note-8" value="budget = LIMIT_DEFAULT = 120/min" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="692" y="820" width="196" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="msg-6" value="6. raise RateLimitExceeded" style="endArrow=classic;html=1;rounded=0;dashed=1;strokeColor=#999999;" edge="1" parent="1" source="p-rate" target="p-err">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="790" y="902" as="sourcePoint"/>
+            <mxPoint x="2110" y="902" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-7" value="7. 429 ErrorResponse" style="endArrow=classic;html=1;rounded=0;dashed=1;strokeColor=#999999;" edge="1" parent="1" source="p-err" target="p-browser">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="2110" y="942" as="sourcePoint"/>
+            <mxPoint x="130" y="942" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="note-9" value="error.code = request.rate_limited, trace_id" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="32" y="982" width="2176" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="msg-8" value="8. dispatch" style="endArrow=classic;html=1;rounded=0;strokeColor=#6c8ebf;" edge="1" parent="1" source="p-rate" target="p-router">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="790" y="1064" as="sourcePoint"/>
+            <mxPoint x="1010" y="1064" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-9" value="9. parse Query() params -&gt; CatalogFilters" style="endArrow=classic;html=1;rounded=0;strokeColor=#6c8ebf;curved=1;" edge="1" parent="1" source="p-router" target="p-router">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1010" y="1104" as="sourcePoint"/>
+            <mxPoint x="1010" y="1134" as="targetPoint"/>
+            <Array as="points">
+              <mxPoint x="1130" y="1104"/>
+              <mxPoint x="1130" y="1134"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="note-10" value="q, categories, sort, limit, cursor, ..." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="912" y="1144" width="196" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="msg-10" value="10. list_skills(session, filters)" style="endArrow=classic;html=1;rounded=0;strokeColor=#6c8ebf;" edge="1" parent="1" source="p-router" target="p-service">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1010" y="1204" as="sourcePoint"/>
+            <mxPoint x="1230" y="1204" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-11" value="11. select(Skill).where(...).order_by(...).limit(N+1)" style="endArrow=classic;html=1;rounded=0;strokeColor=#6c8ebf;" edge="1" parent="1" source="p-service" target="p-orm">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1230" y="1244" as="sourcePoint"/>
+            <mxPoint x="1450" y="1244" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-12" value="12. SELECT ... FROM skills JOIN ..." style="endArrow=classic;html=1;rounded=0;strokeColor=#6c8ebf;" edge="1" parent="1" source="p-orm" target="p-pg">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1450" y="1284" as="sourcePoint"/>
+            <mxPoint x="1670" y="1284" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-13" value="13. rows[]" style="endArrow=classic;html=1;rounded=0;dashed=1;strokeColor=#999999;" edge="1" parent="1" source="p-pg" target="p-orm">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1670" y="1324" as="sourcePoint"/>
+            <mxPoint x="1450" y="1324" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-14" value="14. list[Skill]" style="endArrow=classic;html=1;rounded=0;dashed=1;strokeColor=#999999;" edge="1" parent="1" source="p-orm" target="p-service">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1450" y="1364" as="sourcePoint"/>
+            <mxPoint x="1230" y="1364" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-15" value="15. (items, PageInfo)" style="endArrow=classic;html=1;rounded=0;dashed=1;strokeColor=#999999;" edge="1" parent="1" source="p-service" target="p-router">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1230" y="1404" as="sourcePoint"/>
+            <mxPoint x="1010" y="1404" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-16" value="16. SkillCardPage Pydantic model" style="endArrow=classic;html=1;rounded=0;dashed=1;strokeColor=#999999;" edge="1" parent="1" source="p-router" target="p-trace">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1010" y="1444" as="sourcePoint"/>
+            <mxPoint x="570" y="1444" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="note-11" value="FastAPI serialises to JSON" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="472" y="1484" width="636" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="msg-17" value="17. response + X-Trace-Id header" style="endArrow=classic;html=1;rounded=0;dashed=1;strokeColor=#999999;" edge="1" parent="1" source="p-trace" target="p-cors">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="570" y="1544" as="sourcePoint"/>
+            <mxPoint x="350" y="1544" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-18" value="18. 200 application/json" style="endArrow=classic;html=1;rounded=0;dashed=1;strokeColor=#999999;" edge="1" parent="1" source="p-cors" target="p-browser">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="350" y="1584" as="sourcePoint"/>
+            <mxPoint x="130" y="1584" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="note-12" value="X-Trace-Id: hex" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="32" y="1624" width="416" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="note-13" value="async session committed only on mutations. List endpoints do not write." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1132" y="1684" width="636" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="note-14" value="AppError, HTTPException, RequestValidationError, and uncaught Exception all funnel through _render() and return ErrorResponse with error.code/message/details/trace_id/doc_url" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="2012" y="1744" width="196" height="50" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

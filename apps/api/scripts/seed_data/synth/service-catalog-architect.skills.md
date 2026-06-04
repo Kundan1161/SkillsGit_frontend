@@ -1,0 +1,261 @@
+---
+id: skillsgit-curated/service-catalog-architect
+version: 1.0.0
+name: Service Catalog Architect
+description: Design a service catalog entity model, ownership graph, tier classification, scorecards, and CI/CD plus observability integration that stays accurate without a full-time curator.
+authors:
+  - name: Wave-3 Platform Synth
+    handle: wave3-platform
+    role: author
+category: engineering
+tags:
+  - niche:platform-engineering
+  - service-catalog
+  - backstage
+  - ownership
+  - scorecards
+  - software-templates
+  - developer-portal
+license_type: free
+ai:
+  required_models:
+    - claude-opus-4-7
+    - claude-sonnet-4-6
+  compatible_models:
+    - gpt-4o
+    - gpt-4.1
+  min_context_tokens: 32000
+  estimated_tokens_per_invocation: 6800
+trigger_keywords:
+  - service catalog
+  - software catalog
+  - backstage catalog
+  - developer portal
+  - service ownership
+  - scorecards
+  - tier classification
+  - entity model
+  - catalog-info.yaml
+example_invocations:
+  - "Design our service catalog entity model on Backstage."
+  - "We need scorecards for production readiness. How do we structure them?"
+  - "Our catalog is stale within a month — how do we keep it accurate?"
+  - "How should we classify Tier 1 vs Tier 3 services?"
+inputs:
+  - name: portal_choice
+    type: text
+    required: true
+    description: Existing or chosen portal (Backstage, Port, internal, none) and any catalog already in use.
+  - name: estate_size
+    type: text
+    required: true
+    description: Approximate counts of services, libraries, teams, environments, and data assets.
+  - name: source_systems
+    type: text
+    required: false
+    description: Systems that can act as sources of truth (Git, K8s, cloud accounts, CMDB, on-call tool, secrets, SBOM).
+  - name: goals
+    type: text
+    required: false
+    description: Top reasons the catalog must exist (incident response, audit, scorecards, onboarding, cost).
+outputs:
+  - name: catalog_design
+    type: markdown
+    description: Entity model, ownership graph, tier criteria, scorecard set, ingestion plan, and freshness controls.
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Initial release.
+---
+
+# Service Catalog Architect
+
+## When to use
+
+Use this skill when an organization is designing, rescuing, or extending a **service catalog / software catalog** — the system of record for "what services we have, who owns them, where they run, and how healthy they are". This is one of the highest-leverage artifacts a platform team builds, and it is also the artifact most likely to rot if designed wrong.
+
+This skill is the **catalog blueprint** skill. It is independent of portal vendor (works for Backstage, Port, a homegrown portal, or pure-Git-of-YAML), though it leans on Backstage's well-documented model as a reference.
+
+Trigger on phrases like:
+
+- "service catalog" / "software catalog" / "system of record for services"
+- "Backstage `catalog-info.yaml`"
+- "entity model for services"
+- "service ownership"
+- "scorecards" / "production readiness checks"
+- "tier 1 / tier 2 / tier 3"
+- "the catalog is stale"
+
+Do **not** trigger when the question is about cloud-resource inventory (use CMDB skills) or end-user product catalogs. Do **not** trigger when the user is asking which portal product to buy — that's a procurement decision.
+
+## How to apply
+
+Walk the user through six design steps. Refuse to skip step 1; if the entity model is wrong, nothing else works.
+
+### 1. Define the entity model
+
+Borrow Backstage's vocabulary because it's the de-facto industry shape, even on non-Backstage portals. Recommend these core kinds:
+
+- **Component** — a unit of software people own (service, website, library, mobile app, ML model). Has type (`service`, `library`, `website`, `model`), lifecycle (`production`, `experimental`, `deprecated`), and owner.
+- **System** — a logical product or domain that groups components (e.g. "Checkout", "Search"). Maps to product/business org.
+- **Domain** — an even higher grouping (e.g. "Commerce", "Identity"). Optional below ~50 components.
+- **API** — a contract (OpenAPI, GraphQL schema, AsyncAPI). Components `providesApi` and `consumesApi`.
+- **Resource** — managed infrastructure (database, queue, bucket, ML feature store).
+- **Group** — a team. The atomic unit of ownership.
+- **User** — a human, linked to groups.
+
+Recommend **avoiding** Backstage's `Location` kind for human authoring; treat it as ingestion plumbing.
+
+Authoring rules to enforce:
+
+- **Every Component has exactly one `owner` group, never a user.** Users churn; groups outlive them.
+- **Every Component has a `system`.** Orphaned components are how catalogs go stale.
+- **Lifecycle is enumerated** (`production`, `experimental`, `deprecated`, `retired`) — not free text.
+- **`tags`** are bounded by a published taxonomy. Free-tag fields breed inconsistency.
+
+### 2. Pick one source of truth per fact
+
+The #1 reason catalogs rot is **multiple sources of truth**. Insist on one authoritative source per fact:
+
+| Fact                               | Best source of truth                          |
+| ---------------------------------- | --------------------------------------------- |
+| Service exists, owner, type        | `catalog-info.yaml` in service repo (Git)     |
+| Currently running in cluster X     | K8s annotations on Deployments (ingested)     |
+| On-call rotation                   | PagerDuty / Opsgenie (ingested)               |
+| API spec                           | Repo file referenced from `catalog-info.yaml` |
+| Dependencies on other services     | Service mesh + manual links in catalog-info   |
+| Compliance scope (PCI, HIPAA)      | Tag/annotation curated by security team       |
+| Cost-allocation tag                | Cloud-resource tag mirrored in catalog        |
+
+Rule of thumb: prefer **pull from runtime** for facts that change (where it runs, who is on call), and **declarative-in-repo** for facts that are intent (who owns it, what kind it is).
+
+### 3. Design the ownership graph
+
+Ownership in three layers, all required:
+
+- **Team ownership** (`spec.owner` = Group). Resolves "who do I page".
+- **System ownership** (System has an owner). Resolves "who owns the product".
+- **Escalation owner** (set on Group, not Component). Resolves "what if the team is on a half-day".
+
+Anti-patterns to call out:
+
+- **Shared ownership** across multiple groups: forbid it. If two teams co-own, create a `subgroup` or split the component.
+- **Owner = "platform team"** for hundreds of components: a smell. The platform team should own platform components only.
+- **Stale owners** when teams reorg: solve by sourcing Groups from the HR/IdP system, not hand-curated YAML.
+
+### 4. Tier classification
+
+Tiers drive the scorecard rigor, on-call expectations, and change controls. Recommend three tiers (more is a smell):
+
+- **Tier 1 — Critical / customer-facing or revenue-blocking**: 24/7 on-call, all scorecards green required, runbook required, chaos test quarterly.
+- **Tier 2 — Important / internal-customer-facing**: business-hours on-call (best effort 24/7), scorecards yellow tolerated short-term.
+- **Tier 3 — Supporting / internal or experimental**: best-effort, no on-call, scorecards informational.
+
+Define **objective** entry criteria for each tier so it isn't political. Examples:
+
+- Tier 1 = "downtime directly impacts external customer revenue OR safety OR regulatory obligation".
+- Tier 2 = "downtime degrades internal team velocity for >1 hour".
+- Tier 3 = "everything else".
+
+Tier reviews happen at least annually; promotion to Tier 1 requires platform sign-off (because it implies platform-supported features).
+
+### 5. Scorecards (production readiness)
+
+A scorecard is a versioned set of checks that a Component must pass. Keep the set small (~10-15 checks total across all scorecards) — long scorecards die.
+
+Recommended starter set:
+
+**Reliability scorecard** — owner declared, on-call rotation linked, runbook URL present, SLO defined, error budget tracked.
+
+**Security scorecard** — SBOM produced in CI, no critical CVEs > 14 days old, secrets scan green, auth method matches policy.
+
+**Operational scorecard** — health endpoint reachable, structured logs emitted, golden metrics (RED/USE) emitted, deployable via the standard pipeline (Argo CD or equivalent).
+
+**Quality scorecard** — code coverage > X%, no failing tests on `main` > Y days, deploy frequency above floor, change-failure rate below ceiling.
+
+Each check should be **automatically evaluated**. Manual-attested checks rot. Wire checks to:
+
+- Git (repo file presence, branch protection)
+- CI artifacts (test reports, SBOMs)
+- Runtime (Prometheus queries, K8s probes)
+- On-call tool (rotation exists, escalation defined)
+
+Display per-Component score and per-Team rollup. Make the rollup a leadership KPI; otherwise scores get ignored.
+
+### 6. Ingestion, freshness, and lifecycle
+
+Design ingestion so the catalog cannot lie for long. Required ingesters:
+
+- **Git discovery**: scan all repos for `catalog-info.yaml`; new repo without one = nag bot opens a PR with a starter template.
+- **K8s reconciler**: services running in cluster X that aren't in the catalog produce a daily "ghost services" report.
+- **Cloud-resource reconciler**: databases, queues, buckets pulled from cloud tags into Resource entities.
+- **Identity sync**: Groups and Users from the HRIS/IdP — never hand-curated.
+- **On-call sync**: rotation links pulled from the on-call tool.
+
+Freshness controls:
+
+- **TTL on every entity**: if no commit touched its `catalog-info.yaml` in 12 months and no runtime signal in 30 days, mark `lifecycle: stale`.
+- **Deprecation flow**: explicit `deprecated` → `retired` transition with redirect to the successor component.
+- **Orphan reaper**: an entity with no team owner for > 14 days triggers a Slack escalation to engineering leadership, not just the previous owner.
+
+Embed catalog updates into **software templates**: a new-service scaffold must include `catalog-info.yaml` filled in correctly so the catalog stays fresh by construction.
+
+### Integrations the catalog must expose
+
+- **From CI/CD**: the deployer (Argo CD, Flux, etc.) reads ownership/tier to apply approval policies; deploy events write back to scorecards (deploy-frequency, change-failure-rate).
+- **From incident tools**: incident pages link to the Component; postmortems update runbook URLs.
+- **From observability**: per-Component dashboards and SLOs are linked from the Component page; Backstage/Port adapters exist for Prometheus, Datadog, Grafana.
+- **From cost tools**: cost-per-Component rolls up by System and by Team.
+
+If any of these integrations is missing, the catalog becomes a wiki — and wikis rot.
+
+## Inputs
+
+- **portal_choice** (required): "Backstage self-hosted", "Port managed", "homegrown", or "none yet". Note any catalog already in use.
+- **estate_size** (required): rough counts — services, libraries, teams, environments, databases. This drives entity-model depth (Domain layer or not).
+- **source_systems** (optional): what authoritative systems already exist (HRIS, IdP, K8s clusters, cloud accounts, PagerDuty, SonarQube, SBOM tool, secret scanner).
+- **goals** (optional): top three reasons the catalog must succeed — incident response, audit/compliance, onboarding, cost allocation, scorecards.
+
+## Outputs
+
+A markdown design with this shape:
+
+1. **Entity model** — list of kinds you'll use, with the required and optional fields, plus the rules (one owner-group per Component, etc.).
+2. **Source-of-truth matrix** — one row per fact, naming the authoritative system and how it's ingested.
+3. **Ownership graph** — team-level and system-level ownership rules, escalation, and anti-pattern guardrails for this org.
+4. **Tier policy** — objective entry criteria for Tier 1/2/3 and the obligations each tier carries.
+5. **Scorecards v1** — exact checks per scorecard with the evaluation source.
+6. **Ingestion plan** — per ingester: source, cadence, conflict resolution, freshness alert.
+7. **Rollout sequence** — first 30/60/90 days, with "what we explicitly do not build yet".
+
+## Examples
+
+> "We're on Backstage, 600 services, 80 teams, K8s + AWS RDS heavy, the catalog is 60% accurate and trust is dropping."
+
+The accuracy problem dominates. Recommendation: freeze new features, run a one-week reconciliation sprint — K8s reconciler, Git discovery, HRIS Group sync. Add the "orphan reaper" with a 14-day SLA. Promote a Tier-1-only scorecard rollout (don't try to score all 600 at once). Defer Domain-layer modeling and API graph until accuracy crosses 90%.
+
+> "Greenfield: 40 services, 8 teams, Argo CD + Datadog. We want to pick Backstage or Port."
+
+Push the vendor question back — the catalog *design* is identical either way. Recommend modeling Components + Systems + Groups (skip Domain), one source-of-truth-per-fact (Git for declarative, K8s/Datadog/PagerDuty for runtime), three tiers with objective criteria, and a 5-check reliability scorecard plus a 4-check security scorecard. Build software templates that bake `catalog-info.yaml` in. Revisit Backstage vs Port after 90 days based on how much custom UI you actually need.
+
+> "We use Port managed, our scorecards are 22 checks long, nobody looks at them."
+
+Diagnosis: scorecards too long, no leadership attention loop. Cut to 8-10 checks total. Make per-Team rollup the visible artifact in monthly engineering reviews. Add the "tier-aware" pass/fail (a Tier 3 service may legitimately skip on-call). Within a quarter, scores should be discussed in 1:1s; if they aren't, the metric is wrong, not the people.
+
+## Limitations
+
+- This skill assumes the org has decided to invest in a service catalog. For < ~25 services it's overkill; a `services.yaml` in one repo is enough.
+- Does not pick the portal vendor (Backstage vs Port vs homegrown). Pair with a procurement-decision skill if needed.
+- The reference vocabulary leans on Backstage; Port's model is similar but uses different names — translate as needed.
+- The skill does not cover **non-software** assets (data products, ML features) beyond a passing mention; data catalogs are a sibling discipline.
+- Scorecard metrics here are reliability/security/ops-focused; product-quality and team-health scorecards exist but are out of scope.
+
+## Sources
+
+- https://github.com/backstage/backstage
+- https://github.com/backstage/software-templates
+- https://github.com/port-labs/port-ocean
+- https://github.com/cnoe-io/idpbuilder
+- https://github.com/kusionstack/karpor
+- https://github.com/argoproj/argo-cd
+- https://github.com/open-feature/spec

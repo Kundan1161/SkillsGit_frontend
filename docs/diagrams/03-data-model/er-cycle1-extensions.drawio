@@ -1,0 +1,149 @@
+<mxfile host="app.diagrams.net" agent="skillsgit-arch" version="24.7.17" type="device">
+  <diagram name="ER Cycle-1 extensions" id="er-cycle1-extensions-skillsgit">
+    <mxGraphModel dx="2800" dy="1800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2800" pageHeight="2000" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- Title -->
+        <mxCell id="title" value="Cycle-1 extension tables — migrations 0006-0009 (8 new tables + 3 anchors)&#10;Source: apps/api/src/{occupations,personas,capture,vault}/models.py" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=none;fontSize=18;fontStyle=1;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="40" y="20" width="1600" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- ===== Anchors (existing tables, shown for FK targets) ===== -->
+        <mxCell id="g-anchors" value="Anchors (existing — full schema lives in er-skills-core.drawio / er-marketplace.drawio)" style="rounded=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=14;fontStyle=1;verticalAlign=top;align=center;" vertex="1" parent="1">
+          <mxGeometry x="40" y="100" width="900" height="240" as="geometry" />
+        </mxCell>
+        <mxCell id="tbl-skills" value="skills&#10;━━━━━━━━━━━━&#10;id (PK)&#10;creator_id (FK → users)&#10;kind (skill|occupation|persona|memory_neuron)&#10;slug (citext)&#10;status" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;align=left;verticalAlign=top;spacingLeft=8;spacingTop=8;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="60" y="140" width="260" height="160" as="geometry" />
+        </mxCell>
+        <mxCell id="tbl-users" value="users&#10;━━━━━━━━━━━━&#10;id (PK)&#10;email (UK, citext)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;align=left;verticalAlign=top;spacingLeft=8;spacingTop=8;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="340" y="140" width="220" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="tbl-licenses" value="licenses&#10;━━━━━━━━━━━━&#10;id (PK)&#10;buyer_id (FK → users)&#10;skill_id (FK → skills)&#10;composition_role (occupation|persona|standalone)&#10;target_occupation_skill_id (FK → skills)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;align=left;verticalAlign=top;spacingLeft=8;spacingTop=8;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="580" y="140" width="340" height="180" as="geometry" />
+        </mxCell>
+
+        <!-- ===== Occupations cluster ===== -->
+        <mxCell id="g-occ" value="Occupations side-table + membership (migration 0006)" style="rounded=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=14;fontStyle=1;verticalAlign=top;align=center;" vertex="1" parent="1">
+          <mxGeometry x="40" y="380" width="900" height="380" as="geometry" />
+        </mxCell>
+        <mxCell id="tbl-occupations" value="occupations  (side-table for kind=occupation)&#10;━━━━━━━━━━━━&#10;skill_id (PK,FK → skills.id) — 1:1&#10;summary_md&#10;domains (text[]) ← vault folder names&#10;persona_count (denormalized)&#10;recommended_persona_count&#10;latest_build_id (FK → vault_builds, added in 0009, SET NULL)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;align=left;verticalAlign=top;spacingLeft=8;spacingTop=8;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="60" y="420" width="400" height="220" as="geometry" />
+        </mxCell>
+        <mxCell id="tbl-occ-skills" value="occupation_skills  (membership rows)&#10;━━━━━━━━━━━━&#10;id (PK)&#10;occupation_id (FK → occupations.skill_id)&#10;member_skill_id (FK → skills.id, service enforces kind=skill)&#10;domain (string, must be member of occupations.domains)&#10;sort_order&#10;role (core|supporting|optional)&#10;pinned (bool)&#10;notes_md&#10;UK (occupation_id, member_skill_id)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;align=left;verticalAlign=top;spacingLeft=8;spacingTop=8;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="500" y="420" width="420" height="280" as="geometry" />
+        </mxCell>
+
+        <!-- ===== Personas cluster ===== -->
+        <mxCell id="g-personas" value="Personas side-table + parent + neurons (migration 0007)" style="rounded=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=14;fontStyle=1;verticalAlign=top;align=center;" vertex="1" parent="1">
+          <mxGeometry x="980" y="380" width="940" height="380" as="geometry" />
+        </mxCell>
+        <mxCell id="tbl-personas" value="personas  (side-table for kind=persona)&#10;━━━━━━━━━━━━&#10;skill_id (PK,FK → skills.id) — 1:1&#10;parent_occupation_id (FK → occupations.skill_id)&#10;   non-null, ON DELETE RESTRICT&#10;creator_intro_md&#10;years_of_experience&#10;specialization&#10;neuron_count (denormalized)&#10;latest_build_id (FK → vault_builds, added in 0009, SET NULL)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;align=left;verticalAlign=top;spacingLeft=8;spacingTop=8;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="1000" y="420" width="420" height="260" as="geometry" />
+        </mxCell>
+        <mxCell id="tbl-persona-neurons" value="persona_neurons  (membership rows)&#10;━━━━━━━━━━━━&#10;id (PK)&#10;persona_id (FK → personas.skill_id)&#10;neuron_skill_id (FK → skills.id)&#10;   service enforces kind=memory_neuron&#10;   AND neuron.creator_id == persona.creator_id&#10;sort_order&#10;section (optional sub-folder under personas/handle/)&#10;added_at (timestamptz)&#10;UK (persona_id, neuron_skill_id)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;align=left;verticalAlign=top;spacingLeft=8;spacingTop=8;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="1460" y="420" width="440" height="280" as="geometry" />
+        </mxCell>
+
+        <!-- ===== Capture cluster ===== -->
+        <mxCell id="g-capture" value="Capture pipeline → published neuron (migration 0008)" style="rounded=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=14;fontStyle=1;verticalAlign=top;align=center;" vertex="1" parent="1">
+          <mxGeometry x="40" y="800" width="940" height="500" as="geometry" />
+        </mxCell>
+        <mxCell id="tbl-capture-sessions" value="capture_sessions&#10;━━━━━━━━━━━━&#10;id (PK)&#10;creator_id (FK → users)&#10;persona_id (FK → personas.skill_id)&#10;title&#10;situation_md&#10;decision_md&#10;outcome_md&#10;context_md&#10;draft_md (LLM output)&#10;suggested_links_json (jsonb)&#10;pii_flags_json (jsonb)&#10;token_usage_json (jsonb)&#10;llm_model (claude variant snapshot)&#10;status (draft|extracting|draft_ready|finalizing|finalized|abandoned)&#10;finalized_neuron_skill_id (FK → skills, created on finalize)&#10;finalized_at, abandoned_at" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d79b00;align=left;verticalAlign=top;spacingLeft=8;spacingTop=8;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="60" y="840" width="420" height="420" as="geometry" />
+        </mxCell>
+        <mxCell id="tbl-capture-attachments" value="capture_attachments&#10;━━━━━━━━━━━━&#10;id (PK)&#10;capture_session_id (FK → capture_sessions)&#10;storage_url (S3 key; rewritten to persona prefix on finalize)&#10;filename&#10;content_type&#10;size_bytes (bigint)&#10;sha256 (char(64); content-addressed; dedupes within creator)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d79b00;align=left;verticalAlign=top;spacingLeft=8;spacingTop=8;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="520" y="840" width="420" height="220" as="geometry" />
+        </mxCell>
+
+        <!-- ===== Vault cluster ===== -->
+        <mxCell id="g-vault" value="Vault build + delivery (migration 0009)" style="rounded=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=14;fontStyle=1;verticalAlign=top;align=center;" vertex="1" parent="1">
+          <mxGeometry x="1020" y="800" width="1740" height="500" as="geometry" />
+        </mxCell>
+        <mxCell id="tbl-vault-builds" value="vault_builds  (immutable per (skill, version, content))&#10;━━━━━━━━━━━━&#10;id (PK)&#10;skill_id (FK → skills) — occupation OR persona skill&#10;skill_version_id (FK → skill_versions)&#10;content_hash (char(64))&#10;   UK (skill_id, content_hash); idempotent rebuilds&#10;storage_url  vaults/{skill_id}/{version}/{hash}.zip&#10;manifest_json (jsonb) ← mirror of in-zip vault.json&#10;file_count, total_bytes (bigint)&#10;status (queued|running|succeeded|failed)&#10;error (text)&#10;build_log_json (jsonb)  warnings about unresolved links etc.&#10;built_at (timestamptz)&#10;built_by (FK → users; nullable; creator who triggered)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;align=left;verticalAlign=top;spacingLeft=8;spacingTop=8;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="1040" y="840" width="500" height="360" as="geometry" />
+        </mxCell>
+        <mxCell id="tbl-vault-downloads" value="vault_downloads  (per-call composition audit)&#10;━━━━━━━━━━━━&#10;id (PK)&#10;occupation_license_id (FK → licenses, CASCADE) — anchor&#10;buyer_id (FK → users, denormalized for my-downloads)&#10;occupation_build_id (FK → vault_builds, RESTRICT)&#10;persona_build_ids (uuid[]) — every persona build merged in&#10;persona_license_ids (uuid[]) — snapshot at compose time&#10;composed_hash (char(64)) — sha256 over post-watermark bytes&#10;storage_url  delivery/vaults/{nonce}.zip (1h S3 TTL)&#10;user_agent_hash, ip_hash&#10;created_at (timestamptz)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;align=left;verticalAlign=top;spacingLeft=8;spacingTop=8;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="1580" y="840" width="520" height="340" as="geometry" />
+        </mxCell>
+
+        <!-- Legend -->
+        <mxCell id="legend" value="Legend&#10;━━━━━━━━━━━━&#10;Anchors (blue)&#10;Occupations (green)&#10;Personas (yellow)&#10;Capture (orange)&#10;Vault build/delivery (violet)&#10;━━━━━━━━━━━━&#10;Solid edge = direct ownership FK&#10;Dashed edge = secondary / cross-cluster FK&#10;Crow's-foot at many side, bar at one side." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;align=left;verticalAlign=top;spacingLeft=10;spacingTop=10;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="2160" y="840" width="500" height="280" as="geometry" />
+        </mxCell>
+
+        <!-- Notes -->
+        <mxCell id="notes" value="Notes&#10;• Every entity in this diagram is new in Cycle 1, except the three blue anchors.&#10;• occupations.skill_id and personas.skill_id are PK+FK back to skills.id — strict 1:1 side-table per &quot;kind&quot;.&#10;• Service layer (not DB) enforces:&#10;     occupation_skills.member_skill.kind == 'skill'&#10;     persona_neurons.neuron_skill.kind == 'memory_neuron' AND same creator_id&#10;• personas.parent_occupation_id is RESTRICT — you cannot delete an occupation that still has personas.&#10;• capture_sessions terminates at finalized → creates a Skill (kind=memory_neuron) + SkillVersion + PersonaNeuron row&#10;  inside one DB transaction (ADR-015 — see capture-finalize-transaction.drawio).&#10;• vault_builds is immutable; latest_build_id on occupations/personas is a pointer that flips per successful build." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;align=left;verticalAlign=top;spacingLeft=10;spacingTop=10;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="40" y="1340" width="2720" height="180" as="geometry" />
+        </mxCell>
+
+        <!-- ===== Edges ===== -->
+        <!-- Occupations -->
+        <mxCell id="rel-1" value="1:1 when kind=occupation" style="endArrow=ERoneToOne;startArrow=ERone;edgeStyle=entityRelationEdgeStyle;strokeColor=#82b366;strokeWidth=2;html=1;" edge="1" parent="1" source="tbl-skills" target="tbl-occupations">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel-2" value="members" style="endArrow=ERmany;startArrow=ERone;edgeStyle=entityRelationEdgeStyle;strokeColor=#82b366;html=1;" edge="1" parent="1" source="tbl-occupations" target="tbl-occ-skills">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel-3" value="member_skill_id (kind=skill, service-enforced)" style="endArrow=ERmany;startArrow=ERone;edgeStyle=entityRelationEdgeStyle;strokeColor=#82b366;dashed=1;html=1;" edge="1" parent="1" source="tbl-skills" target="tbl-occ-skills">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Personas -->
+        <mxCell id="rel-4" value="1:1 when kind=persona" style="endArrow=ERoneToOne;startArrow=ERone;edgeStyle=entityRelationEdgeStyle;strokeColor=#d6b656;strokeWidth=2;html=1;" edge="1" parent="1" source="tbl-skills" target="tbl-personas">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel-5" value="parent_occupation_id (RESTRICT)" style="endArrow=ERmany;startArrow=ERone;edgeStyle=entityRelationEdgeStyle;strokeColor=#d6b656;html=1;" edge="1" parent="1" source="tbl-occupations" target="tbl-personas">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel-6" value="neurons" style="endArrow=ERmany;startArrow=ERone;edgeStyle=entityRelationEdgeStyle;strokeColor=#d6b656;html=1;" edge="1" parent="1" source="tbl-personas" target="tbl-persona-neurons">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel-7" value="neuron_skill_id (kind=memory_neuron)" style="endArrow=ERmany;startArrow=ERone;edgeStyle=entityRelationEdgeStyle;strokeColor=#d6b656;dashed=1;html=1;" edge="1" parent="1" source="tbl-skills" target="tbl-persona-neurons">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Capture -->
+        <mxCell id="rel-8" value="creator drafts" style="endArrow=ERmany;startArrow=ERone;edgeStyle=entityRelationEdgeStyle;strokeColor=#d79b00;html=1;" edge="1" parent="1" source="tbl-users" target="tbl-capture-sessions">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel-9" value="destination on finalize" style="endArrow=ERmany;startArrow=ERone;edgeStyle=entityRelationEdgeStyle;strokeColor=#d79b00;html=1;" edge="1" parent="1" source="tbl-personas" target="tbl-capture-sessions">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel-10" value="uploaded files" style="endArrow=ERmany;startArrow=ERone;edgeStyle=entityRelationEdgeStyle;strokeColor=#d79b00;html=1;" edge="1" parent="1" source="tbl-capture-sessions" target="tbl-capture-attachments">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel-11" value="finalized_neuron_skill_id (1:0..1)" style="endArrow=ERoneToOne;startArrow=ERone;edgeStyle=entityRelationEdgeStyle;strokeColor=#d79b00;dashed=1;html=1;" edge="1" parent="1" source="tbl-skills" target="tbl-capture-sessions">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Vault builds -->
+        <mxCell id="rel-12" value="built for" style="endArrow=ERmany;startArrow=ERone;edgeStyle=entityRelationEdgeStyle;strokeColor=#9673a6;strokeWidth=2;html=1;" edge="1" parent="1" source="tbl-skills" target="tbl-vault-builds">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel-13" value="occupations.latest_build_id (SET NULL)" style="endArrow=ERoneToOne;startArrow=ERone;edgeStyle=entityRelationEdgeStyle;strokeColor=#9673a6;dashed=1;html=1;" edge="1" parent="1" source="tbl-occupations" target="tbl-vault-builds">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel-14" value="personas.latest_build_id (SET NULL)" style="endArrow=ERoneToOne;startArrow=ERone;edgeStyle=entityRelationEdgeStyle;strokeColor=#9673a6;dashed=1;html=1;" edge="1" parent="1" source="tbl-personas" target="tbl-vault-builds">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel-15" value="built_by (SET NULL)" style="endArrow=ERmany;startArrow=ERone;edgeStyle=entityRelationEdgeStyle;strokeColor=#9673a6;dashed=1;html=1;" edge="1" parent="1" source="tbl-users" target="tbl-vault-builds">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Vault downloads -->
+        <mxCell id="rel-16" value="occupation_license_id (CASCADE)" style="endArrow=ERmany;startArrow=ERone;edgeStyle=entityRelationEdgeStyle;strokeColor=#9673a6;strokeWidth=2;html=1;" edge="1" parent="1" source="tbl-licenses" target="tbl-vault-downloads">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel-17" value="buyer downloads" style="endArrow=ERmany;startArrow=ERone;edgeStyle=entityRelationEdgeStyle;strokeColor=#6c8ebf;dashed=1;html=1;" edge="1" parent="1" source="tbl-users" target="tbl-vault-downloads">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel-18" value="occupation_build_id (RESTRICT)" style="endArrow=ERmany;startArrow=ERone;edgeStyle=entityRelationEdgeStyle;strokeColor=#9673a6;html=1;" edge="1" parent="1" source="tbl-vault-builds" target="tbl-vault-downloads">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

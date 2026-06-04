@@ -1,0 +1,8 @@
+# Composed vault listing — full demo pipeline snapshot (Wave 5)
+# One row per file: vault_path|kind|creator_handle|version
+
+domains/ci-cd/ci-pipeline-architect.md|skill|skillsgit-curated|1.0.0
+domains/incident/ops-runbook-generator.md|skill|skillsgit-curated|1.0.0
+domains/observability/alert-policy-architect.md|skill|skillsgit-curated|1.0.0
+personas/jane-devops-demo/incident-veteran/neurons/flaky-tests-demo.md|memory_neuron|jane-devops-demo|1.0.0
+personas/jane-devops-demo/incident-veteran/neurons/rollback-demo.md|memory_neuron|jane-devops-demo|1.0.0

@@ -1,0 +1,213 @@
+---
+id: skillsgit-curated/legal-msa-redline-helper
+version: 1.0.0
+name: MSA Redline Helper
+description: Review a vendor's proposed MSA against a generic in-house playbook and produce a clause-by-clause redline summary with severity, suggested edits, and fallback positions.
+authors:
+  - name: skillsgit Curated
+    handle: skillsgit-curated
+    role: author
+category: legal
+tags: [niche:contract-review, msa, redline, playbook, liability, indemnity, negotiation]
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6, gpt-4o]
+  tools_required: []
+  tools_optional: [file_io]
+  min_context_tokens: 64000
+  estimated_tokens_per_invocation: 12000
+trigger_keywords:
+  - redline this msa
+  - review this master services agreement
+  - msa playbook check
+  - vendor msa review
+  - liability cap analysis
+  - indemnity clause review
+  - msa negotiation prep
+  - contract redline summary
+  - msa risk review
+  - vendor agreement redline
+example_invocations:
+  - "Redline this vendor MSA against a balanced in-house playbook and tell me what to push back on."
+  - "Review the liability, indemnity, and IP sections of this MSA and rank the deviations by severity."
+  - "Prepare me for negotiation on this MSA — what are the must-have edits and what are the fallback positions?"
+inputs:
+  - name: msa_text
+    type: text
+    required: true
+    description: Full text of the vendor's proposed Master Services Agreement. Strip pagination noise but preserve clause numbering.
+  - name: in_house_playbook
+    type: text
+    required: false
+    description: The user's organization's standard MSA positions — must-haves, walk-aways, fallbacks. If omitted, the skill applies a generic balanced commercial baseline and flags this as a degraded analysis.
+  - name: deal_context
+    type: json
+    required: false
+    description: Deal size (annual contract value), services scope (one-line description), data sensitivity (none/internal/personal/regulated), regulatory hooks (HIPAA/GDPR/SOX/PCI), counterparty leverage (high/medium/low). Calibrates the severity scoring.
+  - name: party_role
+    type: choice
+    required: true
+    description: Whether the user is buying services (customer) or selling services (vendor). Reverses the polarity on most clauses — what is favorable to a customer is hostile to a vendor and vice versa.
+    choices: [customer, vendor, partner_equal]
+  - name: review_depth
+    type: choice
+    required: false
+    description: How thorough the analysis should be. Defaults to "standard."
+    choices: [quick_red_flags, standard, deep_review]
+outputs:
+  - name: redline_report
+    type: markdown
+    description: Clause-by-clause analysis with severity, current text summary, suggested edit, rationale, and fallback position. Includes an executive summary at the top with must-haves and walk-aways.
+  - name: redline_json
+    type: json
+    description: Machine-readable findings array for piping into a CLM — clause, section_ref, severity, current_position, proposed_position, fallback_position, rationale_short, must_have, walk_away.
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Initial release.
+---
+
+# MSA Redline Helper
+
+## When to use
+
+**Important non-legal-advice notice.** This skill produces a structured first-pass redline summary intended for contract managers, in-house counsel preparing for negotiation, and legal-ops coordinators triaging vendor paper. It is not legal advice and does not establish a lawyer-client relationship. The output is a worklist — proposed edits, severity calls, suggested fallbacks — that a qualified attorney admitted in the relevant jurisdiction should review and own before any redline is shared with a counterparty. Every "suggested edit" should be read as "candidate for human review," not as "drop-in language." MSAs sit at the centre of long-term commercial relationships; signing one against a stale or generic playbook is one of the most reliable ways to inherit a structural problem that surfaces years later.
+
+Invoke this skill when a vendor has sent a draft Master Services Agreement (sometimes called a Master Subscription Agreement, Professional Services Agreement, or General Services Agreement) and the next step is preparing a redline. Typical entry points: a procurement lead receives a vendor's preferred paper after a successful RFP; an in-house counsel prepares for the first negotiation call on a six-figure ACV deal; a sales counsel needs to evaluate a customer's redline to the vendor's standard form; a legal-ops manager screens an MSA before deciding whether to escalate to outside counsel.
+
+The skill is also appropriate as a preparation step before a negotiation, even when the user already plans to send the document to a lawyer — having a structured pre-read reduces the lawyer's hours by clarifying which clauses are actually contested versus which are standard. It is not appropriate as the sole input to an executed contract, for novel or bet-the-company deals where the playbook itself needs to be rethought, for regulated relationships requiring jurisdiction- or industry-specialist counsel (life sciences, defense, financial services, government), or for non-MSA documents (employment agreements, real-estate leases, M&A definitive agreements) that have entirely different review frames.
+
+If the document is shorter than ten pages and titled "NDA" or "Confidentiality Agreement," reach for the NDA triage skill instead — MSAs are by nature substantive multi-party services agreements with payment, IP, liability, and termination provisions, not pure confidentiality vehicles.
+
+## How to apply
+
+Treat MSA review as a clause-by-clause pass against a fixed list of high-leverage provisions, then synthesize a deviation report. The methodology is deliberately structured rather than holistic: a thorough MSA review that lists ten clauses by name and rates each against a stated playbook position beats a "looks balanced" summary every time. The agent should be willing to say "this clause is non-negotiable and standard, no comment" — half the value of the review is permission to stop arguing about the clauses that are fine.
+
+1. **Identify the document and its structure.** Confirm it is an MSA (or close cousin: MSSA, PSA, GSA). Check for a structure of "main agreement + order forms / SOWs + exhibits." Note which clauses appear in the main agreement versus the order form, because an aggressive limitation of liability buried in an order form template can be missed in a main-agreement review.
+
+2. **Identify the polarity.** Use `party_role` to fix the orientation. A clause that is "customer-favorable" is not automatically the user's preference — a vendor user wants vendor-favorable language. The agent must not silently assume the customer side.
+
+3. **Step through the high-leverage clauses in order.** For each, extract the current vendor position, compare to the playbook (or balanced baseline if none), assign a severity (critical / high / medium / low / acceptable), and propose an edit plus a fallback.
+
+   **a. Services scope and SOW mechanics.** Does the MSA govern future SOWs by reference, and do the SOWs have to be signed to be effective? Is there an order of precedence between MSA and SOW? Standard ranges: the MSA governs all SOWs; SOWs control over the MSA only on specifically listed subjects (pricing, deliverables, milestones); a single signature on the MSA does not commit either party to any specific work absent a signed SOW. Deviations: MSA that auto-binds to "any future work performed" without a signed SOW (high severity for the customer; standard for the vendor); SOWs that supersede the MSA across the board (high severity for both — undermines the playbook).
+
+   **b. Payment terms.** Net-30 is the historical default; net-45 and net-60 are common. Look for: late-fee provisions (commercially reasonable up to about 1.5% per month or the legal maximum); set-off rights (the customer should have them); auto-renewal of payment commitments without re-signing an SOW (red flag for a customer); fee escalation language (a cap of 3–5% annual indexed to CPI is typical and acceptable; uncapped escalation is high severity).
+
+   **c. Term and termination.** Initial term length (one to three years is typical), renewal mechanics (auto-renew with sixty-to-ninety-day notice to non-renew is common; auto-renew with a thirty-day window is hostile), termination for convenience (customer should have it; vendor will resist), termination for cause (define "material breach" with a cure period of fifteen to thirty days), effect of termination (transition assistance, data return, fee proration). The most common quality problem is silent renewal: the agreement renews automatically and silently with no notice obligation to remind the customer — flag as high severity for any non-trivial deal.
+
+   **d. Limitation of liability.** This is the highest-stakes clause in the entire MSA. Examine three sub-questions:
+   - **What is the cap?** Typical ranges: one year of fees paid or payable; sometimes two years for higher-risk services. Vendors push for "fees paid in the prior twelve months" (gives them a low cap on year-one breaches). Customers push for "fees paid or payable under the agreement" or a fixed multiple of annual fees.
+   - **What are the carve-outs (excluded from the cap)?** Standard carve-outs: indemnification obligations, breach of confidentiality, breach of data-security obligations, gross negligence and willful misconduct, IP infringement. A cap that does not carve out at least IP infringement and confidentiality breach is high severity for any customer.
+   - **What types of damages are excluded?** Mutual exclusion of consequential, special, and indirect damages is standard. A unilateral exclusion (vendor excludes consequential, customer does not) is high severity for the customer.
+
+   **e. Indemnification.** Look for: scope (third-party claims arising from what?), procedure (notice, control of defense, settlement consent), and survival. The vendor should indemnify for IP infringement claims arising from the services (with the standard customer-cooperation conditions and the standard "modification by customer" and "combination with non-vendor materials" carve-outs). A vendor that refuses any IP indemnity is a major red flag for the customer. The customer's indemnity obligations should be narrow — typically limited to customer-provided materials and customer's misuse of the services.
+
+   **f. Intellectual property ownership.** Three questions: (1) Who owns vendor's pre-existing IP and improvements to it? (Vendor — standard.) (2) Who owns customer-provided materials? (Customer — standard.) (3) Who owns deliverables specifically created for the customer? (Depends — for SaaS, typically vendor; for bespoke development, often customer with a license back to vendor; for AI training, this is the new battleground and deserves explicit treatment.) Look for: silent IP assignment of customer materials (red flag for customer); "feedback license" that lets the vendor freely use customer suggestions to improve the product (standard, but watch the scope); use of customer data to train AI models (must be explicitly addressed in 2026 — silence here is a critical severity for a customer with sensitive data).
+
+   **g. Warranties.** Common vendor warranties: services performed in a professional and workmanlike manner; conformance with documentation; no malware in delivered code; authority to enter the agreement; non-infringement of third-party IP. Watch for: disclaimers that swallow the warranty (e.g., a warranty followed by "EXCEPT AS EXPRESSLY SET FORTH HEREIN, ALL WARRANTIES ARE DISCLAIMED" with no express warranties actually set forth); warranty period absurdly short (a thirty-day warranty for an annual subscription is hostile).
+
+   **h. Data protection and security.** Even if there is a separate DPA, the MSA should reference it and state which terms control. Look for: a clear commitment to maintain a security program "appropriate for the type and sensitivity of data processed" (vendor-favorable but standard); specific controls referenced by name (ISO 27001, SOC 2 Type II, NIST CSF); breach notification obligations (the vendor should commit to notify the customer of a confirmed security breach affecting customer data within a defined window — typically twenty-four to seventy-two hours); cooperation in regulatory inquiries. A complete absence of data-protection language in a services agreement involving any customer data is a critical severity finding.
+
+   **i. Audit rights.** For a regulated customer or a customer with material data exposure, the right to audit (or to receive third-party audit reports like SOC 2 Type II) is non-trivial. Standard: vendor provides current third-party audit reports on request and reasonable cooperation with a customer audit on reasonable notice, at customer expense, no more than once annually. Aggressive vendor language: no audit rights at all; or audit rights conditioned on a paid engagement of a vendor-selected auditor.
+
+   **j. Insurance.** Vendors should typically carry: commercial general liability ($1–2M per occurrence), professional liability / E&O ($2–10M depending on services scope), cyber liability ($2–10M for any vendor handling customer data), workers' compensation per statute. Higher amounts for higher-stakes deals. Lack of cyber-liability coverage from a vendor processing personal data is a high-severity finding.
+
+   **k. Confidentiality.** A short confidentiality clause inside the MSA is common when the parties have already signed a standalone NDA — note the relationship between the two. If there is no separate NDA, the MSA confidentiality section needs to do the work of an NDA: definition of confidential information, carve-outs, term, survival. Apply the NDA triage checklist to this section.
+
+   **l. Governing law and venue.** Apply the same calibration as NDA triage — familiar jurisdiction GREEN, foreign-but-rational YELLOW, no-nexus or hostile RED. Note any mandatory arbitration provisions and the seat of arbitration.
+
+   **m. Assignment.** Vendor wants the right to assign to an affiliate or in connection with a merger or asset sale without consent; customer wants consent rights (often "not unreasonably withheld") for non-affiliate assignments. Critical for the customer when the vendor is a startup likely to be acquired — assignment to a competitor of the customer can be acutely damaging.
+
+   **n. Force majeure.** Standard mutual force majeure with carve-outs for payment obligations. Watch for: vendors that exclude pandemic, cyber-attack, or supply-chain disruption from force majeure (sometimes a fair allocation given the vendor's business, sometimes hostile — depends on whose risk it is).
+
+   **o. Order of precedence.** A clear "in case of conflict, [main agreement | SOW | exhibit] controls" clause prevents weaponized inconsistencies.
+
+4. **Synthesize the executive summary.** Two to four sentences at the top of the report, stating:
+   - Overall posture: vendor-favorable / balanced / customer-favorable.
+   - The two to five must-have edits (without which the agreement should not be signed).
+   - The two to five walk-away triggers (terms that should kill the deal if the counterparty will not move).
+   - Estimated rounds of negotiation needed.
+
+5. **Calibrate severity to deal context.** A six-figure ACV deal with non-sensitive data tolerates much more imperfection than a seven-figure deal touching personal health data. If `deal_context` was provided, downgrade or upgrade severity findings accordingly. A medium-severity finding on a small deal may be acceptable; the same finding on a regulated deal may be critical. Be explicit about this calibration in the rationale.
+
+6. **Distinguish must-haves from negotiation theatre.** The single most useful thing this skill can do is name what is non-negotiable for the user versus what is fine to give up. A redline that flags forty-seven issues equally is useless — the negotiator will get stuck. Mark each finding with a `must_have` boolean (true means walk away if not granted) and a `nice_to_have` boolean (true means it's a credible ask but not a deal-breaker).
+
+7. **Propose specific edits in plain language.** Each finding should include a one-paragraph suggested edit. Do not draft full clause language — that is the lawyer's job. Describe the substance ("liability cap should be two times annual fees, with carve-outs for IP indemnity, confidentiality breach, and data-security breach"), not the precise wording.
+
+8. **Propose fallback positions.** For each non-trivial finding, what is the next-best acceptable outcome if the counterparty pushes back? A redline without fallbacks turns into a stalemate; a redline with fallbacks turns into a negotiation. Suggest two or three concentric rings: the playbook position, a reasonable compromise, the walk-away floor.
+
+9. **Score severity honestly.** Five-band scale: `critical` (walk away if not fixed), `high` (significant exposure; push hard), `medium` (worth raising; settle for a modest improvement), `low` (raise if there's negotiation capacity; otherwise let go), `acceptable` (current language is fine — surface only to avoid the impression you missed it).
+
+10. **Self-check before returning.** Verify: every `must_have: true` finding is also at least `high` severity; the executive summary aligns with the per-clause findings (no executive summary saying "balanced" if there are four critical findings); the polarity is consistent across all findings (customer-role user does not get a finding that complains about a customer-favorable clause).
+
+11. **Acknowledge what was not reviewed.** If exhibits, SOWs, the DPA, or the SLA were referenced but not in scope, list them explicitly as out-of-scope items that need their own review. A redline that quietly ignores half the document is malpractice.
+
+## Inputs
+
+- `msa_text` (required, text) — full MSA text. Include attached order forms or SOWs only if they were sent as part of the same review request; otherwise list them as out-of-scope.
+- `in_house_playbook` (optional, text) — the user's standard positions. Without it, the analysis is degraded but still useful as a balanced baseline.
+- `deal_context` (optional, JSON) — calibrates severity. Even partial context (just ACV and data sensitivity) materially improves the output.
+- `party_role` (required, choice) — customer / vendor / partner_equal. Reverses polarity.
+- `review_depth` (optional, choice) — quick_red_flags / standard / deep_review. Defaults to standard.
+
+## Outputs
+
+- `redline_report` (markdown) — executive summary at the top; per-clause findings table; consolidated must-haves and walk-aways; out-of-scope acknowledgments; suggested next steps.
+- `redline_json` (JSON) — findings array, each with `clause`, `section_ref`, `severity`, `current_position`, `proposed_position`, `fallback_position`, `rationale_short`, `must_have`, `walk_away`. Plus top-level `posture`, `must_have_count`, `walk_away_count`, `confidence`, `playbook_missing`.
+
+## Examples
+
+### Example 1 — vendor-favorable MSA, customer perspective, mid-size deal
+
+**Input deal_context:** `{"acv_usd": 250000, "services": "SaaS analytics platform", "data_sensitivity": "personal", "regulatory_hooks": ["GDPR"], "counterparty_leverage": "medium"}`
+
+**Input party_role:** `customer`
+
+**Output redline_report (excerpt):**
+
+> **Posture: vendor-favorable.** Six findings rated `high` or `critical`. Two must-have edits; one walk-away trigger as currently drafted. Estimate two rounds of negotiation.
+>
+> **Must-have edits:**
+> 1. **Liability cap (§12.1)** — currently capped at three months of fees with no carve-outs. Push to twelve months of fees with carve-outs for IP indemnity, confidentiality breach, and data-security breach. Fallback: nine months of fees with the same carve-outs.
+> 2. **Data protection (§14)** — no breach-notification obligation. Add a commitment to notify of confirmed security incidents affecting customer personal data within seventy-two hours. Non-negotiable given GDPR exposure.
+>
+> **Walk-away trigger:**
+> - **Use of customer data for AI training (§11.3)** — vendor reserves the right to use "any customer data" to "improve the services and develop new features." Given the personal data classification, this is a critical issue. Push to: vendor may use customer data only to provide the services to the customer, with a separate opt-in for anonymized model improvement and explicit prohibition on personally identifiable inputs. If vendor will not move, do not sign.
+
+### Example 2 — vendor-side review of a customer's hostile redline
+
+**Input party_role:** `vendor`
+
+**Output redline_report (excerpt):**
+
+> **Posture: customer-favorable redline of vendor's standard paper.** Customer has uncapped indemnity and removed the consequential damages waiver. Three high-severity pushbacks.
+>
+> 1. **Uncapped indemnity (§12.4 as redlined)** — restore the cap (typically three times the liability cap, or capped at the same amount). Uncapped indemnity exposes the company to existential risk on a $250K ACV deal. Critical; walk away if not restored.
+> 2. **Mutual consequential damages waiver (§12.3)** — restore mutuality. As redlined, vendor cannot recover consequential damages but customer can. Unfair allocation given the symmetric risk of disputes. High severity.
+> 3. **Auto-renewal removed (§3.2)** — vendor's renewal forecasting depends on default-renew. Push back with a sixty-day notice-to-non-renew compromise rather than the customer's "renews only on written agreement." Medium severity.
+
+## Limitations
+
+- **Not legal advice.** Every finding is a worklist item for a qualified attorney. The agent does not represent the user, does not maintain attorney-client privilege, and should not be the last reviewer before signature.
+- **Playbook-blind by default.** Without an in-house playbook input, the agent applies a generic balanced baseline that may not match the user's actual risk appetite, industry norms, or commercial priorities. Findings flagged `must_have` are educated guesses, not house policy.
+- **Jurisdiction-blind.** The agent does not analyze enforceability of liability caps, indemnity scope, or non-compete creep under specific state, provincial, or national law. A liability cap that would be enforced in Delaware may not be enforced in California or in Germany.
+- **No regulatory analysis.** The agent does not perform compliance analysis under HIPAA, GDPR, CCPA, SOX, PCI-DSS, or sectoral regulations. It flags the absence of expected provisions; a specialist must judge sufficiency.
+- **No counterparty diligence.** The agent does not assess the vendor's financial stability, security posture, sub-processor chain, or litigation history. A textually clean MSA from an insolvent vendor is still a bad deal.
+- **Order forms and SOWs.** Unless explicitly included in the input, attached order forms and SOWs are out of scope. Many of the worst clauses live in the SOW template; the user must surface that document separately.
+- **DPA and SLA.** These are typically separate documents and are out of scope. Run them through dedicated review skills (e.g., the DPA reviewer skill in this set).
+- **Negotiation context.** The skill does not know who has leverage in the relationship. A "must-have" edit may not be achievable if the counterparty has materially more leverage. The fallback positions are intended to make leverage tradeoffs explicit so the human negotiator can choose.
+
+## Sources reviewed
+
+The methodology synthesized here is informed by reviewing public, permissively-licensed legal-tooling and contract-workflow repositories on GitHub. **Source thinness disclosure:** open-source MSA templates are unusually scarce under MIT/Apache/Unlicense terms — most well-known industry MSA standards (Bonterms Professional Services Agreement, Common Paper templates) are released under Creative Commons licenses (CC BY 4.0) and were therefore excluded from primary methodology sourcing. The methodology below leans on MIT-licensed *workflow, annotation, and clause-taxonomy* repositories rather than copying clause language, and references statutory frameworks via official URLs.
+
+- https://github.com/Open-Source-Legal/OpenContracts
+- https://github.com/open-agreements/open-agreements
+- https://github.com/accordproject/template-archive
+- https://github.com/Ro5s/Startup-Starter-Pack
+- https://github.com/ankane/awesome-legal
+- https://github.com/tollwerk/data-processing-agreements

@@ -1,0 +1,74 @@
+---
+id: skillsgit-curated/imported-voltagent-firebase-crashlytics
+version: 1.0.0
+name: Firebase Crashlytics
+description: Set up and use Firebase Crashlytics for Android and iOS — provisioning, SDK usage, custom keys, logs, user identifiers, and non-fatal exception reporting.
+authors:
+  - name: Firebase
+    handle: firebase
+    role: author
+  - name: skillsgit Curated
+    handle: skillsgit-curated
+    role: maintainer
+category: engineering
+tags: [imported, source-voltagent, firebase, crashlytics, mobile, error-monitoring]
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6, gpt-4o]
+  min_context_tokens: 32000
+  estimated_tokens_per_invocation: 6000
+trigger_keywords: [crashlytics, firebase crash, mobile crash reporting, non-fatal exception]
+example_invocations:
+  - Add Crashlytics to my Android app
+  - Set custom keys and user identifiers on crashes
+  - Report a non-fatal exception with breadcrumbs
+inputs: []
+outputs: []
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Imported from VoltAgent/awesome-agent-skills under Apache-2.0.
+---
+
+# Firebase Crashlytics
+
+## When to use
+
+Use this skill when provisioning and using Firebase Crashlytics for Android or iOS apps — installing the SDK, enriching crash reports with custom keys, logs, user identifiers, and reporting non-fatal exceptions.
+
+## How to apply
+
+Set up the SDK per platform (Android or iOS), then enrich crash reports with custom keys (state at crash time), logs (recent breadcrumbs), and user identifiers (to scope investigation). Report non-fatal exceptions to capture issues that don't terminate the app.
+
+## Prerequisites
+
+- A Firebase project.
+- An Android or iOS app registered with the project.
+
+## SDK Setup
+
+Platform-specific guidance is provided for Android and iOS, including build script changes and Gradle/CocoaPods integration.
+
+## SDK Usage Features
+
+- **Custom keys** — Attach typed key/value pairs that appear on the crash record.
+- **Logs** — Breadcrumb-style log lines added to the next crash report.
+- **User identifiers** — Tag crashes with a user ID so you can scope investigation.
+- **Non-fatal exception reporting** — Report caught exceptions to track issues that don't crash the app.
+
+## Compatibility
+
+The skill notes compatibility constraints with the Firebase CLI tools and platform-specific build chains. Verify with the official Firebase docs before upgrading SDK versions.
+
+## Attribution
+
+This skill was imported from `VoltAgent/awesome-agent-skills` under the MIT license, originating from the `firebase/skills` repository under the Apache-2.0 license. Original content authored by the listed contributor(s) at the source repository. Modifications by skillsgit: frontmatter normalization to fit marketplace spec; addition of attribution and sources sections.
+
+## Sources reviewed
+
+- https://github.com/VoltAgent/awesome-agent-skills (MIT)
+- https://github.com/firebase/skills/tree/main/skills/firebase-crashlytics (Apache-2.0)

@@ -1,0 +1,223 @@
+# AI DevOps Engineer occupation — Wave 3, T-08 seed.
+#
+# Cross-refs:
+#   - team/05-mvp-plan.md §T-08
+#   - team/devops-occupation-slugs.md (Curation-research verified slug set)
+#   - team/03-vault-generation.md (vault format consumed by the builder)
+#   - team/01-data-model-deltas.md §occupations / §occupation_skills
+#
+# Owner: @skillsgit-curated (created by scripts/publish_curated.py)
+# Substitutions vs the spec's original 30:
+#   - slot 9  : alert-fatigue-reviewer        → slo-designer                    (CDS → SRE)
+#   - slot 23 : cross-platform-stack-chooser  → instrumentation-coverage-reviewer (mobile → obs)
+# Both swaps were ratified in team/devops-occupation-slugs.md §Why the two substitutions.
+
+id: skillsgit-curated/ai-devops-engineer
+name: AI DevOps Engineer
+tagline: A graph-linked methodology bundle for production DevOps practice — CI/CD, observability, IaC, incident, security, cost.
+description: |
+  The AI DevOps Engineer occupation packages 30 cross-linked methodology
+  skills covering the full DevOps lifecycle — from pipeline design
+  through incident response, observability, infrastructure as code,
+  workload identity, supply-chain security, and FinOps. Built on top of
+  Skills Git's curated library, every member skill links to its
+  neighbours (60 explicit cross-links) so an Obsidian graph view renders
+  the day-to-day mental map an on-call SRE actually uses.
+
+  Pair this base occupation with a Persona overlay (Wave 4) to add a
+  practitioner's recorded situations, decisions, and outcomes on top of
+  the curated methodology.
+category: occupations
+tags:
+  - devops
+  - sre
+  - kubernetes
+  - observability
+  - ci-cd
+  - iac
+  - incident-response
+
+# Vault domain folders (per 03-vault-generation.md §1 and the
+# Occupation.domains column from 01-data-model-deltas.md §0006).
+# The vault builder writes `domains/<slug>/<member>.md` for each member,
+# and the occupation router renders the marketplace grouping in this order.
+domains:
+  - slug: ci-cd
+    name: CI/CD
+    sort_order: 1
+  - slug: observability
+    name: Observability
+    sort_order: 2
+  - slug: incident
+    name: Incident response
+    sort_order: 3
+  - slug: iac
+    name: Infrastructure as code
+    sort_order: 4
+  - slug: security
+    name: Security & secrets
+    sort_order: 5
+  - slug: cost
+    name: Cost
+    sort_order: 6
+  - slug: platform
+    name: Platform & data
+    sort_order: 7
+
+# Optional cosmetic counts surfaced on the marketplace detail page.
+recommended_persona_count: 2
+
+# 30 members. Domain assignment derived from the source skill's frontmatter
+# `niche:*` tag plus the high-level bucket in `team/devops-occupation-slugs.md`
+# §Domain folder layout. `member_role` follows the spec's Core (10) /
+# Supporting (12) / Optional (8) tranches verbatim except for the two
+# substitutions noted at the top.
+members:
+  # ── Core (10) ───────────────────────────────────────────────────────
+  # NB: 7 slugs below differ from the source filename — the curation
+  # pipeline (publish_curated.py) strips the `devops-` / `eng-` prefix
+  # from the frontmatter `id` slug for files in those buckets. We use
+  # the published slug here so the DB resolution succeeds. The original
+  # filenames are preserved in team/devops-occupation-slugs.md for
+  # traceability. Remapped pairs:
+  #   devops-ci-pipeline-architect      → ci-pipeline-architect
+  #   devops-gha-workflow-optimizer     → gha-workflow-optimizer
+  #   devops-k8s-manifest-reviewer      → k8s-manifest-reviewer
+  #   devops-terraform-module-reviewer  → terraform-module-reviewer
+  #   eng-chaos-experiment-planner      → chaos-experiment-planner
+  #   eng-secrets-architecture-designer → secrets-architecture-designer
+  #   eng-workload-identity-architect   → workload-identity-architect
+  - slug: ci-pipeline-architect
+    domain: ci-cd
+    member_role: core
+    sort_order: 10
+  - slug: gha-workflow-optimizer
+    domain: ci-cd
+    member_role: core
+    sort_order: 11
+  - slug: k8s-manifest-reviewer
+    domain: iac
+    member_role: core
+    sort_order: 12
+  - slug: terraform-module-reviewer
+    domain: iac
+    member_role: core
+    sort_order: 13
+  - slug: ops-incident-commander
+    domain: incident
+    member_role: core
+    sort_order: 14
+  - slug: ops-runbook-generator
+    domain: incident
+    member_role: core
+    sort_order: 15
+  - slug: observability-dashboard-architect
+    domain: observability
+    member_role: core
+    sort_order: 16
+  - slug: alert-policy-architect
+    domain: observability
+    member_role: core
+    sort_order: 17
+  - slug: slo-designer
+    domain: observability
+    member_role: core
+    sort_order: 18
+  - slug: chaos-experiment-planner
+    domain: incident
+    member_role: core
+    sort_order: 19
+
+  # ── Supporting (12) ─────────────────────────────────────────────────
+  - slug: cloud-cost-audit
+    domain: cost
+    member_role: supporting
+    sort_order: 20
+  - slug: cloud-cost-alert-designer
+    domain: cost
+    member_role: supporting
+    sort_order: 21
+  - slug: kubernetes-cost-optimizer
+    domain: cost
+    member_role: supporting
+    sort_order: 22
+  - slug: secrets-architecture-designer
+    domain: security
+    member_role: supporting
+    sort_order: 23
+  - slug: workload-identity-architect
+    domain: security
+    member_role: supporting
+    sort_order: 24
+  - slug: artifact-signing-and-verification-designer
+    domain: security
+    member_role: supporting
+    sort_order: 25
+  - slug: internal-platform-strategy-author
+    domain: platform
+    member_role: supporting
+    sort_order: 26
+  - slug: imported-alirezarezvani-chaos-engineering
+    domain: incident
+    member_role: supporting
+    sort_order: 27
+  - slug: cardinality-cost-reviewer
+    domain: observability
+    member_role: supporting
+    sort_order: 28
+  - slug: imported-google-skills-waf-reliability
+    domain: incident
+    member_role: supporting
+    sort_order: 29
+  - slug: imported-google-skills-waf-cost
+    domain: cost
+    member_role: supporting
+    sort_order: 30
+  - slug: imported-google-skills-networking-observability
+    domain: observability
+    member_role: supporting
+    sort_order: 31
+
+  # ── Optional (8) ────────────────────────────────────────────────────
+  - slug: instrumentation-coverage-reviewer
+    domain: observability
+    member_role: optional
+    sort_order: 40
+  - slug: spark-on-kubernetes-architect
+    domain: platform
+    member_role: optional
+    sort_order: 41
+  - slug: kafka-topic-architect
+    domain: platform
+    member_role: optional
+    sort_order: 42
+  - slug: kafka-consumer-pattern-picker
+    domain: platform
+    member_role: optional
+    sort_order: 43
+  - slug: kafka-streams-pipeline-designer
+    domain: platform
+    member_role: optional
+    sort_order: 44
+  - slug: kafka-schema-evolution-architect
+    domain: platform
+    member_role: optional
+    sort_order: 45
+  - slug: imported-voltagent-cloudflare-platform
+    domain: platform
+    member_role: optional
+    sort_order: 46
+  - slug: imported-voltagent-cloudflare-workers-best-practices
+    domain: ci-cd
+    member_role: optional
+    sort_order: 47
+
+version: "1.0.0"
+
+changelog:
+  - version: "1.0.0"
+    date: "2026-05-26"
+    notes: |
+      Initial assembly of the AI DevOps Engineer occupation (Wave 3, T-08).
+      30 members across 7 domains. 60 explicit cross-links applied to
+      member skill bodies via patch SkillVersions (1.0.0 → 1.0.1).

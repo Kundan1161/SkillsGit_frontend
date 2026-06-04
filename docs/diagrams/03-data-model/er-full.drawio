@@ -1,0 +1,275 @@
+<mxfile host="app.diagrams.net" agent="skills-git-architect" version="22.1.16">
+  <diagram name="ER full" id="er-full-skillsgit">
+    <mxGraphModel dx="2400" dy="1600" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="3200" pageHeight="2200" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- ==================== Identity cluster ==================== -->
+        <mxCell id="cluster-identity" value="Identity" style="rounded=1;fillColor=#F3F4F6;strokeColor=#9CA3AF;fontSize=14;fontStyle=1;verticalAlign=top;align=center;" vertex="1" parent="1">
+          <mxGeometry x="40" y="40" width="700" height="320" as="geometry" />
+        </mxCell>
+        <mxCell id="t-users" value="users&#10;&#10;id (PK)&#10;email (UK)&#10;role (buyer | creator | admin)&#10;is_admin&#10;payouts_enabled&#10;stripe_customer_id&#10;stripe_connect_account_id" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E0E7FF;strokeColor=#4338CA;align=left;verticalAlign=top;spacingLeft=8;spacingTop=8;" vertex="1" parent="1">
+          <mxGeometry x="60" y="80" width="200" height="200" as="geometry" />
+        </mxCell>
+        <mxCell id="t-creator-profiles" value="creator_profiles&#10;&#10;id (PK)&#10;user_id (FK,UK)&#10;handle (UK)&#10;bio&#10;industries (text[])&#10;payout_country (char(2))" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E0E7FF;strokeColor=#4338CA;align=left;verticalAlign=top;spacingLeft=8;spacingTop=8;" vertex="1" parent="1">
+          <mxGeometry x="280" y="80" width="200" height="160" as="geometry" />
+        </mxCell>
+        <mxCell id="t-api-tokens" value="api_tokens&#10;&#10;id (PK)&#10;user_id (FK)&#10;prefix (UK)&#10;token_hash&#10;scopes (text[])&#10;expires_at&#10;revoked_at" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E0E7FF;strokeColor=#4338CA;align=left;verticalAlign=top;spacingLeft=8;spacingTop=8;" vertex="1" parent="1">
+          <mxGeometry x="500" y="80" width="200" height="180" as="geometry" />
+        </mxCell>
+
+        <!-- ==================== Catalog cluster ==================== -->
+        <mxCell id="cluster-catalog" value="Catalog (kind=skill spine; Cycle-1: kind enum on skills)" style="rounded=1;fillColor=#F3F4F6;strokeColor=#9CA3AF;fontSize=14;fontStyle=1;verticalAlign=top;align=center;" vertex="1" parent="1">
+          <mxGeometry x="780" y="40" width="940" height="380" as="geometry" />
+        </mxCell>
+        <mxCell id="t-categories" value="categories&#10;&#10;slug (PK, citext)&#10;name&#10;parent_slug (FK)&#10;display_order" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#92400E;align=left;verticalAlign=top;spacingLeft=8;spacingTop=8;" vertex="1" parent="1">
+          <mxGeometry x="800" y="80" width="200" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="t-skills" value="skills&#10;&#10;id (PK)&#10;creator_id (FK → users)&#10;slug (citext, UK per creator)&#10;kind (skill|occupation|persona|memory_neuron) ← Cycle-1&#10;status (draft|pending_review|published|unlisted|removed)&#10;pricing_model (free|one_time|subscription|freemium)&#10;category (FK → categories)&#10;latest_version_id (FK → skill_versions)&#10;one_time_price_cents&#10;subscription_price_cents&#10;total_sales&#10;rating_avg, rating_count" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#92400E;align=left;verticalAlign=top;spacingLeft=8;spacingTop=8;" vertex="1" parent="1">
+          <mxGeometry x="1020" y="80" width="320" height="280" as="geometry" />
+        </mxCell>
+        <mxCell id="t-skill-versions" value="skill_versions&#10;&#10;id (PK)&#10;skill_id (FK → skills)&#10;version (semver, UK per skill)&#10;content_hash (char(64))&#10;storage_url (S3 key)&#10;ai_requirements (jsonb)&#10;released_at&#10;is_yanked" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#92400E;align=left;verticalAlign=top;spacingLeft=8;spacingTop=8;" vertex="1" parent="1">
+          <mxGeometry x="1360" y="80" width="240" height="200" as="geometry" />
+        </mxCell>
+
+        <!-- ==================== Cycle-1 Occupations cluster ==================== -->
+        <mxCell id="cluster-occ" value="Cycle-1 — Occupations (migration 0006)" style="rounded=1;fillColor=#ECFDF5;strokeColor=#059669;fontSize=14;fontStyle=1;verticalAlign=top;align=center;" vertex="1" parent="1">
+          <mxGeometry x="40" y="400" width="700" height="280" as="geometry" />
+        </mxCell>
+        <mxCell id="t-occupations" value="occupations  (side-table for kind=occupation)&#10;&#10;skill_id (PK,FK → skills.id) — 1:1&#10;summary_md&#10;domains (text[])  ← vault folder names&#10;persona_count (denormalized)&#10;recommended_persona_count&#10;latest_build_id (FK → vault_builds)  ← added in 0009" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D1FAE5;strokeColor=#065F46;align=left;verticalAlign=top;spacingLeft=8;spacingTop=8;" vertex="1" parent="1">
+          <mxGeometry x="60" y="440" width="320" height="180" as="geometry" />
+        </mxCell>
+        <mxCell id="t-occ-skills" value="occupation_skills  (membership rows)&#10;&#10;id (PK)&#10;occupation_id (FK → occupations.skill_id)&#10;member_skill_id (FK → skills.id)&#10;   service enforces kind=skill&#10;domain (string)&#10;sort_order&#10;role (core | supporting | optional)&#10;pinned (bool)&#10;UK (occupation_id, member_skill_id)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D1FAE5;strokeColor=#065F46;align=left;verticalAlign=top;spacingLeft=8;spacingTop=8;" vertex="1" parent="1">
+          <mxGeometry x="400" y="440" width="320" height="220" as="geometry" />
+        </mxCell>
+
+        <!-- ==================== Cycle-1 Personas cluster ==================== -->
+        <mxCell id="cluster-personas" value="Cycle-1 — Personas (migration 0007)" style="rounded=1;fillColor=#EFF6FF;strokeColor=#1D4ED8;fontSize=14;fontStyle=1;verticalAlign=top;align=center;" vertex="1" parent="1">
+          <mxGeometry x="780" y="440" width="940" height="280" as="geometry" />
+        </mxCell>
+        <mxCell id="t-personas" value="personas  (side-table for kind=persona)&#10;&#10;skill_id (PK,FK → skills.id) — 1:1&#10;parent_occupation_id (FK → occupations.skill_id)&#10;   non-null, ON DELETE RESTRICT&#10;creator_intro_md&#10;years_of_experience&#10;specialization&#10;neuron_count&#10;latest_build_id (FK → vault_builds, in 0009)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DBEAFE;strokeColor=#1E40AF;align=left;verticalAlign=top;spacingLeft=8;spacingTop=8;" vertex="1" parent="1">
+          <mxGeometry x="800" y="480" width="340" height="200" as="geometry" />
+        </mxCell>
+        <mxCell id="t-persona-neurons" value="persona_neurons  (membership rows)&#10;&#10;id (PK)&#10;persona_id (FK → personas.skill_id)&#10;neuron_skill_id (FK → skills.id)&#10;   service enforces kind=memory_neuron AND&#10;   neuron.creator_id == persona.creator_id&#10;sort_order&#10;section (optional sub-folder)&#10;added_at&#10;UK (persona_id, neuron_skill_id)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DBEAFE;strokeColor=#1E40AF;align=left;verticalAlign=top;spacingLeft=8;spacingTop=8;" vertex="1" parent="1">
+          <mxGeometry x="1160" y="480" width="360" height="220" as="geometry" />
+        </mxCell>
+
+        <!-- ==================== Cycle-1 Capture cluster ==================== -->
+        <mxCell id="cluster-capture" value="Cycle-1 — Capture pipeline (migration 0008)" style="rounded=1;fillColor=#FFFBEB;strokeColor=#D97706;fontSize=14;fontStyle=1;verticalAlign=top;align=center;" vertex="1" parent="1">
+          <mxGeometry x="40" y="720" width="700" height="300" as="geometry" />
+        </mxCell>
+        <mxCell id="t-capture-sessions" value="capture_sessions&#10;&#10;id (PK)&#10;creator_id (FK → users)&#10;persona_id (FK → personas.skill_id)&#10;title&#10;situation_md, decision_md, outcome_md, context_md&#10;draft_md (LLM output)&#10;suggested_links_json (jsonb)&#10;pii_flags_json (jsonb)&#10;token_usage_json (jsonb)&#10;llm_model (claude variant snapshot)&#10;status (draft|extracting|draft_ready|finalizing|finalized|abandoned)&#10;finalized_neuron_skill_id (FK → skills)&#10;finalized_at, abandoned_at" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#B45309;align=left;verticalAlign=top;spacingLeft=8;spacingTop=8;" vertex="1" parent="1">
+          <mxGeometry x="60" y="760" width="340" height="240" as="geometry" />
+        </mxCell>
+        <mxCell id="t-capture-attachments" value="capture_attachments&#10;&#10;id (PK)&#10;capture_session_id (FK → capture_sessions)&#10;storage_url (S3 key)&#10;filename&#10;content_type&#10;size_bytes (bigint)&#10;sha256 (char(64); content-addressed)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#B45309;align=left;verticalAlign=top;spacingLeft=8;spacingTop=8;" vertex="1" parent="1">
+          <mxGeometry x="420" y="760" width="300" height="180" as="geometry" />
+        </mxCell>
+
+        <!-- ==================== Cycle-1 Vault cluster ==================== -->
+        <mxCell id="cluster-vault" value="Cycle-1 — Vault build + delivery (migration 0009)" style="rounded=1;fillColor=#F5F3FF;strokeColor=#6D28D9;fontSize=14;fontStyle=1;verticalAlign=top;align=center;" vertex="1" parent="1">
+          <mxGeometry x="780" y="720" width="940" height="300" as="geometry" />
+        </mxCell>
+        <mxCell id="t-vault-builds" value="vault_builds  (immutable per (skill, version, content))&#10;&#10;id (PK)&#10;skill_id (FK → skills) — occupation OR persona&#10;skill_version_id (FK → skill_versions)&#10;content_hash (char(64))&#10;   UK (skill_id, content_hash); idempotent rebuilds&#10;   partial UK (skill_version_id) WHERE status='succeeded'&#10;storage_url  vaults/{skill_id}/{version}/{hash}.zip&#10;manifest_json (jsonb) ← mirror of in-zip vault.json&#10;file_count, total_bytes&#10;status (queued|running|succeeded|failed)&#10;error (text), build_log_json (jsonb)&#10;built_at, built_by (FK → users)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EDE9FE;strokeColor=#5B21B6;align=left;verticalAlign=top;spacingLeft=8;spacingTop=8;" vertex="1" parent="1">
+          <mxGeometry x="800" y="760" width="420" height="240" as="geometry" />
+        </mxCell>
+        <mxCell id="t-vault-downloads" value="vault_downloads  (per-call composition audit)&#10;&#10;id (PK)&#10;occupation_license_id (FK → licenses, CASCADE)&#10;buyer_id (FK → users, denormalized)&#10;occupation_build_id (FK → vault_builds, RESTRICT)&#10;persona_build_ids (uuid[])&#10;persona_license_ids (uuid[]) — snapshot at compose time&#10;composed_hash (char(64))&#10;storage_url  delivery/vaults/{nonce}.zip (1h TTL)&#10;user_agent_hash, ip_hash&#10;created_at" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EDE9FE;strokeColor=#5B21B6;align=left;verticalAlign=top;spacingLeft=8;spacingTop=8;" vertex="1" parent="1">
+          <mxGeometry x="1240" y="760" width="460" height="240" as="geometry" />
+        </mxCell>
+
+        <!-- ==================== Marketplace cluster ==================== -->
+        <mxCell id="cluster-market" value="Marketplace (orders + subscriptions + licenses + payouts; Cycle-1: licenses adds composition_role + target_occupation_skill_id)" style="rounded=1;fillColor=#FFF7ED;strokeColor=#EA580C;fontSize=14;fontStyle=1;verticalAlign=top;align=center;" vertex="1" parent="1">
+          <mxGeometry x="40" y="1060" width="1680" height="380" as="geometry" />
+        </mxCell>
+        <mxCell id="t-orders" value="orders&#10;&#10;id (PK)&#10;buyer_id (FK → users)&#10;stripe_payment_intent_id (UK)&#10;subtotal_cents, platform_fee_cents&#10;creator_payout_cents&#10;currency (char(3))&#10;status (pending|paid|refunded|partially_refunded|failed)&#10;placed_at" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFEDD5;strokeColor=#C2410C;align=left;verticalAlign=top;spacingLeft=8;spacingTop=8;" vertex="1" parent="1">
+          <mxGeometry x="60" y="1100" width="280" height="220" as="geometry" />
+        </mxCell>
+        <mxCell id="t-order-items" value="order_items&#10;&#10;id (PK)&#10;order_id (FK → orders)&#10;skill_id (FK → skills)&#10;skill_version_id (FK → skill_versions)&#10;creator_id (FK → users) — denormalized&#10;price_cents, platform_fee_cents" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFEDD5;strokeColor=#C2410C;align=left;verticalAlign=top;spacingLeft=8;spacingTop=8;" vertex="1" parent="1">
+          <mxGeometry x="360" y="1100" width="280" height="200" as="geometry" />
+        </mxCell>
+        <mxCell id="t-subscriptions" value="subscriptions&#10;&#10;id (PK)&#10;buyer_id (FK → users)&#10;skill_id (FK → skills)&#10;stripe_subscription_id (UK)&#10;status (active|past_due|canceled|paused)&#10;price_cents (snapshot at signup)&#10;current_period_start, current_period_end&#10;cancel_at_period_end" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFEDD5;strokeColor=#C2410C;align=left;verticalAlign=top;spacingLeft=8;spacingTop=8;" vertex="1" parent="1">
+          <mxGeometry x="660" y="1100" width="280" height="220" as="geometry" />
+        </mxCell>
+        <mxCell id="t-licenses" value="licenses  (unifying entitlement record)&#10;&#10;id (PK)&#10;buyer_id (FK → users)&#10;skill_id (FK → skills)&#10;source (one_time|subscription|free|freemium|grant)&#10;source_id (logical FK → order_items or subscriptions)&#10;granted_at, expires_at&#10;max_version (semver ceiling)&#10;support_tier (none|basic|priority)&#10;status (active|expired|revoked)&#10;composition_role (occupation|persona|standalone) ← Cycle-1&#10;target_occupation_skill_id (FK → skills) ← Cycle-1&#10;   set ONLY for composition_role=persona" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFEDD5;strokeColor=#C2410C;align=left;verticalAlign=top;spacingLeft=8;spacingTop=8;" vertex="1" parent="1">
+          <mxGeometry x="960" y="1100" width="400" height="300" as="geometry" />
+        </mxCell>
+        <mxCell id="t-payouts" value="payouts&#10;&#10;id (PK)&#10;creator_id (FK → users)&#10;stripe_transfer_id (UK)&#10;amount_cents&#10;currency (char(3))&#10;period_start, period_end&#10;status (pending|paid|failed)&#10;paid_at" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFEDD5;strokeColor=#C2410C;align=left;verticalAlign=top;spacingLeft=8;spacingTop=8;" vertex="1" parent="1">
+          <mxGeometry x="1380" y="1100" width="280" height="220" as="geometry" />
+        </mxCell>
+
+        <!-- ==================== Reviews + audit + admin cluster ==================== -->
+        <mxCell id="cluster-misc" value="Reviews, audit log, admin, search, webhooks" style="rounded=1;fillColor=#F1F5F9;strokeColor=#475569;fontSize=14;fontStyle=1;verticalAlign=top;align=center;" vertex="1" parent="1">
+          <mxGeometry x="40" y="1480" width="1680" height="280" as="geometry" />
+        </mxCell>
+        <mxCell id="t-reviews" value="reviews&#10;&#10;id (PK)&#10;skill_id (FK → skills)&#10;author_id (FK → users)&#10;license_id (FK → licenses) — must own to review&#10;rating (1-5)&#10;title, body_md&#10;status (visible|hidden|flagged)&#10;UK (skill_id, author_id)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E2E8F0;strokeColor=#334155;align=left;verticalAlign=top;spacingLeft=8;spacingTop=8;" vertex="1" parent="1">
+          <mxGeometry x="60" y="1520" width="280" height="200" as="geometry" />
+        </mxCell>
+        <mxCell id="t-audit-log" value="audit_log&#10;&#10;id (PK)&#10;actor_id (FK → users, nullable)&#10;action (dotted, e.g. skill.published)&#10;target_type, target_id&#10;metadata (jsonb)&#10;created_at" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E2E8F0;strokeColor=#334155;align=left;verticalAlign=top;spacingLeft=8;spacingTop=8;" vertex="1" parent="1">
+          <mxGeometry x="360" y="1520" width="280" height="180" as="geometry" />
+        </mxCell>
+        <mxCell id="t-moderation" value="moderation_actions&#10;&#10;id (PK)&#10;actor_admin_id (FK → users)&#10;target_type, target_id&#10;action&#10;reason&#10;metadata (jsonb)&#10;created_at" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E2E8F0;strokeColor=#334155;align=left;verticalAlign=top;spacingLeft=8;spacingTop=8;" vertex="1" parent="1">
+          <mxGeometry x="660" y="1520" width="280" height="180" as="geometry" />
+        </mxCell>
+        <mxCell id="t-editorial" value="editorial_picks&#10;&#10;id (PK)&#10;skill_id (FK → skills)&#10;created_by (FK → users)&#10;slot, sort_order&#10;starts_at, ends_at" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E2E8F0;strokeColor=#334155;align=left;verticalAlign=top;spacingLeft=8;spacingTop=8;" vertex="1" parent="1">
+          <mxGeometry x="960" y="1520" width="240" height="160" as="geometry" />
+        </mxCell>
+        <mxCell id="t-search-alerts" value="search_alerts&#10;&#10;id (PK)&#10;user_id (FK → users)&#10;query_json (jsonb)&#10;last_notified_at" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E2E8F0;strokeColor=#334155;align=left;verticalAlign=top;spacingLeft=8;spacingTop=8;" vertex="1" parent="1">
+          <mxGeometry x="1220" y="1520" width="220" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="t-webhook-events" value="webhook_events&#10;&#10;id (PK, Stripe event id)&#10;type&#10;payload_json (jsonb)&#10;status (received|processed|failed)&#10;received_at, processed_at" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E2E8F0;strokeColor=#334155;align=left;verticalAlign=top;spacingLeft=8;spacingTop=8;" vertex="1" parent="1">
+          <mxGeometry x="1460" y="1520" width="220" height="160" as="geometry" />
+        </mxCell>
+
+        <!-- ==================== Edges ==================== -->
+        <!-- Identity edges -->
+        <mxCell id="e-users-creatorprofile" style="endArrow=ERmany;startArrow=ERone;edgeStyle=entityRelationEdgeStyle;strokeColor=#4338CA;" edge="1" parent="1" source="t-users" target="t-creator-profiles">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-users-apitokens" style="endArrow=ERmany;startArrow=ERone;edgeStyle=entityRelationEdgeStyle;strokeColor=#4338CA;" edge="1" parent="1" source="t-users" target="t-api-tokens">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Catalog edges -->
+        <mxCell id="e-categories-skills" style="endArrow=ERmany;startArrow=ERone;edgeStyle=entityRelationEdgeStyle;strokeColor=#92400E;" edge="1" parent="1" source="t-categories" target="t-skills">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-categories-self" style="endArrow=ERmany;startArrow=ERone;edgeStyle=entityRelationEdgeStyle;strokeColor=#92400E;curved=1;" edge="1" parent="1" source="t-categories" target="t-categories">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="790" y="40" />
+              <mxPoint x="900" y="40" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e-users-skills" style="endArrow=ERmany;startArrow=ERone;edgeStyle=entityRelationEdgeStyle;strokeColor=#4338CA;" edge="1" parent="1" source="t-users" target="t-skills">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-skills-versions" style="endArrow=ERmany;startArrow=ERone;edgeStyle=entityRelationEdgeStyle;strokeColor=#92400E;" edge="1" parent="1" source="t-skills" target="t-skill-versions">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Cycle-1 occupations + personas -->
+        <mxCell id="e-skills-occupations" style="endArrow=ERoneToMany;startArrow=ERmandOne;edgeStyle=entityRelationEdgeStyle;strokeColor=#065F46;strokeWidth=2;" edge="1" parent="1" source="t-skills" target="t-occupations">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-occ-occskills" style="endArrow=ERmany;startArrow=ERone;edgeStyle=entityRelationEdgeStyle;strokeColor=#065F46;strokeWidth=2;" edge="1" parent="1" source="t-occupations" target="t-occ-skills">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-skills-occskills-member" style="endArrow=ERmany;startArrow=ERone;edgeStyle=entityRelationEdgeStyle;strokeColor=#065F46;dashed=1;" edge="1" parent="1" source="t-skills" target="t-occ-skills">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-skills-personas" style="endArrow=ERoneToMany;startArrow=ERmandOne;edgeStyle=entityRelationEdgeStyle;strokeColor=#1E40AF;strokeWidth=2;" edge="1" parent="1" source="t-skills" target="t-personas">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-occ-personas-parent" style="endArrow=ERmany;startArrow=ERone;edgeStyle=entityRelationEdgeStyle;strokeColor=#1E40AF;" edge="1" parent="1" source="t-occupations" target="t-personas">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-personas-neurons" style="endArrow=ERmany;startArrow=ERone;edgeStyle=entityRelationEdgeStyle;strokeColor=#1E40AF;strokeWidth=2;" edge="1" parent="1" source="t-personas" target="t-persona-neurons">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-skills-neurons" style="endArrow=ERmany;startArrow=ERone;edgeStyle=entityRelationEdgeStyle;strokeColor=#1E40AF;dashed=1;" edge="1" parent="1" source="t-skills" target="t-persona-neurons">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Capture edges -->
+        <mxCell id="e-users-capture" style="endArrow=ERmany;startArrow=ERone;edgeStyle=entityRelationEdgeStyle;strokeColor=#B45309;" edge="1" parent="1" source="t-users" target="t-capture-sessions">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-personas-capture" style="endArrow=ERmany;startArrow=ERone;edgeStyle=entityRelationEdgeStyle;strokeColor=#B45309;" edge="1" parent="1" source="t-personas" target="t-capture-sessions">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-capture-attach" style="endArrow=ERmany;startArrow=ERone;edgeStyle=entityRelationEdgeStyle;strokeColor=#B45309;" edge="1" parent="1" source="t-capture-sessions" target="t-capture-attachments">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-capture-finalized-skill" style="endArrow=ERoneToMany;startArrow=ERmandOne;edgeStyle=entityRelationEdgeStyle;strokeColor=#B45309;dashed=1;" edge="1" parent="1" source="t-skills" target="t-capture-sessions">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Vault edges -->
+        <mxCell id="e-skills-vaultbuilds" style="endArrow=ERmany;startArrow=ERone;edgeStyle=entityRelationEdgeStyle;strokeColor=#5B21B6;strokeWidth=2;" edge="1" parent="1" source="t-skills" target="t-vault-builds">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-skillversions-vaultbuilds" style="endArrow=ERmany;startArrow=ERone;edgeStyle=entityRelationEdgeStyle;strokeColor=#5B21B6;dashed=1;" edge="1" parent="1" source="t-skill-versions" target="t-vault-builds">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-occ-vaultbuilds" style="endArrow=ERoneToMany;startArrow=ERmandOne;edgeStyle=entityRelationEdgeStyle;strokeColor=#5B21B6;dashed=1;" edge="1" parent="1" source="t-occupations" target="t-vault-builds">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-personas-vaultbuilds" style="endArrow=ERoneToMany;startArrow=ERmandOne;edgeStyle=entityRelationEdgeStyle;strokeColor=#5B21B6;dashed=1;" edge="1" parent="1" source="t-personas" target="t-vault-builds">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-licenses-vaultdownloads" style="endArrow=ERmany;startArrow=ERone;edgeStyle=entityRelationEdgeStyle;strokeColor=#5B21B6;strokeWidth=2;" edge="1" parent="1" source="t-licenses" target="t-vault-downloads">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-users-vaultdownloads" style="endArrow=ERmany;startArrow=ERone;edgeStyle=entityRelationEdgeStyle;strokeColor=#4338CA;dashed=1;" edge="1" parent="1" source="t-users" target="t-vault-downloads">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-vaultbuilds-vaultdownloads" style="endArrow=ERmany;startArrow=ERone;edgeStyle=entityRelationEdgeStyle;strokeColor=#5B21B6;" edge="1" parent="1" source="t-vault-builds" target="t-vault-downloads">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Marketplace edges -->
+        <mxCell id="e-users-orders" style="endArrow=ERmany;startArrow=ERone;edgeStyle=entityRelationEdgeStyle;strokeColor=#4338CA;" edge="1" parent="1" source="t-users" target="t-orders">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-orders-orderitems" style="endArrow=ERmany;startArrow=ERone;edgeStyle=entityRelationEdgeStyle;strokeColor=#C2410C;strokeWidth=2;" edge="1" parent="1" source="t-orders" target="t-order-items">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-skills-orderitems" style="endArrow=ERmany;startArrow=ERone;edgeStyle=entityRelationEdgeStyle;strokeColor=#C2410C;dashed=1;" edge="1" parent="1" source="t-skills" target="t-order-items">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-users-subscriptions" style="endArrow=ERmany;startArrow=ERone;edgeStyle=entityRelationEdgeStyle;strokeColor=#4338CA;" edge="1" parent="1" source="t-users" target="t-subscriptions">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-skills-subscriptions" style="endArrow=ERmany;startArrow=ERone;edgeStyle=entityRelationEdgeStyle;strokeColor=#C2410C;dashed=1;" edge="1" parent="1" source="t-skills" target="t-subscriptions">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-users-licenses" style="endArrow=ERmany;startArrow=ERone;edgeStyle=entityRelationEdgeStyle;strokeColor=#4338CA;" edge="1" parent="1" source="t-users" target="t-licenses">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-skills-licenses" style="endArrow=ERmany;startArrow=ERone;edgeStyle=entityRelationEdgeStyle;strokeColor=#C2410C;" edge="1" parent="1" source="t-skills" target="t-licenses">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-skills-licenses-target" style="endArrow=ERmany;startArrow=ERone;edgeStyle=entityRelationEdgeStyle;strokeColor=#C2410C;dashed=1;" edge="1" parent="1" source="t-skills" target="t-licenses">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1340" y="1240" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e-users-payouts" style="endArrow=ERmany;startArrow=ERone;edgeStyle=entityRelationEdgeStyle;strokeColor=#4338CA;" edge="1" parent="1" source="t-users" target="t-payouts">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Reviews / audit / admin edges -->
+        <mxCell id="e-skills-reviews" style="endArrow=ERmany;startArrow=ERone;edgeStyle=entityRelationEdgeStyle;strokeColor=#334155;" edge="1" parent="1" source="t-skills" target="t-reviews">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-users-reviews" style="endArrow=ERmany;startArrow=ERone;edgeStyle=entityRelationEdgeStyle;strokeColor=#4338CA;dashed=1;" edge="1" parent="1" source="t-users" target="t-reviews">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-licenses-reviews" style="endArrow=ERmany;startArrow=ERone;edgeStyle=entityRelationEdgeStyle;strokeColor=#C2410C;" edge="1" parent="1" source="t-licenses" target="t-reviews">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-users-audit" style="endArrow=ERmany;startArrow=ERoneToMany;edgeStyle=entityRelationEdgeStyle;strokeColor=#4338CA;dashed=1;" edge="1" parent="1" source="t-users" target="t-audit-log">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-users-moderation" style="endArrow=ERmany;startArrow=ERoneToMany;edgeStyle=entityRelationEdgeStyle;strokeColor=#4338CA;dashed=1;" edge="1" parent="1" source="t-users" target="t-moderation">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-skills-editorial" style="endArrow=ERmany;startArrow=ERone;edgeStyle=entityRelationEdgeStyle;strokeColor=#334155;" edge="1" parent="1" source="t-skills" target="t-editorial">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-users-searchalerts" style="endArrow=ERmany;startArrow=ERone;edgeStyle=entityRelationEdgeStyle;strokeColor=#4338CA;" edge="1" parent="1" source="t-users" target="t-search-alerts">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Legend -->
+        <mxCell id="legend" value="Legend&#10;&#10;◆ Cluster colour = subsystem&#10;   indigo = identity   amber = catalog   green = occupations&#10;   blue = personas   orange = capture   violet = vault&#10;   light-orange = marketplace   grey = misc&#10;◆ Solid edge = direct ownership FK&#10;◆ Dashed edge = secondary / denormalized FK&#10;◆ Crow's foot = many; bar = exactly one;&#10;   circle = optional (0..1)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#000000;align=left;verticalAlign=top;spacingLeft=10;spacingTop=10;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="1760" y="40" width="380" height="240" as="geometry" />
+        </mxCell>
+        <mxCell id="title" value="Skills Git ER — full schema after Cycle 1&#10;(Occupations + Personas + Capture + Vault)&#10;Source: apps/api/src/*/models.py + alembic/versions/0001 + 0006-0010" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=none;align=left;verticalAlign=top;fontSize=18;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1760" y="290" width="600" height="80" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

@@ -1,0 +1,217 @@
+---
+id: skillsgit-curated/developer-portal-architect
+version: 1.0.0
+name: Developer Portal Architect
+description: Design a developer portal — overview, quickstart, concepts, how-to, reference, changelog, SDK pages, sample apps — with disciplined navigation depth, code-block conventions, and OpenAPI integration.
+authors:
+  - name: skillsgit Curated
+    handle: skillsgit-curated
+    role: author
+category: productivity
+tags:
+  - niche:documentation-system-architecture
+  - developer-portal
+  - api-documentation
+  - openapi
+  - sdk-docs
+  - quickstart
+  - sample-apps
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6, claude-haiku-4-5, gpt-4o]
+  tools_required: []
+  min_context_tokens: 32000
+  estimated_tokens_per_invocation: 5000
+trigger_keywords:
+  - developer portal
+  - api docs site
+  - sdk docs
+  - quickstart
+  - openapi docs
+  - api reference design
+  - sample apps
+  - developer experience
+  - integrator docs
+  - api console
+example_invocations:
+  - "Design a developer portal for our public API and three SDKs."
+  - "Propose the page set and navigation for a new developer portal — what pages do we need on day one?"
+  - "Lay out the API reference integration for a portal driven by our OpenAPI spec."
+  - "Plan the sample-app strategy for our developer portal."
+  - "Recommend code-block conventions and language-tab patterns for our SDK docs."
+inputs:
+  - name: api_summary
+    type: text
+    required: true
+    description: A paragraph describing the API — REST/gRPC/GraphQL/webhooks, surface size, auth model, and stability stage (alpha, beta, GA).
+  - name: sdk_summary
+    type: text
+    required: false
+    description: Which SDKs ship — language, support tier (first-party / community), feature parity. If none, the portal is API-only.
+  - name: audience
+    type: text
+    required: false
+    description: One or two paragraphs on the integrator persona — role, prior knowledge, tooling preferences, typical integration depth.
+  - name: constraints
+    type: text
+    required: false
+    description: Generator choice if decided, hosting target, brand requirements, OpenAPI spec maturity, available code-sample languages, and the team's docs-engineering capacity.
+outputs:
+  - name: portal_design
+    type: markdown
+    description: The full portal design — page set, navigation depth, code-block conventions, OpenAPI integration approach, sample-app strategy, changelog model.
+  - name: launch_page_list
+    type: markdown
+    description: The minimum page set for a credible day-one launch, with one-line briefs for each page.
+  - name: post_launch_roadmap
+    type: markdown
+    description: A staged plan for pages and features to add after launch, prioritized by integrator-job impact.
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Initial release.
+---
+
+# Developer Portal Architect
+
+## When to use
+
+Reach for this skill when a team is designing a developer portal — the docs surface that an external (or internal-platform) developer integrates against. A developer portal is a specialized documentation site: it must teach a new integrator the model, get them to a working call within minutes, and serve as the authoritative reference for every endpoint, error, and SDK call thereafter. The skill produces a portal design with the right pages, the right depth, and the right discipline around code blocks and reference auto-generation.
+
+It is not the right tool when:
+
+- The user wants a general docs site IA. Use the IA skill; this skill assumes the portal's audience is integrators.
+- The user wants the API itself designed. API design is upstream; the portal documents what the API is, not what it should be.
+- The user wants a single API reference page rendered. The skill is concerned with the *portal* — the system of pages — not a single page's render.
+- The user wants the developer-relations content strategy (tutorials in blog form, conference talks, sample-app videos). Those are adjacent but not the portal.
+
+Engage the skill when the request mentions developer portal, API docs site, SDK docs, quickstart for an API, OpenAPI integration, sample apps, or integrator journey. The output is a portal design with a launch-page list.
+
+## How to apply
+
+The methodology runs in six phases. Phases build on each other; do not skip.
+
+### Phase 1 — Define the integrator journey
+
+1. **Write the integrator's first hour.** Minute zero: the integrator arrives, usually on the overview page. They need to know within thirty seconds what the API does and whether it suits their use case. Minute one to ten: a quickstart that produces a real, observable result with their actual credentials. Minute ten to forty: the integrator stitches together a first end-to-end flow combining two or three calls. Minute forty onward: the integrator is building. The portal must be navigable for each of these phases without backtracking.
+2. **Write the integrator's *return* hour.** A week later, the integrator is back. They are not learning; they are looking something up — an endpoint's exact response shape, an error code's meaning, a webhook signature's verification routine. The portal must let them land via search and find the fact in under thirty seconds.
+3. **Write the integrator's *debug* hour.** A month later, production is broken. The integrator is searching error messages, status codes, behavior under retry. The portal must surface a *Troubleshooting* path that addresses the common operational failure modes — rate limits, auth expiry, eventual consistency windows, replay/retry semantics.
+4. **Enumerate the integrator personas.** Three are common: the *evaluator* (deciding whether to integrate), the *implementer* (building the integration), the *operator* (running it). Each has a distinct top page. Mixing their entry points is a common defect.
+5. **List the integrator's outside dependencies.** SDKs, sample apps, a Postman collection, a CLI, a sandbox environment, an API console embedded in the portal. The portal does not just document the API; it ships the things an integrator uses to learn it.
+
+### Phase 2 — Lay out the page set
+
+6. **A credible day-one portal has these pages,** in this order in the navigation:
+    - *Overview* — what the API does, who it is for, what it costs (link to pricing), what the stability status is.
+    - *Quickstart* — strictly time-boxed (under ten minutes). One narrow path to one concrete success. No branches.
+    - *Authentication* — how to get credentials, how to attach them, how to rotate them, what scopes mean.
+    - *Concepts* — five to ten essays explaining the model. Resource shapes, lifecycle, idempotency, eventual consistency, error semantics, pagination, rate limits, webhooks, versioning. Each essay answers a question.
+    - *How-to / Recipes* — a library of single-purpose recipes for common integration tasks. One purpose per recipe.
+    - *API Reference* — auto-generated, endpoint per page (or grouped by resource).
+    - *SDK Reference* — one section per SDK, language-specific reference and idioms.
+    - *Webhooks* — if the API emits them. A dedicated page set covering subscription, verification, retry, payload shapes.
+    - *Errors* — a catalog of every error code with cause and recovery. Cross-linked from individual endpoint pages.
+    - *Changelog* — versioned release notes, breaking-change banner at top of changes that warrant it.
+    - *Sample Apps* — links to real, runnable repositories demonstrating canonical flows.
+    - *Status* — link out to the public status page (not a part of the docs, but always one click away).
+    - *Support / Community* — how to ask, where, and the expected response time.
+7. **Keep top-level navigation to seven items or fewer.** Group the page set above into seven top-level buckets — Overview / Quickstart / Guides / API / SDKs / Webhooks / Changelog is a workable cut. Errors are linked from API and SDKs rather than top-level; Sample Apps links from Guides; Support is in the footer.
+8. **Hold sidebar depth to two levels.** A developer portal whose sidebar tree is four levels deep cannot be scanned. Reference pages may have an in-page TOC ("on this page") that goes deeper, but the global sidebar stays shallow.
+9. **Each top-level section has one entry page.** The entry page is a hub: brief context, then cards or a short list of links into the section. The entry page is *not* a wall of prose; it is a router.
+10. **Treat the home page as a router, not a brochure.** Five elements: an above-the-fold value sentence, a single Get-Started CTA, three integrator-job cards, a search box, and a row of useful entry points (API reference index, status, changelog). Resist the marketing-page urge to add a hero image, a carousel, or testimonials; this is a docs surface.
+
+### Phase 3 — Reference: integrate OpenAPI or equivalent
+
+11. **Use the spec as source of truth.** For REST APIs, the OpenAPI document is the canonical artifact. The reference pages are rendered from it, not hand-authored. Drift between prose and spec is the most common defect; the cure is removing hand-authored prose from the pipeline.
+12. **Reference per-endpoint pages have a stable shape.** Method and path, one-paragraph purpose, parameters table (in / name / type / required / description), request body schema, response shape with at least one populated example, errors table (status / code / when), and a code sample in at least one language. Optional: rate limit notes, sandbox notes, related-endpoint links.
+13. **Generate code samples for every endpoint in every supported language.** A reference page without a copy-pasteable curl command is incomplete. A reference page with curl plus first-party SDK samples in each language is significantly more usable.
+14. **Embed an API console only when it adds value.** A console lets the integrator make a real call from the docs against their own credentials. It is expensive to operate (CORS, credentials, rate limiting) and confusing if it tests against production. Provide it for low-risk, idempotent read endpoints first; gate write endpoints behind explicit consent ("this will affect your account"). Or, equivalently, ship a Postman collection and a CLI command and call the console "future work."
+15. **Group reference by resource, not by HTTP verb.** Integrators think in terms of *invoices*, *customers*, *webhooks*; sort by that axis. Within a resource, order endpoints by lifecycle (create, retrieve, list, update, delete, plus resource-specific actions).
+16. **Maintain a parallel JSON Schema or type definitions page** for each significant resource. The schema is referenced from every endpoint that touches it. This avoids inline repetition of large schemas across many endpoints.
+
+### Phase 4 — Code-block discipline
+
+17. **Every code block has a language tag.** No naked triple-backticks. Language tags drive syntax highlighting and accessibility-tool behavior.
+18. **Use language tabs for multi-language samples.** A page with a `curl` block, a `JavaScript` block, a `Python` block, and a `Go` block side-by-side is harder to read than one block with language tabs at the top. The tab choice persists across pages (the integrator who picks Python wants Python on every subsequent page they visit).
+19. **Samples are copy-pastable and minimal.** No `// imports omitted` cheats; the sample either runs or it is wrong. Imports, error handling, and types are present. Long samples link out to a sample-app repo where the full context lives.
+20. **Placeholder values are visually distinct.** Use `<your-api-key>` rather than `YOUR_API_KEY`. The first is unambiguously a placeholder; the second can be confused with an environment variable.
+21. **Show expected output when verifying.** A code sample whose output is non-obvious is followed by the output, in a separate (non-tabbed) code block, with a comment marker indicating it is output and not input.
+22. **Test the samples.** A test suite extracts every code block, type-checks it, and (for samples that are safe to run) runs it against a sandbox. A broken code sample shipped is a trust loss that takes weeks to repair. Run on every PR to the docs.
+23. **Pin the language versions.** The Python sample is `# tested with Python 3.11+`; the Node sample is `// tested with Node 20+`. Pin in a banner at the top of the SDK section or in each block.
+
+### Phase 5 — SDKs, sample apps, and surrounding artifacts
+
+24. **One SDK section per language.** Inside, the same shape: install, configure, authenticate, idiomatic usage, language-specific gotchas, link to the API reference. SDK docs are not a re-skin of API docs; they describe the language-idiomatic surface and may hide or rename concepts that are noisy from the SDK's perspective.
+25. **Ship sample apps, plural.** A *minimal* sample (under fifty lines) demonstrating the quickstart. A *canonical* sample showing the most common integration shape end-to-end. A *complex* sample combining three or more features. Each sample is a runnable repository with a README, an env-template, and a run script. The sample apps are linked from Guides, not buried in the SDK section.
+26. **Operate a sandbox.** A sandbox is a separate environment with stable test credentials and no real-world side effects. The portal documents the sandbox as a peer of production, names it clearly, and never lets the reader confuse one for the other (different domains, different visual styling on the docs if helpful).
+27. **Maintain a Postman / Bruno / HTTPie collection.** Many integrators prototype in an HTTP client before writing code. The collection is generated from the OpenAPI spec on every release; the portal links to it from the API reference index.
+28. **Ship a CLI if it makes sense.** A CLI accelerates integration spike-work. The CLI's own help text and reference page sits in a dedicated CLI section, linked from Get-Started.
+29. **Errors deserve a dedicated catalog page.** Every error code, every error response, every error string the API can return. Each row: code, HTTP status, cause, recommended remediation, link to the relevant concept page. The catalog is the single most-searched page on most developer portals; treat it as a first-class artifact.
+
+### Phase 6 — Changelog, versioning, and lifecycle
+
+30. **The changelog is a first-class section.** Reverse-chronological. Each entry: date, version, summary, who is affected, what changed, why. Breaking changes are flagged at the top of the entry with a colored banner.
+31. **Versioning model surfaces in the header.** If the API is versioned (URL path versioning, header versioning, or sunset-date versioning), the portal exposes a version selector or a version banner. The reader always knows which version's docs they are reading.
+32. **Deprecation banners are honest about timeline.** A deprecated endpoint says when it stops working, not "deprecation: removal date TBD." Three timeline states are common: deprecated (works, will be removed), sunset (last week of operation), removed (does not work; the page lives as a redirect or a tombstone explaining what replaced it).
+33. **Stability tags on every endpoint and SDK method.** Three labels: *stable*, *beta*, *experimental*. Stable carries SLA commitments; beta may change with notice; experimental may change without notice. The tag appears in the reference page header and in the navigation.
+34. **A single migration guide per breaking change.** A reader who lands on a deprecated endpoint sees a banner linking to the migration guide. The migration guide is a how-to in shape; it leads the reader through the upgrade step by step.
+35. **Maintain a *what's coming* page** if the team can commit to one. Public-facing roadmap with quarter-grained granularity. Skip if the team cannot commit; an out-of-date roadmap is worse than none.
+
+## Inputs
+
+- **`api_summary`** — required. The protocol, surface size, auth model, and stability stage determine which sections the portal needs on day one.
+- **`sdk_summary`** — optional. If present, the design includes SDK-section recommendations. If absent, the design is API-only with a placeholder for future SDKs.
+- **`audience`** — optional but recommended. A portal for enterprise integrators is shaped differently from a portal for indie hackers; without it, the design assumes a generic integrator and flags the assumption.
+- **`constraints`** — optional. Generator choice, OpenAPI maturity, sample languages, team capacity. Each constrains the day-one design.
+
+## Outputs
+
+- **`portal_design`** — the prose design organized by the six phases.
+- **`launch_page_list`** — the minimum credible day-one set, with one-line briefs for each page.
+- **`post_launch_roadmap`** — a staged plan for pages and features to add after launch. Phase one: the launch set. Phase two: API console plus error catalog plus sample apps. Phase three: CLI, sandbox, what's-coming page, multi-locale, advanced search.
+
+## Examples
+
+### Example 1 — Public REST API for a new SaaS
+
+**Input.** A SaaS product is launching a public REST API in beta. Auth via OAuth client credentials. Three resources, twelve endpoints, plus webhooks. First-party SDKs in JavaScript and Python. No CLI yet. The team has docs-engineering capacity for two engineers for one quarter.
+
+**Result.** Top-level nav: *Overview* / *Quickstart* / *Guides* / *API* / *SDKs* / *Webhooks* / *Changelog*. Day-one page list: Overview, Quickstart (10-minute Node-based path), Authentication, four Concepts pages (resources, lifecycle, idempotency, errors), six recipes (most-common integration tasks), twelve auto-generated API reference pages from OpenAPI, two SDK sections, a webhooks section with subscription/verification/payload pages, an error catalog, and a versioned changelog with the beta-stage banner. Code blocks use language tabs (curl / Node / Python). One canonical sample app per SDK. Postman collection generated from the spec. API console deferred to post-launch. Stability tags: every endpoint marked *beta* until GA; the SDKs marked *beta* with parity tables. Roadmap: phase two adds the API console, an errors-page integration with status codes filtered by tag, and a CLI; phase three adds a sandbox and a third SDK.
+
+### Example 2 — gRPC platform with multiple SDKs
+
+**Input.** A platform team launching a gRPC service with first-party SDKs in five languages. Heavy enterprise audience; integrators are senior developers integrating from existing services.
+
+**Result.** Top-level nav: *Overview* / *Quickstart* / *Concepts* / *Reference* / *SDKs* / *Operations* / *Changelog*. Quickstart picks a single SDK (the largest user base in the audience telemetry) and runs through service discovery, mutual TLS, a unary call, and a streaming call. Concepts pages are longer than usual for a REST portal (deadlines and cancellation, streaming, retries with backoff, service definition versioning). Reference is generated from the `.proto` files via a custom pipeline rather than OpenAPI. The five SDK sections each show the language-idiomatic shape. Operations section covers production hardening: connection pooling, load shedding, observability hooks. Sample apps are key here; a *production-shape* sample with retry policies, deadlines, and observability ships alongside the simple sample. Roadmap: phase two adds a service-mesh integration guide and a Kubernetes operator how-to; phase three adds an interactive grpcurl-style console embedded in the docs.
+
+### Example 3 — Internal-platform API for engineering teams inside one company
+
+**Input.** A platform team's internal API used by hundreds of internal engineers. Single audience, single auth model (corporate SSO), three SDKs (Go, Java, Python). Stability and clarity matter more than marketing polish.
+
+**Result.** Top-level nav: *Get Started* / *Concepts* / *Recipes* / *Reference* / *SDKs* / *Changelog* / *Office Hours*. The overview page is briefer than for an external portal; the audience already knows the company and the problem domain. Office hours section names the on-call rotation and the engineering chat channel; this is a peer-of-Slack docs surface. Reference is generated from OpenAPI. Each SDK section names a primary maintainer. Code blocks use language tabs. No API console; integrators prefer the internal CLI for one-off calls. Sample apps live in the platform's monorepo and link out. Roadmap: phase two adds a *Tracing and observability* concept hub (the internal platform's most-requested topic from the feedback widget); phase three adds an SLO and capacity-planning section as the platform's reliability story matures.
+
+## Limitations
+
+- The skill assumes the API itself is fit for documentation. A poorly-designed API will produce a poorly-documented portal; no amount of portal architecture can fix shape problems in the underlying surface.
+- Auto-generation from spec is a multiplier on quality of the spec. Reference pages generated from a sparse OpenAPI document will be sparse. Improving the spec is upstream of improving the portal.
+- The skill does not size the editorial work. Page counts are produced; person-weeks are not. A useful rough heuristic: a hand-authored page (Concepts, How-to, SDK guide) is half-a-day to a day of writer-time including review; auto-generated reference is hours of pipeline-engineer time.
+- Localization and accessibility are touched on but not deeply specified. Both deserve their own design effort; flag them as scope in the post-launch roadmap if they are not on the day-one critical path.
+- The skill prefers conservative, low-novelty design. A team committed to a distinctive portal experience (game-like onboarding, deeply interactive simulators, AI-generated personalized docs) should treat this design as a baseline to deviate from with eyes open, not a constraint.
+
+## Sources reviewed
+
+The methodology in this skill was synthesized after reviewing the following projects. None of their prose, structure, or assets was copied. Each contributed a pattern or a constraint; the synthesis is original.
+
+- https://github.com/evildmp/diataxis-documentation-framework — four-doc-type framework reference (CC-BY-SA 4.0)
+- https://github.com/Redocly/redoc — MIT
+- https://github.com/stoplightio/elements — Apache-2.0
+- https://github.com/facebook/docusaurus — MIT (code), CC-BY-4.0 (docs)
+- https://github.com/squidfunk/mkdocs-material — MIT
+- https://gitlab.com/antora/antora — MPL-2.0
+- https://github.com/google/docsy — Apache-2.0
+- https://github.com/readthedocs/readthedocs.org — MIT
+- https://github.com/writethedocs/www — see repo LICENSE.md

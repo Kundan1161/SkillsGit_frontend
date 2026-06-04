@@ -1,0 +1,87 @@
+%% Atomic finalize transaction — capture/service.py:finalize_session.
+%% Source: apps/api/src/capture/service.py.
+%% Each labelled step is one block in finalize_session; the dashed ROLLBACK
+%% lines are the bail-out paths that surface as the listed error codes.
+
+sequenceDiagram
+    autonumber
+    participant R as capture/router.py finalize_endpoint
+    participant S as capture/service.py finalize_session
+    participant PII as capture/pii.py scan + has_hard_block
+    participant V as skills/validator.py validate_file
+    participant DB as Postgres (request transaction)
+    participant Storage as S3 / MinIO (storage.put_object)
+    participant Audit as core.write_audit
+
+    R->>S: finalize_session(creator, session_id, payload)
+    activate S
+
+    %% Preconditions
+    S->>DB: SELECT capture_sessions WHERE id=?
+    Note over S: _ownership_or_404 — reject if status is FINALIZED, ABANDONED, or draft_md empty (capture.draft_not_ready)
+    Note over DB: All writes below land inside the request transaction. On any raised CaptureError the router does NOT commit — savepoint rolls back.
+
+    %% Step 1: PII gate
+    S->>PII: pii.scan(draft_md)
+    PII-->>S: list[PIIFinding]
+    alt has_hard_block(findings) is True
+        S-->>R: raise CaptureError code=capture.pii_blocked (422)
+        DB-->>R: ROLLBACK (no writes yet)
+    end
+    Note over S: Also rejects unresolved persisted severity=HIGH findings (defensive).
+
+    %% Step 2: validate the draft
+    S->>V: validate_file(draft_md.encode())
+    V-->>S: ValidationResult
+    alt not validation.is_valid
+        S-->>R: raise CaptureError code=capture.validation_failed (422) details=per-field errors
+        DB-->>R: ROLLBACK
+    end
+
+    %% Step 3: slug uniqueness
+    S->>DB: SELECT skills WHERE creator_id=? AND slug=?
+    alt collision found
+        S-->>R: raise CaptureError code=skill.slug_taken (409)
+        DB-->>R: ROLLBACK
+    end
+
+    %% Step 4a: skills row
+    S->>DB: SELECT persona, parent occupation skill
+    S->>DB: INSERT skills (kind=MEMORY_NEURON, status=DRAFT, pricing_model=FREE, category=parent_category, tags=...)
+
+    %% Step 4b: skill_versions + body upload
+    S->>Storage: put_object skills/{neuron_id}/{ver}/{sha}.md (draft_md, text/markdown)
+    alt storage failure
+        S-->>R: raise CaptureError code=capture.storage_failed (502)
+        DB-->>R: ROLLBACK
+    end
+    S->>DB: INSERT skill_versions (version, content_hash, storage_url, ai_requirements, changelog_md, released_at, released_by)
+    S->>DB: UPDATE skills.latest_version_id
+
+    %% Step 4c: persona_neurons join
+    S->>DB: SELECT MAX(sort_order) WHERE persona_id=?
+    S->>DB: INSERT persona_neurons (persona_id, neuron_skill_id, sort_order=max+1, section)
+    S->>DB: UPDATE personas.neuron_count += 1
+
+    %% Step 4d: copy attachments (best effort)
+    S->>DB: SELECT capture_attachments WHERE capture_session_id=?
+    loop each attachment
+        S->>Storage: get_object captures/{session}/{sha}.{ext}
+        S->>Storage: put_object attachments/personas/{persona}/{sha}.{ext}
+        Note over Storage: Logged + swallowed on per-file failure — does NOT block the transaction.
+    end
+
+    %% Step 5: mark session finalized
+    S->>DB: UPDATE capture_sessions (status=FINALIZED, finalized_at=now(), finalized_neuron_skill_id)
+
+    %% Step 6: audit log
+    S->>Audit: capture_session.finalized
+    S->>Audit: skill.created (kind=memory_neuron)
+    S->>Audit: persona.neuron_added
+
+    %% Commit (in the router, after the function returns)
+    deactivate S
+    S-->>R: NeuronCreated{neuron_skill_id, neuron_version, persona_id, vault_path_hint}
+    R->>DB: COMMIT (await session.commit())
+
+    Note over R,DB: If ANY step above raised, the router never reaches COMMIT — the transaction rolls back atomically (ADR-015). No partial skills / skill_versions / persona_neurons rows can leak.

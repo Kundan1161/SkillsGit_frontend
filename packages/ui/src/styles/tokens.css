@@ -1,0 +1,133 @@
+@layer base {
+  :root {
+    /* Brand */
+    --color-brand-50:  #f3f0ff;
+    --color-brand-100: #e9e3ff;
+    --color-brand-200: #d4c9ff;
+    --color-brand-400: #9d74f9;
+    --color-brand-500: #7c3aed;
+    --color-brand-600: #6d28d9;
+    --color-brand-700: #5b21b6;
+    --color-brand-900: #2e1065;
+    --color-accent-400: #818cf8;
+    --color-accent-500: #6366f1;
+
+    /* Neumorphic surfaces — everything the same warm cream */
+    --color-bg:        #E4E2DC;
+    --color-bg-muted:  #DED9D2;
+    --color-bg-raised: #E4E2DC;
+    --color-bg-overlay: rgba(228,226,220,0.92);
+
+    /* Borders — almost invisible, just for structure */
+    --color-border:        rgba(166,162,153,0.25);
+    --color-border-strong: rgba(166,162,153,0.45);
+
+    /* Text */
+    --color-fg:        #1A1916;
+    --color-fg-muted:  #5A5750;
+    --color-fg-subtle: #9A9790;
+
+    /* Semantic */
+    --color-success: #16a34a;
+    --color-warning: #d97706;
+    --color-danger:  #dc2626;
+    --color-info:    #0284c7;
+    --color-price:   #059669;
+    --color-rating:  #f59e0b;
+
+    /* Radius — neumorphism needs generous rounding */
+    --radius-sm:  0.5rem;
+    --radius-md:  0.75rem;
+    --radius-lg:  1rem;
+    --radius-xl:  1.25rem;
+    --radius-2xl: 1.5rem;
+    --radius-full: 9999px;
+
+    /* Neumorphic shadows — the core of the aesthetic */
+    --shadow-neu-xs:
+      3px 3px 8px rgba(166,162,153,0.5),
+      -3px -3px 8px rgba(255,255,255,0.85);
+    --shadow-neu-sm:
+      5px 5px 12px rgba(166,162,153,0.5),
+      -5px -5px 12px rgba(255,255,255,0.85);
+    --shadow-neu-md:
+      8px 8px 20px rgba(166,162,153,0.55),
+      -8px -8px 20px rgba(255,255,255,0.85);
+    --shadow-neu-lg:
+      12px 12px 28px rgba(166,162,153,0.55),
+      -12px -12px 28px rgba(255,255,255,0.9);
+    --shadow-neu-xl:
+      16px 16px 40px rgba(166,162,153,0.6),
+      -16px -16px 40px rgba(255,255,255,0.9);
+    --shadow-neu-inset:
+      inset 5px 5px 12px rgba(166,162,153,0.5),
+      inset -5px -5px 12px rgba(255,255,255,0.85);
+    --shadow-neu-inset-sm:
+      inset 3px 3px 7px rgba(166,162,153,0.45),
+      inset -3px -3px 7px rgba(255,255,255,0.8);
+    --shadow-brand:
+      8px 8px 20px rgba(124,58,237,0.25),
+      -4px -4px 12px rgba(255,255,255,0.7);
+
+    /* Flat shadows (legacy aliases) */
+    --shadow-xs: var(--shadow-neu-xs);
+    --shadow-sm: var(--shadow-neu-sm);
+    --shadow-md: var(--shadow-neu-md);
+    --shadow-lg: var(--shadow-neu-lg);
+    --shadow-xl: var(--shadow-neu-xl);
+
+    /* Typography */
+    --font-display: "Inter", system-ui, sans-serif;
+    --font-mono:    "JetBrains Mono", ui-monospace, monospace;
+    --gradient-brand: linear-gradient(135deg, #7c3aed 0%, #6366f1 100%);
+  }
+
+  .dark {
+    --color-bg:        #1E1D28;
+    --color-bg-muted:  #18171F;
+    --color-bg-raised: #1E1D28;
+    --color-bg-overlay: rgba(30,29,40,0.92);
+
+    --color-border:        rgba(50,48,65,0.6);
+    --color-border-strong: rgba(70,68,85,0.7);
+
+    --color-fg:        #F0EEF8;
+    --color-fg-muted:  #A09DB8;
+    --color-fg-subtle: #5A5870;
+
+    --color-brand-500: #9461ff;
+    --color-brand-600: #7c3aed;
+    --color-price:     #34d399;
+
+    --shadow-neu-xs:
+      3px 3px 8px rgba(0,0,0,0.45),
+      -3px -3px 8px rgba(45,43,60,0.5);
+    --shadow-neu-sm:
+      5px 5px 12px rgba(0,0,0,0.5),
+      -5px -5px 12px rgba(45,43,60,0.5);
+    --shadow-neu-md:
+      8px 8px 20px rgba(0,0,0,0.55),
+      -8px -8px 20px rgba(45,43,60,0.45);
+    --shadow-neu-lg:
+      12px 12px 28px rgba(0,0,0,0.6),
+      -12px -12px 28px rgba(45,43,60,0.4);
+    --shadow-neu-xl:
+      16px 16px 40px rgba(0,0,0,0.65),
+      -16px -16px 40px rgba(45,43,60,0.35);
+    --shadow-neu-inset:
+      inset 5px 5px 12px rgba(0,0,0,0.5),
+      inset -5px -5px 12px rgba(45,43,60,0.4);
+    --shadow-neu-inset-sm:
+      inset 3px 3px 7px rgba(0,0,0,0.45),
+      inset -3px -3px 7px rgba(45,43,60,0.35);
+    --shadow-brand:
+      8px 8px 20px rgba(148,97,255,0.3),
+      -4px -4px 12px rgba(45,43,60,0.4);
+
+    --shadow-xs: var(--shadow-neu-xs);
+    --shadow-sm: var(--shadow-neu-sm);
+    --shadow-md: var(--shadow-neu-md);
+    --shadow-lg: var(--shadow-neu-lg);
+    --shadow-xl: var(--shadow-neu-xl);
+  }
+}

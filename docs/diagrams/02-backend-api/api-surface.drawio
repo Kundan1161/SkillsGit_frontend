@@ -1,0 +1,375 @@
+<mxfile host="app.diagrams.net" agent="skillsgit-arch" version="24.7.17" type="device">
+  <diagram name="api-surface" id="skg-api-surface">
+    <mxGraphModel dx="2800" dy="2000" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="3200" pageHeight="2400" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <mxCell id="title" value="API surface — every /v1/* endpoint in apps/api/src/main.py grouped by router" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=none;fontSize=18;fontStyle=1;align=left;" vertex="1" parent="1">
+          <mxGeometry x="40" y="20" width="1800" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="legend" value="Auth column: pub = no auth · user = current_active_user · creator = require_creator · admin = require_admin" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#999999;fontSize=11;align=left;spacingLeft=8;spacingTop=6;" vertex="1" parent="1">
+          <mxGeometry x="40" y="60" width="1200" height="30" as="geometry"/>
+        </mxCell>
+
+        <!-- auth_router -->
+        <mxCell id="g-auth" value="auth/router.py — /v1/auth (existing)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;verticalAlign=top;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="110" width="800" height="660" as="geometry"/>
+        </mxCell>
+        <mxCell id="a1" value="POST /register · pub · LIMIT_REGISTER" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="80" y="160" width="720" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="a2" value="POST /login · pub · LIMIT_LOGIN" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="80" y="200" width="720" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="a3" value="POST /logout · pub" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="80" y="240" width="720" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="a4" value="GET /me · user" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="80" y="280" width="720" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="a5" value="PATCH /me · user" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="80" y="320" width="720" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="a6" value="POST /forgot · pub · LIMIT_FORGOT" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="80" y="360" width="720" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="a7" value="POST /reset · pub" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="80" y="400" width="720" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="a8" value="GET /verify?token= · pub" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="80" y="440" width="720" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="a9" value="POST /verify/resend · pub · LIMIT_VERIFY_RESEND" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="80" y="480" width="720" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="a10" value="POST /become-creator · user" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="80" y="520" width="720" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="a11" value="GET /tokens · user" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="80" y="560" width="720" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="a12" value="POST /tokens · user" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="80" y="600" width="720" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="a13" value="DELETE /tokens/{id} · user" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="80" y="640" width="720" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="a14" value="GET /oauth/{provider}/start · pub · 501" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="80" y="680" width="720" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="a15" value="GET /oauth/{provider}/callback · pub · 501" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="80" y="720" width="720" height="35" as="geometry"/>
+        </mxCell>
+
+        <!-- users + creators -->
+        <mxCell id="g-users" value="users/router.py + creators_router (existing)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;verticalAlign=top;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="880" y="110" width="800" height="240" as="geometry"/>
+        </mxCell>
+        <mxCell id="u1" value="GET /v1/users/health · pub" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="920" y="160" width="720" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="u2" value="GET /v1/users/{handle} · pub · 501 (moved)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="920" y="200" width="720" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="u3" value="GET /v1/creators/{handle} · pub" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="920" y="240" width="720" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="u4" value="GET /v1/creators/{handle}/skills · pub" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="920" y="280" width="720" height="35" as="geometry"/>
+        </mxCell>
+
+        <!-- skills -->
+        <mxCell id="g-skills" value="skills/router.py + creator_skills_router (existing)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;verticalAlign=top;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1720" y="110" width="800" height="440" as="geometry"/>
+        </mxCell>
+        <mxCell id="s1" value="POST /v1/skills/validate · pub (multipart skills.md)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="1760" y="160" width="720" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="s2" value="GET /v1/skills/ · pub · 501 (catalog owns list)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="1760" y="200" width="720" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="s3" value="GET /v1/creator/skills/ · user" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="1760" y="240" width="720" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="s4" value="POST /v1/creator/skills/ · user (multipart)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="1760" y="280" width="720" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="s5" value="PATCH /v1/creator/skills/{id} · user" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="1760" y="320" width="720" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="s6" value="POST /v1/creator/skills/{id}/versions · user" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="1760" y="360" width="720" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="s7" value="POST /v1/creator/skills/{id}/submit · user" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="1760" y="400" width="720" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="s8" value="POST /v1/creator/skills/{id}/publish · user" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="1760" y="440" width="720" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="s9" value="DELETE /v1/creator/skills/{id} · user" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="1760" y="480" width="720" height="35" as="geometry"/>
+        </mxCell>
+
+        <!-- catalog -->
+        <mxCell id="g-catalog" value="catalog/router.py + skill_detail_router (existing)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;verticalAlign=top;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="2560" y="110" width="600" height="540" as="geometry"/>
+        </mxCell>
+        <mxCell id="c1" value="GET /v1/catalog/skills · pub (q, categories, sort, ...)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="2600" y="160" width="520" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="c2" value="GET /v1/catalog/categories · pub" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="2600" y="200" width="520" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="c3" value="GET /v1/catalog/featured · pub" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="2600" y="240" width="520" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="c4" value="POST /v1/catalog/featured · admin" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="2600" y="280" width="520" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="c5" value="DELETE /v1/catalog/featured/{id} · admin" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="2600" y="320" width="520" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="c6" value="POST /v1/catalog/search-alerts · user" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="2600" y="360" width="520" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="c7" value="GET /v1/skills/by-handle/{handle}/{slug} · pub" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="2600" y="400" width="520" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="c8" value="GET /v1/skills/{id_or_slug} · pub" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="2600" y="440" width="520" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="c9" value="GET /v1/skills/{id}/versions · pub" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="2600" y="480" width="520" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="c10" value="GET /v1/skills/{id}/versions/{ver}/preview · pub" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="2600" y="520" width="520" height="35" as="geometry"/>
+        </mxCell>
+
+        <!-- billing -->
+        <mxCell id="g-billing" value="billing/router.py (existing — gates persona kind)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;verticalAlign=top;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="810" width="800" height="440" as="geometry"/>
+        </mxCell>
+        <mxCell id="b1" value="POST /v1/checkout/sessions · user (Idempotency-Key,&#10;409 persona.requires_parent_occupation gate)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="80" y="860" width="720" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="b2" value="POST /v1/checkout/sessions/{sid}/finalize · user" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="80" y="930" width="720" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="b3" value="GET /v1/orders/me · user" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="80" y="970" width="720" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="b4" value="GET /v1/orders/by-session/{sid} · user" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="80" y="1010" width="720" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="b5" value="POST /v1/orders/{id}/refund · user (Idempotency-Key)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="80" y="1050" width="720" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="b6" value="POST /v1/creator/onboarding/start · creator" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="80" y="1090" width="720" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="b7" value="GET /v1/creator/onboarding/status · creator" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="80" y="1130" width="720" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="b8" value="POST /v1/billing/portal-session · user" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="80" y="1170" width="720" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="b9" value="GET /v1/billing/preview · pub" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="80" y="1210" width="720" height="35" as="geometry"/>
+        </mxCell>
+
+        <!-- delivery -->
+        <mxCell id="g-delivery" value="delivery/router.py (existing)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;verticalAlign=top;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="880" y="810" width="800" height="240" as="geometry"/>
+        </mxCell>
+        <mxCell id="d1" value="GET /v1/me/licenses · user" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="920" y="860" width="720" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="d2" value="GET /v1/licenses/{id} · user (404 leak guard)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="920" y="900" width="720" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="d3" value="GET /v1/licenses/{id}/download · user (presign or raw)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="920" y="940" width="720" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="d4" value="GET /v1/licenses/{id}/download/{version} · user" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="920" y="980" width="720" height="35" as="geometry"/>
+        </mxCell>
+
+        <!-- misc -->
+        <mxCell id="g-misc" value="reviews / creator / webhooks / admin" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;verticalAlign=top;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="880" y="1080" width="800" height="380" as="geometry"/>
+        </mxCell>
+        <mxCell id="r1" value="GET /v1/reviews · pub (scaffold)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="920" y="1130" width="720" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="cr1" value="GET /v1/creator/drafts · user · 501 (Phase-3)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="920" y="1170" width="720" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="w1" value="POST /v1/webhooks/stripe · Stripe-signature header" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="920" y="1210" width="720" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="ad1" value="GET /v1/admin/moderation · admin" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="920" y="1250" width="720" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="ad2" value="POST /v1/admin/skills/{id}/approve · admin" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="920" y="1290" width="720" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="ad3" value="POST /v1/admin/skills/{id}/reject · admin" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="920" y="1330" width="720" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="ad4" value="GET /v1/admin/users · admin" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="920" y="1370" width="720" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="ad5" value="POST /v1/admin/users/{id}/verify-creator · admin" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="920" y="1410" width="720" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="ad6" value="POST /v1/admin/users/{id}/suspend · admin" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="920" y="1450" width="720" height="35" as="geometry"/>
+        </mxCell>
+
+        <!-- occupations (new) -->
+        <mxCell id="g-occ" value="occupations/router.py — /v1/occupations &lt;&lt;new&gt;&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;verticalAlign=top;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1720" y="600" width="800" height="540" as="geometry"/>
+        </mxCell>
+        <mxCell id="o1" value="POST / · creator" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="1760" y="650" width="720" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="o2" value="PATCH /{id} · creator" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="1760" y="690" width="720" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="o3" value="POST /{id}/skills · creator (bulk_set)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="1760" y="730" width="720" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="o4" value="POST /{id}/skills/{member_id} · creator" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="1760" y="770" width="720" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="o5" value="DELETE /{id}/skills/{member_id} · creator" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="1760" y="810" width="720" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="o6" value="PATCH /{id}/skills/order · creator" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="1760" y="850" width="720" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="o7" value="POST /{id}/build · creator → 202 JobAccepted" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="1760" y="890" width="720" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="o8" value="POST /{id}/publish · creator → 202" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="1760" y="930" width="720" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="o9" value="GET / · pub (list, filters)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="1760" y="970" width="720" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="o10" value="GET /{id}/graph-preview · pub" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="1760" y="1010" width="720" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="o11" value="GET /{handle}/{slug} · pub" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="1760" y="1050" width="720" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="o12" value="GET /{id} · pub" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="1760" y="1090" width="720" height="35" as="geometry"/>
+        </mxCell>
+
+        <!-- personas (new) -->
+        <mxCell id="g-per" value="personas/router.py — /v1/personas &lt;&lt;new&gt;&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;verticalAlign=top;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="2560" y="700" width="600" height="500" as="geometry"/>
+        </mxCell>
+        <mxCell id="pp1" value="POST / · creator" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="2600" y="750" width="520" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="pp2" value="PATCH /{id} · creator" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="2600" y="790" width="520" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="pp3" value="POST /{id}/neurons/order · creator (reorder only)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="2600" y="830" width="520" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="pp4" value="DELETE /{id}/neurons/{neuron_id} · creator" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="2600" y="870" width="520" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="pp5" value="POST /{id}/build · creator → 202" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="2600" y="910" width="520" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="pp6" value="POST /{id}/publish · creator → 202" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="2600" y="950" width="520" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="pp7" value="GET / · pub (parent_occupation_id filter)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="2600" y="990" width="520" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="pp8" value="GET /{id}/graph-preview · pub" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="2600" y="1030" width="520" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="pp9" value="GET /{id}/neurons · entitled-only (404 leak)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="2600" y="1070" width="520" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="pp10" value="GET /{handle}/{slug} · pub" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="2600" y="1110" width="520" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="pp11" value="GET /{id} · pub" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="2600" y="1150" width="520" height="35" as="geometry"/>
+        </mxCell>
+
+        <!-- capture (new) -->
+        <mxCell id="g-cap" value="capture/router.py — /v1/capture &lt;&lt;new&gt;&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;verticalAlign=top;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1720" y="1180" width="800" height="440" as="geometry"/>
+        </mxCell>
+        <mxCell id="k1" value="POST /sessions · creator" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="1760" y="1230" width="720" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="k2" value="GET /sessions · creator (filters)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="1760" y="1270" width="720" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="k3" value="GET /sessions/{id} · creator" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="1760" y="1310" width="720" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="k4" value="PATCH /sessions/{id} · creator (edit draft_md)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="1760" y="1350" width="720" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="k5" value="POST /sessions/{id}/extract · creator → 202&#10;(Arq + Anthropic, monthly quota)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="1760" y="1390" width="720" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="k6" value="POST /sessions/{id}/finalize · creator&#10;(atomic: neuron + version + join + audit)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="1760" y="1450" width="720" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="k7" value="POST /sessions/{id}/abandon · creator" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="1760" y="1510" width="720" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="k8" value="POST /sessions/{id}/attachments · creator (multipart)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="1760" y="1550" width="720" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="k9" value="DELETE /sessions/{id}/attachments/{aid} · creator" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="1760" y="1590" width="720" height="35" as="geometry"/>
+        </mxCell>
+
+        <!-- vault (new) -->
+        <mxCell id="g-v" value="vault/router.py (no prefix) &lt;&lt;new&gt;&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;verticalAlign=top;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="1290" width="1600" height="240" as="geometry"/>
+        </mxCell>
+        <mxCell id="vv1" value="POST /v1/licenses/{occ_license_id}/vault · user&#10;(VaultDownloadRequest: include_persona_license_ids?,&#10;cache_hit, 60s presign)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="80" y="1340" width="1520" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="vv2" value="GET /v1/licenses/{occ_license_id}/vault/downloads · user (history)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="80" y="1410" width="1520" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="vv3" value="GET /v1/vault/builds/{build_id} · user/admin (entitlement-gated 404)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="80" y="1450" width="1520" height="35" as="geometry"/>
+        </mxCell>
+
+        <!-- Meta -->
+        <mxCell id="g-meta" value="meta" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#999999;verticalAlign=top;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="1560" width="1600" height="200" as="geometry"/>
+        </mxCell>
+        <mxCell id="m1" value="GET /healthz · pub" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#999999;" vertex="1" parent="1">
+          <mxGeometry x="80" y="1610" width="1520" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="m2" value="GET /v1/openapi.json · pub" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#999999;" vertex="1" parent="1">
+          <mxGeometry x="80" y="1645" width="1520" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="m3" value="GET /v1/docs · pub (Swagger UI)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#999999;" vertex="1" parent="1">
+          <mxGeometry x="80" y="1680" width="1520" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="m4" value="GET /v1/redoc · pub" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#999999;" vertex="1" parent="1">
+          <mxGeometry x="80" y="1715" width="1520" height="30" as="geometry"/>
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

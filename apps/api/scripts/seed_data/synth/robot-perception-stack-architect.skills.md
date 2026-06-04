@@ -1,0 +1,270 @@
+---
+id: skillsgit-curated/robot-perception-stack-architect
+version: 1.0.0
+name: Robot Perception Stack Architect
+description: Design a multi-sensor robot perception stack — sensor suite selection, calibration regime, time synchronization, fusion architecture (EKF/UKF/factor-graph), and failure-detection layers.
+authors:
+  - name: skillsgit Curated
+    handle: skillsgit-curated
+    role: author
+category: robotics
+tags: [niche:robot-perception, sensor-fusion, slam, lidar, camera, imu, ekf, factor-graph, time-sync, odd]
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6, gpt-4o, gpt-4.1, gemini-1.5-pro]
+  tools_required: []
+  tools_optional: [web_search, code_execution, file_io]
+  min_context_tokens: 32000
+  estimated_tokens_per_invocation: 8500
+trigger_keywords:
+  - design a perception stack
+  - sensor suite for robot
+  - sensor fusion architecture
+  - ekf vs factor graph
+  - which sensors do i need
+  - time synchronization robot
+  - perception failure detection
+  - multi-sensor robot
+  - lidar camera imu fusion
+  - slam architecture
+  - autonomous robot perception
+  - perception odd
+example_invocations:
+  - "Design the perception stack for an indoor warehouse AMR — what sensors, what fusion, how do I detect when it fails?"
+  - "We're adding a thermal camera to our outdoor inspection drone. Architect the fusion layer."
+  - "Should we use an EKF or a factor graph for our wheeled delivery robot's localization?"
+inputs:
+  - name: platform_description
+    type: text
+    required: true
+    description: Robot platform, payload class, typical speeds, operating environment (indoor/outdoor/mixed), and safety class (research, supervised, fully autonomous).
+  - name: operational_design_domain
+    type: text
+    required: false
+    description: Conditions the robot must operate in — lighting (day/night/IR), weather (clear/rain/fog/snow), surface types, dynamic actor density, GPS availability, network availability.
+  - name: candidate_sensors
+    type: text
+    required: false
+    description: Sensors already chosen or under consideration (e.g. "2x stereo cameras, 1x 32-beam LiDAR, IMU, wheel encoders, GPS").
+  - name: latency_budget
+    type: text
+    required: false
+    description: End-to-end perception latency budget from sensor capture to actionable output (ms), and the downstream consumer that imposes it (controller, planner, safety stop).
+  - name: compute_constraints
+    type: text
+    required: false
+    description: Onboard compute envelope — SoC class, GPU/NPU presence, thermal envelope, power budget.
+  - name: safety_class
+    type: choice
+    required: false
+    description: How autonomous the platform is and what harm a perception failure could cause.
+    choices: [research-only, supervised-tele-op, supervised-autonomy, fully-autonomous-low-risk, fully-autonomous-high-risk]
+outputs:
+  - name: stack_design
+    type: markdown
+    description: Architecture document covering sensor suite, calibration regime, time sync, fusion design, failure detection, and an ODD-coverage matrix.
+  - name: design_json
+    type: json
+    description: Machine-readable plan with `sensors`, `calibration_plan`, `time_sync`, `fusion`, `failure_detection`, `odd_matrix`, `open_risks`.
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Initial release.
+---
+
+# Robot Perception Stack Architect
+
+## When to use
+
+Use this skill when someone is designing or substantially revising the perception subsystem of a mobile robot, drone, manipulator on a mobile base, or autonomous vehicle, and they need a written architecture — not a final implementation — that decides what sensors go on the platform, how those sensors are calibrated and time-synchronized, which fusion algorithm consumes their streams, what the failure-detection layer looks like, and how the whole arrangement maps onto the robot's operational design domain (ODD).
+
+The skill is appropriate at three moments: greenfield system design before any hardware has been purchased, a hardware refresh where the sensor count or class is changing, and a post-incident review where a perception failure has revealed an architectural gap. It is not the right skill for tuning an existing fusion filter, for implementing a specific algorithm, or for hands-on calibration execution — separate skills cover the calibration planner and the object-detection pipeline reviewer.
+
+**Mandatory safety disclaimer.** This skill produces methodology guidance. Perception failures in safety-critical robots can cause physical harm. Every recommendation must be validated in target operational design domains; never deploy a perception stack to safety-critical hardware without rigorous test coverage of edge conditions (weather, lighting, occlusion, sensor degradation).
+
+## Inputs
+
+| Input | Required | Purpose |
+| --- | --- | --- |
+| `platform_description` | yes | Anchors the sensor-suite decision in the platform's physics. |
+| `operational_design_domain` | no | Drives sensor redundancy and failure-detection priorities. |
+| `candidate_sensors` | no | Constrains the design when hardware is already chosen. |
+| `latency_budget` | no | Selects the fusion topology (tight vs. loose, filter vs. smoother). |
+| `compute_constraints` | no | Bounds the algorithm family realistically. |
+| `safety_class` | no | Determines how aggressive failure detection and redundancy must be. |
+
+## How to apply
+
+The skill walks a fourteen-stage pipeline. The stages are mostly sequential — calibration regime depends on the sensor suite, time-sync depends on the chosen interfaces, fusion architecture depends on time-sync guarantees, failure detection depends on fusion structure — but the ODD pass (Stage 11) feeds back into earlier stages.
+
+### Stage 1 — Restate the platform and the perception task
+
+1. Read `platform_description` and rewrite it as a single sentence in the form "A <platform> moving at up to <max speed> in <environment>, required to perceive <object classes> with <accuracy> within <latency budget>." If any of the five slots is empty, ask the user to fill it before continuing. Vague answers ("indoor environment") get pushed back to concrete answers ("warehouse with reflective floors, forklifts, and human pickers under fluorescent lighting").
+2. List the perception outputs the rest of the robot consumes: a metric map, an obstacle list, a tracked-actor set with velocity, a free-space grid, a 6-DoF pose, a semantic class label per voxel, a freespace polygon, a parking-slot vector. Each output is a *contract* with its consumer and pins the accuracy budget.
+3. Distinguish *localization* outputs (where am I) from *mapping* outputs (what is the world) from *detection* outputs (what objects exist now) from *tracking* outputs (what objects are doing). The fusion architecture in Stage 7 maps to these four categories, and they often need different filters.
+4. State the safety implications of each output failing — a missed pedestrian is not the same kind of failure as a 5cm pose-drift. The user-supplied `safety_class` plus this enumeration produces a failure-severity table that the rest of the design honours.
+5. Identify whether the system is online (must produce output in real time) or offline (post-processed, e.g. mapping campaigns). Offline systems can use batch smoothers and global optimization; online systems are constrained to filters or sliding-window smoothers.
+
+### Stage 2 — Establish the operational design domain
+
+6. From `operational_design_domain` (or by asking) record a structured ODD matrix with rows for environment dimensions: ambient light range (lux), weather conditions, surface reflectivity, dynamic actor density, GPS quality, network availability, temperature range, vibration profile.
+7. Mark each cell as "in scope", "out of scope", or "graceful-degradation expected". A perception stack that fails outside its declared ODD is not a bug; one that fails inside is.
+8. Identify ODD-driven *sensor requirements*. Night operation forces active illumination, thermal, or LiDAR (not passive RGB). Outdoor sunlight forces wide-dynamic-range cameras or HDR fusion. Rain or fog degrades LiDAR returns; radar becomes load-bearing. Reflective indoor floors break flat-ground assumptions and confuse depth.
+9. List the *adversarial* ODD elements: direct sun into a camera, retro-reflective signs that saturate LiDAR, vibration that desyncs IMU, EM interference that drops camera frames, ground-truth-less environments that defeat GPS. Each adversarial element must be addressed by either redundancy (Stage 3) or detection (Stage 9).
+10. Pin the ODD document as a versioned artifact. Any future change to ODD is a perception-stack design change.
+
+### Stage 3 — Choose the sensor suite
+
+11. Apply the *complementary modality* rule: every safety-critical perception output should be derivable from at least two independent physical modalities so a single-sensor failure does not silently propagate. RGB and LiDAR are complementary; two RGB cameras are not. Cameras and radar are complementary across weather. Wheel odometry and IMU are complementary for translation but both degrade in slip.
+12. For each candidate sensor, record: modality, native range and resolution, native rate, native time-stamping mechanism, electrical interface (USB, GMSL, GigE, MIPI-CSI, CAN, Ethernet), latency from photon-to-packet, calibration intrinsics it requires, environmental envelope (temp, IP rating), power, mass, expected MTBF in the operating ODD, replacement cost, and software support quality.
+13. For mobile platforms, place sensors with awareness of *self-occlusion* (the robot occludes its own ego-near zone), *vibration coupling* (IMU on a chassis vs. on a mast behaves very differently), and *baseline geometry* (stereo baseline determines depth range; LiDAR-camera baseline determines extrinsic-calibration sensitivity).
+14. Reject sensor choices the compute envelope cannot ingest. A 128-beam LiDAR at 20 Hz plus four 4K cameras at 30 Hz exceeds what a typical embedded SoC can decode without dedicated ISP and dropped frames. The plan documents the bandwidth math: total Gb/s of raw streams vs. interface and host capacity.
+15. State explicitly whether the suite has *redundancy* (more sensors than needed) or *diversity* (different modalities for the same output) or both. High-safety-class platforms need both; research platforms often need neither.
+16. Output an annotated bill-of-materials with `sensor_id`, `mount_pose_nominal`, `modality`, `rate`, `interface`, `purpose` (which downstream output it feeds), and `redundant_with` (the partner sensor that covers its failure).
+
+### Stage 4 — Define the coordinate frame tree
+
+17. Specify the URDF-style frame tree: `world` → `map` → `odom` → `base_link` → each sensor frame. Document which frames are static and which are dynamic. Static frames (sensor mounts) are calibrated; dynamic frames (odom → base_link) are estimated.
+18. Pick a rotation convention (Hamilton vs. JPL quaternions, right- vs. left-handed) and a single unit system (meters, seconds, radians) and pin them in the design doc. Mixing conventions is the single most expensive design mistake to debug after the fact.
+19. State the *gravity-aligned* frame. Many algorithms assume `z` points up; if the platform tilts (a quadruped, a drone in motion), the gravity-aligned `world` frame is distinct from `base_link`, and the IMU is what couples them.
+20. Identify which frames must be calibrated against which. Camera-to-camera, camera-to-LiDAR, IMU-to-camera, LiDAR-to-base_link, and base_link-to-wheel_odom each have a calibration procedure with a different target and a different sensitivity.
+
+### Stage 5 — Calibration regime
+
+21. For every static extrinsic pair, choose one of: factory-calibrated (the sensor ships pre-calibrated against a known frame), one-shot calibration (target-based, performed at integration), continuous online calibration (the running fusion filter updates extrinsics as state). High-vibration platforms cannot rely on factory or one-shot for inter-sensor extrinsics; small temperature swings shift a stereo baseline by hundreds of microns.
+22. For intrinsic calibration of cameras, pin: lens model (pinhole, fisheye, omnidirectional), distortion model (Brown-Conrady, Kannala-Brandt, equidistant), target type (checkerboard, ChArUco, AprilTag grid), capture protocol (pose count, coverage of field of view, corner-detection thresholds), and acceptance criterion (reprojection residual percentiles, not just mean).
+23. For LiDAR intrinsic correction, plan for beam-angle correction tables, range-bias correction, and reflectance normalization. Cheap LiDARs ship with intrinsics that drift across temperature.
+24. For IMU intrinsic calibration, plan an Allan-variance run to characterize gyro and accelerometer noise densities and bias-instability time scales. The fusion filter in Stage 7 needs these as priors.
+25. For multi-modal extrinsic calibration (LiDAR-camera, LiDAR-IMU, camera-IMU), refer the user to the dedicated calibration-planner skill. Pin in this stack-design doc only the *frequency* of recalibration (every flight, every shift, every quarter, never-after-factory) and the *trigger conditions* (post-impact, post-thermal-shock, post-sensor-swap, residual-drift threshold exceeded).
+26. Define the calibration *artifact*: a versioned URDF + a per-sensor parameter file with intrinsics, distortion, time-offset, and the calibration provenance (date, target, residual, operator). The runtime stack must refuse to start if calibration is missing or stale beyond its policy.
+
+### Stage 6 — Time synchronization
+
+27. Classify each sensor's time-stamping mechanism: hardware-trigger (sensor exposes a trigger pin and stamps with a host-clock-aligned counter), PTP/gPTP (sensor speaks IEEE 1588 on Ethernet), host-arrival (timestamps applied when the packet hits the host), and free-running (sensor has its own clock with no host coupling).
+28. Pick a single *time authority*. On a robot with multiple compute nodes, choose PTP-grandmaster on one node and discipline every other clock to it. On a single-SoC platform, the SoC's monotonic clock is authority. GPS-disciplined oscillators are the gold standard for outdoor platforms.
+29. For each non-hardware-stamped sensor, plan a *time-offset estimator*. Camera-IMU offset is typically tens of milliseconds and is recovered jointly with extrinsics. Online-estimation is preferred over static calibration because USB and Ethernet latencies drift with load.
+30. Specify the *interpolation policy* for the fusion node: at fusion time the filter receives messages from sensors at different rates with different stamps. Pin whether the filter interpolates measurements onto a common timestamp, whether it accepts out-of-order delivery with a buffering window, and whether it rejects messages outside a staleness threshold.
+31. Document the time-sync *failure modes*: a runaway clock skew, a missed trigger, a USB host that batches packets. Each one feeds the failure-detection layer.
+
+### Stage 7 — Fusion architecture
+
+32. Decide *localization vs. mapping vs. detection vs. tracking* topology. The same platform usually runs four fusion pipelines: a state-estimator for ego-pose (often EKF or factor-graph), a SLAM or map-aided localizer for the map frame, a detection pipeline for actors (covered by the object-detection-pipeline-reviewer skill), and a tracker for actor state.
+33. Pick the *state estimator* algorithm family. EKF is appropriate when state is moderate-dimensional, dynamics are mildly nonlinear, and latency budget is tight. UKF buys robustness to nonlinearity at moderate cost. Particle filter is appropriate when state distribution is multimodal (kidnap recovery). Sliding-window factor-graph smoothing wins when the latency budget tolerates a 50–200 ms window and the platform must fuse delayed measurements (vision-based loop closures, GPS) consistently with high-rate measurements (IMU).
+34. Decide *tight* vs. *loose* coupling for visual-inertial or LiDAR-inertial. Tight coupling (joint optimization over raw measurements) is more accurate but more brittle to outliers; loose coupling (each sensor produces a pose estimate that is then fused) is more robust but loses information. High-safety platforms typically combine: tight coupling in a fast inner loop, with a loose-coupling fallback when the inner loop's residual exceeds threshold.
+35. Specify the *motion model*. Constant-velocity, constant-acceleration, bicycle, differential-drive, omnidirectional, free-body 6-DoF — the model determines the process noise and what kinds of motion the filter will smooth versus track. Mismatched motion models silently bias estimates.
+36. Specify the *measurement noise* per sensor in physical units, derived from the Stage-5 calibration artifact, not picked from a paper. Wheel-encoder slip on wet tile is not the same as on indoor concrete; document both.
+37. Specify the *outlier rejection* policy at each fusion stage: chi-squared gating on the innovation, RANSAC on feature matches, M-estimator robust costs in optimization. Each gating threshold must be tied to the noise model, not a magic number.
+38. For factor-graph designs, pin the *windowing policy* (sliding window length, marginalization scheme, key-frame selection criterion) and the *backend solver* (iSAM2-style incremental, Levenberg-Marquardt batch, GTSAM-style).
+39. For multi-rate sensors, document the *predict-update cadence*: IMU at 200 Hz drives predict; LiDAR at 10 Hz drives update; GPS at 1 Hz drives slow update. The state publication rate is a separate decision and is often higher than the slowest update.
+40. If the platform must operate in GPS-denied environments, include a *fallback localization* design — switching from GPS-aided to pure LiDAR-inertial or visual-inertial, with explicit handoff criteria.
+
+### Stage 8 — Mapping subsystem (if applicable)
+
+41. Decide map representation: 2D occupancy grid, 2.5D elevation map, 3D voxel grid, signed-distance field (TSDF), feature-point map, mesh, semantic scene graph. The representation drives compute and memory and downstream consumption.
+42. Decide whether the map is built online (the robot maps as it goes), built offline and re-used, or hybrid (offline base map + online overlay).
+43. Pin loop-closure strategy: visual bag-of-words, LiDAR descriptor matching (Scan-Context-style), GPS-aided priors, place-recognition deep features, or none.
+44. Pin map update policy: append-only, decaying weight, full re-mapping. The right choice depends on environment dynamism.
+
+### Stage 9 — Failure detection and graceful degradation
+
+45. Enumerate failure modes per sensor: dropped frames, frozen frames, blocked aperture (mud, dust, condensation), saturated returns, ego-noise dominance, single-point pixel defects, intrinsic calibration drift, extrinsic calibration drift, time-sync drift, electrical disconnection.
+46. For each failure mode, specify a *detector* that runs in parallel to the perception pipeline: image-entropy thresholds for blocked apertures, point-density thresholds for LiDAR obstruction, innovation-chi-squared spikes for fusion-level inconsistencies, residual drift over a sliding window for calibration drift, packet-rate watchdogs for interface failures.
+47. For each detector, specify the *response*: degrade gracefully (drop the bad sensor from the fusion), enter a safe-stop, alert the operator, switch to a backup pipeline. The response policy is part of the *safety case* the platform owner must defend.
+48. Specify the *consistency cross-check* — at least one pair of independent perception pipelines whose outputs should agree within a stated tolerance. Disagreement is a high-value signal because both pipelines failing in the same way is unlikely. Examples: visual odometry vs. LiDAR odometry; LiDAR detection vs. radar detection; map-aided localization vs. wheel-odom.
+49. Specify the *health-publishing* contract: at runtime, each sensor and each fusion node publishes a health score (0..1) and a structured fault code. The downstream planner consumes the health vector and chooses behaviour (proceed, slow, stop, fall back).
+50. Specify the *boot-time self-test*: at startup, before the robot moves, the perception stack walks through every sensor, confirms timestamps tick, confirms calibration files load, confirms a known target is recognized, and refuses to authorize motion until all pass.
+
+### Stage 10 — Compute and latency budgeting
+
+51. Build a per-pipeline latency budget. For each stage (driver, decode, preprocess, detection, fusion, publish), record nominal and worst-case latency. Sum gives end-to-end perception latency, which must fit under `latency_budget` with margin.
+52. For each pipeline, record CPU, GPU, NPU, and memory load. The plan must not assume 100% utilization is acceptable — 60–70% is a working target to leave headroom for failure-detection work and bursty allocators.
+53. Plan for *thermal throttling*. On a hot day on the road or sun-baked drone deck, SoCs throttle and frame rates collapse silently. Document the thermal-envelope test the platform must pass.
+54. Plan for *priority and isolation*. Safety-critical fusion and obstacle-detection threads should run on dedicated cores with higher priority than logging, telemetry, and visualization. The plan documents the scheduling policy.
+55. Plan the *recording bandwidth*. Robots that cannot log raw sensor streams during the event of interest cannot debug failures after the fact. The disk budget and rolling-buffer policy is a perception design decision.
+
+### Stage 11 — ODD coverage check
+
+56. For every ODD cell marked "in scope" in Stage 2, walk through the design and identify which sensors, calibration assumptions, fusion algorithms, and failure detectors apply. Mark cells where the design has a gap (e.g. "heavy rain — only radar covers; no LiDAR-rain detector specified"). Each gap becomes an open risk.
+57. For every adversarial ODD element from Stage 2 step 9, identify the responding component. If none exists, raise the issue back to Stage 3 (add a sensor) or Stage 9 (add a detector).
+58. For each ODD edge condition, propose at least one *operational test*: a recorded log, a synthetic augmentation, a chamber test. The test belongs to the test-suite-designer skill but is anchored here.
+59. Output an ODD coverage matrix as a markdown table — rows are ODD conditions, columns are perception outputs, cells are the design components and their confidence.
+
+### Stage 12 — Maintenance and lifecycle
+
+60. Define recalibration cadence per extrinsic pair (Stage 5 already records the trigger; here we record the schedule).
+61. Define sensor replacement procedure — when a camera goes offline in the field, what does the operator do? Hot-swap? Re-image firmware? Re-run a quick calibration?
+62. Define software upgrade discipline. Perception algorithms drift in behaviour across versions; the design pins the upgrade testing required before a new fusion or detection model goes to production.
+63. Define data retention policy. Calibration runs, recorded logs, and incident captures have retention rules driven by safety and compliance.
+
+### Stage 13 — Risk register
+
+64. Enumerate cross-cutting risks: a single supplier for a critical sensor, an algorithm that has not been validated in target ODD, an immature stack that depends on online calibration converging within a time the user has not characterized, a hidden dependency on accurate IMU temperature compensation, an unproven fault-detection chain. Each risk has owner, mitigation, and a verification step.
+65. Include a *known-unknowns* register — failure modes the team has not yet characterized but suspect. Honesty here is more useful than false completeness.
+
+### Stage 14 — Compose the deliverable
+
+66. Open with a one-paragraph "design intent" summary: what the platform must perceive, what the architecture buys, what it cannot do.
+67. Render the design as a markdown document organized by the stages above. Include the ODD coverage matrix, the sensor bill-of-materials, the frame tree, the calibration plan, the time-sync plan, the fusion-architecture decision and rationale, and the failure-detection map.
+68. Emit `design_json` with the structured fields. A downstream tool should be able to derive a URDF skeleton and a parameter-file template from the JSON.
+69. Close with the mandatory safety disclaimer restated, an "open risks" list, and a "what this design does not cover" section that points at the calibration-planner, object-detection-reviewer, and test-suite-designer skills for adjacent decisions.
+
+## Outputs
+
+The skill returns:
+
+1. `stack_design` (markdown) — full architecture document.
+2. `design_json` (JSON) — structured plan suitable for downstream automation.
+
+## Examples
+
+**Input (placeholder):**
+
+`platform_description`: "Indoor warehouse AMR, 1.2 m/s top speed, mixed-traffic with pedestrians and forklifts, supervised autonomy (a human operator monitors a fleet)."
+
+`operational_design_domain`: "Concrete floors with occasional spills, fluorescent and skylight mixed lighting, no GPS, occasional Wi-Fi dropouts, no rain, ambient 5–35°C."
+
+`candidate_sensors`: "2D LiDAR for safety, depth camera for perception, IMU, wheel encoders."
+
+`latency_budget`: "Obstacle detection to safety-stop within 80 ms; localization update at 20 Hz."
+
+`compute_constraints`: "Mid-range x86 industrial PC, no discrete GPU."
+
+`safety_class`: "supervised-autonomy."
+
+**Plan (abbreviated):**
+
+- Outputs: ego-pose at 20 Hz in map frame, freespace polygon at 10 Hz, obstacle list at 20 Hz with velocity, dynamic-actor tracks.
+- ODD gap identified: spill puddles produce reflective false-positive LiDAR returns; mitigation is depth-camera cross-check plus floor-region masking.
+- Sensor suite: 2D safety LiDAR (factory-certified, independent of perception), 3D depth camera at chest height, IMU on chassis, wheel encoders. Complementary modalities for obstacle detection (LiDAR and depth) and for ego-motion (IMU and wheels).
+- Frame tree: `map → odom → base_link → {lidar, camera, imu}`. Hamilton quaternions, meters, ROS REP-103 axis conventions.
+- Calibration: factory intrinsics for cameras; one-shot LiDAR-base_link with ChArUco-equipped jig; online IMU-base_link time-offset estimation; recalibration trigger on chassis-impact or quarterly schedule.
+- Time sync: industrial PC clock is authority; depth camera uses hardware trigger; LiDAR uses host-arrival timestamps with a compensating offset estimator.
+- Fusion: EKF for ego-pose with IMU predict / wheel-odom update / LiDAR-scan-match correction; loose-coupled depth-camera obstacles fed to tracker.
+- Failure detection: image-entropy detector for blocked depth camera; LiDAR point-density watchdog for fog or condensation on dome; chi-squared gate on EKF innovations; cross-check between wheel-odom and LiDAR-scan-match — drift > 5cm/10s triggers safe-stop.
+- ODD coverage: spill puddles flagged as a residual risk requiring a field-collected test set with reflective floor conditions.
+
+**Output excerpt:** the markdown design plus a JSON object whose `failure_detection` array enumerates each detector with `signal`, `threshold`, and `response`, and whose `odd_matrix` is a list of `(condition, output, coverage, confidence)` tuples.
+
+## Limitations
+
+- The skill produces an architecture, not an implementation. Tuning fusion-filter parameters, training detection models, and writing drivers are out of scope.
+- Sensor and algorithm specifics evolve faster than this skill; treat the suite recommendations as a checklist of considerations rather than a vendor shortlist.
+- The skill assumes the user has access to the platform for measurement (mass, vibration, thermal envelope); without measurement, design choices are educated guesses.
+- High-safety-class platforms (medical, defense, aerospace) require domain-specific regulatory inputs that this skill does not encode. Use it as a structuring aid, not as a substitute for the platform's safety case.
+- The skill does not weigh cost. A buyer should run a separate cost-trade analysis once the design is structurally complete.
+- Real-time scheduling guarantees are operating-system specific; the plan flags the requirement but does not prescribe an RTOS or kernel patch set.
+
+## Sources reviewed
+
+- https://github.com/isl-org/Open3D
+- https://github.com/PointCloudLibrary/pcl
+- https://github.com/opencv/opencv
+- https://github.com/IntelRealSense/librealsense
+- https://github.com/borglab/gtsam
+- https://github.com/MIT-SPARK/Kimera-VIO
+- https://github.com/koide3/glim
+- https://github.com/autowarefoundation/autoware

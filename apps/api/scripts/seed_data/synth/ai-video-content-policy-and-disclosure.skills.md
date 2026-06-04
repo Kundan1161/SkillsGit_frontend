@@ -1,0 +1,333 @@
+---
+id: skillsgit-curated/ai-video-content-policy-and-disclosure
+version: 1.0.0
+name: AI Video Content Policy and Disclosure
+description: Content policy decisions for AI-generated video — consent for likeness, the deepfake distinction, C2PA Content Credentials authoring, platform policy alignment, and in-output disclosure best practices.
+authors:
+  - name: skillsgit Curated
+    handle: skillsgit-curated
+    role: author
+category: creative
+tags: [niche:ai-video-generation, content-policy, c2pa, content-credentials, consent, disclosure, deepfake, platform-policy]
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6, claude-haiku-4-5, gpt-4o, gpt-4.1, gemini-1.5-pro]
+  tools_required: []
+  tools_optional: [web_search]
+  min_context_tokens: 20000
+  estimated_tokens_per_invocation: 5000
+trigger_keywords:
+  - ai video disclosure
+  - c2pa content credentials
+  - deepfake distinction
+  - consent for likeness
+  - ai video policy
+  - platform policy ai video
+  - ai watermark video
+  - synthetic media disclosure
+  - content provenance video
+  - ai disclosure best practice
+  - ai video manifest
+  - ai content authentication
+example_invocations:
+  - "Plan the disclosure and consent strategy for a short film that uses an AI-generated likeness of a real public figure."
+  - "We're publishing an AI-generated commercial to social platforms; what do we disclose and where?"
+  - "Help me decide whether a planned shot crosses into deepfake territory."
+  - "Author the C2PA Content Credentials manifest for our delivery."
+inputs:
+  - name: piece_brief
+    type: text
+    required: true
+    description: A description of the piece — what it depicts, where it will be published, who the intended audience is, and any real people, brands, or locations it references.
+  - name: real_likeness_use
+    type: choice
+    required: false
+    description: Whether the piece depicts a real, identifiable person.
+    choices: [none, self_or_consenting_subject, public_figure_satire, public_figure_other, third_party_no_consent]
+  - name: distribution_platforms
+    type: text
+    required: false
+    description: The platforms where the piece will be published — broadcast, theatrical, social platforms named, paid advertising channels, internal-only.
+  - name: jurisdiction
+    type: text
+    required: false
+    description: The jurisdictions the piece will be distributed in. Drives the regulatory frame.
+  - name: client_or_brand_constraints
+    type: text
+    required: false
+    description: Any brand or client constraints on AI disclosure language, watermarking, or consent records.
+outputs:
+  - name: policy_assessment
+    type: markdown
+    description: The policy assessment — consent requirements, deepfake-distinction call, platform policy alignment, regulatory considerations, and a go/no-go on the proposed content.
+  - name: disclosure_plan
+    type: markdown
+    description: The disclosure plan — C2PA manifest contents, on-screen disclosure language and placement, platform-specific tagging, and the record-keeping that backs each disclosure.
+  - name: policy_summary
+    type: json
+    description: Structured record with `consent_status`, `deepfake_classification`, `platform_actions`, `c2pa_manifest_intent`, `on_screen_disclosure`, `record_retention`, and `escalation_required` keys.
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Initial release.
+---
+
+# AI Video Content Policy and Disclosure
+
+## When to use
+
+Use this skill before publishing any AI-generated video to a public audience, and at design time when the piece will depict a real person, a real brand, or a sensitive scenario. The skill produces a policy assessment that decides whether the piece should be made as proposed, a disclosure plan that decides how the AI involvement is communicated, and a record-keeping plan that backs the disclosures. It is the right skill for any commercial, advertising, news, narrative, social, or internal piece that uses AI-generated video. It is especially important when the piece depicts identifiable people, when the piece could be mistaken for documentary footage, or when the piece touches a regulated category.
+
+This skill produces methodology guidance for AI video generation. The skill does not address copyright status of training data or generated outputs in any jurisdiction; consult counsel for commercial use. The skill explicitly does not produce or recommend non-consensual likeness use (deepfakes), CSAM, defamatory content, or content that violates platform policy or applicable law.
+
+The skill is not a substitute for legal counsel. It captures common-practice patterns and points at the open standard (C2PA) and at the broad shape of platform policies. Jurisdiction-specific advice, defamation analysis, right-of-publicity analysis, and regulatory interpretation belong with counsel.
+
+## Inputs
+
+| Input | Required | Purpose |
+| --- | --- | --- |
+| `piece_brief` | yes | The grounding case for the assessment. |
+| `real_likeness_use` | no | Routes the consent and deepfake-distinction analysis. |
+| `distribution_platforms` | no | Drives platform-specific disclosure obligations. |
+| `jurisdiction` | no | Names the regulatory frames the team should bring counsel into. |
+| `client_or_brand_constraints` | no | Names constraints on disclosure language. |
+
+## How to apply
+
+The skill walks five decisions. Decision 1 is the gate: if the answer is "no-go", the rest of the assessment records the reasons rather than producing a publishable plan.
+
+### Decision 1 — The non-negotiable refusals
+
+1. The skill refuses to plan or assist with content that depicts a real, identifiable person in a sexual context without that person's documented, freely-given, specific consent. The category includes celebrity face-swaps onto adult performers, "stripped" image generation, and any sexual content depicting a real person who has not consented to sexual depiction.
+2. The skill refuses to plan or assist with content that sexualises minors or that could plausibly be interpreted as such, full stop. The category includes ostensibly-fictional minors. There is no consent pathway, no disclosure pathway, no jurisdictional pathway that makes this category permissible.
+3. The skill refuses to plan or assist with content designed to defame a real person — content that asserts or implies false facts about a specific identifiable person that would damage their reputation.
+4. The skill refuses to plan or assist with content designed to mislead about elections, public-health guidance, or the actions of identifiable public officials in their official capacity, where the design intent is to be received as real.
+5. The skill refuses to plan or assist with content designed for fraud — impersonation of a real person to extract money, credentials, or instructions from another person.
+6. When the brief falls into any of these categories, the policy assessment is a refusal and an explanation. The skill does not propose modifications that bring the brief inside the line; the brief is the problem.
+
+### Decision 2 — Consent for likeness
+
+1. When the piece depicts a real, identifiable person, the skill names the consent regime.
+2. **Self or fully-consenting subject.** The depicted person is the creator, or has signed a release that names the AI generation specifically (not a generic image release), with a description of how their likeness will be used, the duration of the licence, and the territory. AI-likeness releases are typically more specific than traditional image releases because the model can produce performances the subject never gave.
+3. **Public-figure satire.** A public figure depicted in clearly satirical, commentary, or parody context. Jurisdictions vary in how much protection satire affords; counsel decides whether the piece falls inside the protected category in the distribution jurisdiction. The disclosure plan still applies — viewers benefit from knowing the depiction is synthetic.
+4. **Public-figure other.** Public figure depicted in non-satirical context (a fictional drama, a commercial endorsement, a documentary-style framing). Requires the public figure's licence in nearly every jurisdiction; the skill names this as a counsel-required call and does not assume the licence exists.
+5. **Third party no consent.** A real, identifiable person depicted without consent. The skill refuses non-satirical depictions and flags satirical depictions for counsel review.
+6. The consent record — the signed release, the licence terms, the satire-defence rationale — is retained alongside the project. The skill names retention durations consistent with the licence term plus a reasonable post-distribution period; counsel sets the exact figure.
+
+### Decision 3 — The deepfake distinction
+
+1. "Deepfake" is a fuzzy term in popular usage. The skill names a usable distinction: a depiction of a real, identifiable person in a context they were not actually in, generated to be received as a depiction of that person doing or saying what is shown. Under this distinction, an animated character who incidentally resembles a celebrity is not a deepfake; a generated clip of the named celebrity giving a speech they never gave is a deepfake.
+2. Deepfake depictions are not categorically prohibited (subject to Decision 1's refusals) but they carry the highest disclosure burden. Three levels of disclosure are typical.
+3. **Embedded provenance (C2PA).** The manifest declares the AI involvement, the model class, the date, and the responsible publisher. Machine-readable; survives platform reposting where the platform preserves the manifest.
+4. **On-screen disclosure.** A visible label that names the piece as a synthetic depiction, present on screen long enough to be read. Required by many platforms for deepfake content; required by law in some jurisdictions for political or election-adjacent content.
+5. **Contextual framing.** The piece is published with surrounding context — a caption, a description, an article — that frames it as synthetic. Contextual framing is the weakest layer and should never be the only layer for a deepfake depiction; the piece can be reposted without the context.
+6. The skill recommends all three layers for deepfake depictions and at least layer 3 (embedded provenance) for non-deepfake AI-generated content. The investment scales with the risk that the piece will be mistaken for real.
+
+### Decision 4 — C2PA Content Credentials authoring
+
+1. C2PA is the open standard for cryptographically signed provenance metadata embedded in media files. The standard is the right place to record AI involvement at the file level. The skill names the manifest's intended contents.
+2. **Origin and creator.** Who made the piece, when, what publisher signed off. The creator can be an organisation, an individual, or a pseudonymous handle backed by a verifiable certificate.
+3. **AI involvement.** Which sections of the piece are AI-generated, what tool or model family produced them, whether the AI was used for whole-frame generation, partial generation, enhancement, or editing.
+4. **Edit history.** What modifications happened between generation and delivery — uprez, grade, composite. Granularity varies; the standard supports both coarse and fine records.
+5. **Identity assertions.** Where the piece depicts a real person with a release, the manifest can carry an identity assertion that names the licence holder. This is optional and the team should weigh privacy considerations before including it.
+6. **Practical limits.** C2PA manifests survive on platforms that honour the standard. Many social platforms strip metadata on upload; the C2PA ecosystem and the platforms are converging on better preservation, but the team should not assume the manifest will reach the viewer through every platform. The on-screen disclosure (Decision 3) is the durable disclosure for those channels.
+7. The disclosure plan names the manifest's contents in plain language; the actual signing is done by a C2PA-capable export tool. Several finishing tools and standalone signers exist; the choice is part of the post pipeline.
+
+### Decision 5 — Platform policy alignment and on-screen disclosure
+
+1. Each distribution platform has its own AI-content policy. The skill names common patterns and points the team at the current policy document for each platform they plan to publish on.
+2. **Tagging on upload.** Most major social platforms require self-reporting of AI involvement at upload time, often with a toggle that drives an on-screen badge applied by the platform. The team self-reports accurately and consistently.
+3. **On-screen disclosure language.** Common, durable phrasings: "AI-generated", "Synthetic media", "This video contains AI-generated footage". Where the piece is partially AI-generated, the disclosure says so. The skill avoids euphemisms ("enhanced with AI") for content that is wholly generated.
+4. **Placement.** The disclosure appears on screen at the start of the piece (within the first few seconds), and either persists as a corner watermark for the duration or reappears at any moment of risk of misreading. For long-form pieces, the disclosure may also appear at the start of each new section.
+5. **Advertising rules.** Paid placements often carry additional rules — claim substantiation, comparative-advertising requirements, financial-product disclosures. AI generation does not lower the bar; it raises it, because the visible "evidence" the ad shows may not exist in reality.
+6. **Regulatory categories.** Election advertising, health advertising, financial advertising, and pharmaceutical advertising carry jurisdiction-specific AI-disclosure laws in 2025–2026 that are still being finalised. The skill names the category and triggers a counsel-review step rather than assuming the law.
+
+### Decision 6 — Record retention and audit trail
+
+1. Every disclosure decision is backed by a record the team can produce if asked. The skill names the records that travel with the project archive.
+2. **Consent records.** The signed releases, the description of permitted use, the duration of the licence, the territory, and any restrictions the subject placed on the depiction. Retained for the licence term plus a reasonable post-distribution period; counsel sets the exact retention figure.
+3. **Source records.** The prompts, the conditioning inputs (reference images, reference videos), the model identifiers and version, the seed values, and the generation logs for each shot that made it to delivery. Retained alongside the consent records.
+4. **Disclosure records.** The C2PA manifest contents, screenshots of platform AI-tagging settings at upload, the on-screen disclosure design and placement, copies of the published descriptions. Retained alongside the source records.
+5. **Decision records.** The Decision 1 gate result, the consent regime call, the deepfake classification, the counsel-review correspondence (if any). Retained as the audit trail for the project.
+6. The retention plan names where each record lives, how it is backed up, and who has access. For commercial projects, the brand or client may have additional record-retention requirements that override these defaults; the disclosure plan captures them.
+
+### Decision 7 — Special handling for sensitive categories
+
+1. Some categories of content warrant additional caution beyond the standard disclosure plan.
+2. **Children depicted.** Synthetic depictions of identifiable children require the documented consent of the child's parent or guardian, plus consideration of the child's own assent where age-appropriate. The piece's distribution context matters; depictions in family-friendly contexts on appropriate platforms differ from depictions in commercial advertising.
+3. **Deceased persons.** Synthetic depictions of deceased identifiable persons require the consent of the estate or rights-holder where one exists, plus consideration of the depicted person's known wishes and the context of the depiction. Right-of-publicity post-mortem varies sharply by jurisdiction; counsel review is standard.
+4. **Crisis and trauma footage.** Synthetic footage that depicts mass-casualty events, war zones, natural disasters, or other crisis events risks being mistaken for real coverage. Disclosure must be unambiguous; platforms have specific rules in this space; news organisations have stricter rules still. The skill recommends against this category for entertainment use and triggers counsel and editorial review for news or documentary use.
+5. **Medical and health depictions.** Synthetic depictions of medical procedures, conditions, or outcomes risk being received as instructional or evidentiary. Distinct from the regulatory advertising category in Decision 5, this is an editorial concern even outside paid placements. Add an explicit "depictions are synthetic and not medical advice" caption where the depiction could be confused for medical content.
+
+## Outputs
+
+The skill emits three artifacts.
+
+**Policy assessment.** A markdown document with the Decision 1 gate result, the consent regime call, the deepfake-distinction call, the platform policy alignment, and the overall go / counsel-required / no-go recommendation.
+
+**Disclosure plan.** A markdown document with the intended C2PA manifest contents, the on-screen disclosure language and placement, the platform-specific upload-time tagging, and the record-retention plan.
+
+**Policy summary.** A JSON object with `consent_status`, `deepfake_classification`, `platform_actions`, `c2pa_manifest_intent`, `on_screen_disclosure`, `record_retention`, and `escalation_required` keys.
+
+## Examples
+
+A team plans a brand commercial that uses AI-generated B-roll of city streets, with the brand's actual product composited in via the post-integration skill. No real people are depicted. The policy assessment lands at go: no consent issue, no deepfake, no high-risk regulatory category. The disclosure plan: C2PA manifest declaring the AI involvement on the B-roll sections, an on-screen "Contains AI-generated footage" credit in the end card, platform-tagging on upload to each social platform with an AI flag, and a one-line line in the brand's website description of the piece. Records: the manifest, the project archive, the prompts.
+
+A team plans a music video that depicts a fictional character with a face generated by AI. The character has no real-world counterpart. The piece will distribute on major social platforms and on the artist's own site. Assessment: go; no consent issue; not a deepfake; standard disclosure suffices. Disclosure plan: C2PA manifest, an on-screen "AI-generated character" credit on first appearance and in the end card, platform AI tagging on upload.
+
+A team proposes a satirical sketch depicting a sitting head of state in a fabricated press conference. Assessment: counsel-required. Decision 1 does not refuse satirical depictions per se, but the combination of election-adjacent political content and a fabricated press conference triggers regulatory review in several jurisdictions and platform policies that have specific rules for synthetic depictions of officials. The skill does not produce a publishable plan; it produces a counsel-review request with a list of the specific risks (jurisdictional election-content rules, platform-specific synthetic-media-of-politicians policies, defamation exposure if the fabricated statements could be received as real). The team takes the assessment to counsel.
+
+A team proposes a celebrity face-swap onto a sexual scene. Assessment: refusal. The skill records the refusal and the reasoning and does not produce a workaround.
+
+A news organisation proposes using AI-generated B-roll to illustrate a story where stock footage is unavailable. Assessment: counsel-and-editorial-required. The use is not refused outright — synthetic illustration in news has a long tradition (re-enactments, animated diagrams) and AI generation can serve the same purpose. The disclosure plan, however, is stricter than for entertainment use: on-screen labelling at first appearance and reappearing throughout the segment, a chyron describing the footage as illustration not documentation, and the organisation's editorial standards apply on top of the platform and disclosure rules. The skill explicitly does not assist with synthetic depictions of real events as if they were captured documentation.
+
+## Working with the policy gate in practice
+
+A worked walk-through. A creative agency brings a brief for a brand spot: a famous athlete endorsing a beverage. The athlete has agreed in principle but has not signed an AI-specific release; the agency wants to start production while the release is being negotiated.
+
+Decision 1: the depiction is not in a refused category. Continue.
+
+Decision 2: the athlete is a public figure but the use is commercial endorsement, not satire. The consent regime is `public_figure_other`. The release must specifically authorise AI generation, name the use (the beverage brand, the campaign, the territories, the term), and describe the kinds of performances the AI is permitted to generate. The skill flags that the release "being negotiated" is not sufficient to begin production; the AI generation creates assets that, if used before the release is signed, expose the agency and the brand to claims even if the athlete eventually signs.
+
+Decision 3: not a deepfake in the misleading sense — the depiction is consensual endorsement, not fabricated assertion. Standard three-layer disclosure recommended.
+
+Decision 4: C2PA manifest authored with the AI involvement declared, identity assertion conditional on the signed release.
+
+Decision 5: platform tagging on each platform; on-screen disclosure at the head and tail of the spot.
+
+Decision 6: records retained for the licence term plus a reasonable buffer; counsel sets the exact figure.
+
+Decision 7: not a sensitive category beyond the standard endorsement framework.
+
+The skill's recommendation: pause AI generation until the release is signed. Use the waiting period to prepare conditioning inputs (reference imagery the athlete has authorised), to draft the disclosure language, and to author the C2PA manifest template. Resume generation when the release is in hand.
+
+## Working with the C2PA manifest in practice
+
+A practical sketch of what goes in the manifest for a typical AI-generated brand spot. The manifest is a structured JSON-LD document; the team authors it through a C2PA-capable export tool rather than writing it by hand, but understanding the contents helps the team make good decisions at export time.
+
+The origin assertion names the publisher (the brand or the agency), the date of creation, the human creator if attributed, and the signing certificate that authenticates the publisher.
+
+The AI assertion names the kind of AI involvement — wholly generated, partially generated, AI-enhanced, AI-edited — and the model family. The skill recommends generic naming ("frontier video-diffusion model") in public-facing manifests rather than naming specific products, both for forward-compatibility (the manifest survives model upgrades) and for vendor-neutrality.
+
+The edit assertion names the finishing steps that happened between generation and delivery — uprez, grade, composite. The granularity is the team's choice; the open standard supports both coarse and fine granularity. For most public-facing pieces, coarse granularity is sufficient ("uprezzed, graded, composited"); for evidentiary or news pieces, finer granularity supports verification.
+
+The identity assertion, if included, names the depicted person and points at the consent record. The skill recommends including identity assertions only when the depicted person has explicitly authorised them, since the manifest is publicly visible and the identity claim has privacy implications.
+
+The signing certificate is the publisher's C2PA certificate, which authenticates that the assertions came from the named publisher. Without the certificate, the manifest is a claim; with the certificate, the manifest is a verifiable claim.
+
+## Limitations
+
+## Common pitfalls
+
+**Pitfall 1 — Treating Decision 1 as negotiable.** The non-negotiable refusals are non-negotiable; teams that look for workarounds — fictional surnames that everyone recognises, claims of satire that the work does not credibly support, "private distribution" that ends up on social platforms — produce harm and expose the team and the brand to severe consequences. Corrective: if the brief falls in a refusal category, the brief changes or the project does not happen.
+
+**Pitfall 2 — Generic image releases instead of AI-specific consent.** A traditional image release does not authorise AI-generated synthesis. The release is specific to AI: it names the technology, the use, the term, the territory, and the restrictions. Corrective: counsel-drafted AI consent forms; do not paste an old release and hope.
+
+**Pitfall 3 — Disclosure buried in the description.** "AI-generated" hidden in the third paragraph of an upload caption does not reach viewers who scroll past or who see the piece embedded elsewhere. Disclosure must be on screen and visible. Corrective: in-output disclosure is layer one; surrounding context is supplementary.
+
+**Pitfall 4 — Trusting platforms to preserve metadata.** Many platforms strip metadata on upload. C2PA manifests are still worth authoring (for provenance at delivery and for the platforms that do preserve them) but are not a substitute for on-screen disclosure. Corrective: defence in depth.
+
+**Pitfall 5 — Assuming satire protects everything.** Satire is a defence in some jurisdictions and not in others, and its boundaries are not always clear. Corrective: satire claims go through counsel, not through the creative team's intuition.
+
+**Pitfall 6 — Skipping the deepfake distinction conversation.** Teams sometimes assume their work is not a deepfake because the depiction is "obviously fake to anyone watching". The deepfake distinction is about whether the depiction could plausibly be received as a depiction of the named person doing what is shown; that test does not require the work to be technically convincing. Corrective: route the call through Decision 3, not through team consensus.
+
+**Pitfall 7 — Inconsistent platform-tagging across the same piece.** Posting the piece on three platforms with AI-tagged on two and not the third makes the disclosure feel arbitrary and triggers platform-specific enforcement risk. Corrective: tag consistently on every platform.
+
+**Pitfall 8 — Treating disclosure as a one-time decision.** A piece may be re-published, re-cut, sampled into another piece. Each new distribution context inherits the original's disclosure obligations and may add its own. Corrective: the disclosure plan in the project archive travels with the project and is re-reviewed at each new distribution.
+
+## Decision summary
+
+| Decision | Question | Default | Escalate to counsel when |
+| --- | --- | --- | --- |
+| 1. Non-negotiable gate | Does the brief depict any refused category? | Stop and document. | Never override; refusals are absolute. |
+| 2. Consent | Is the depicted person consenting? | AI-specific written release with named use, term, territory. | Public figure, third-party, deceased person. |
+| 3. Deepfake | Could the piece be received as the real person? | Three-layer disclosure for deepfakes; embedded provenance for everything else. | Political, official, or news context. |
+| 4. C2PA | What goes in the manifest? | Origin, AI involvement, edit history. | High-risk pieces add identity assertions only after counsel review. |
+| 5. Platform | What does each platform require? | Self-report on upload; on-screen disclosure for synthetic content. | Regulated categories (election, health, financial, pharma). |
+| 6. Records | What is retained? | Consent, source, disclosure, decision records. | Counsel sets retention periods. |
+| 7. Sensitive categories | Does the piece touch a sensitive category? | Standard plan plus category-specific safeguards. | Children, deceased persons, crisis, medical. |
+
+## Handing off to other skills
+
+The policy-and-disclosure skill sits across the workflow rather than at one position in it.
+
+**Before the shot architect.** The Decision 1 gate runs before any design or generation work. A brief that fails the gate does not produce shot designs.
+
+**Before the consistency architect.** Consent for identity reference material is settled before LoRA training, hero-still preparation, or adapter conditioning. Conditioning a model on a real person's image without their authorisation creates the problem disclosure cannot solve.
+
+**With the post pipeline.** The C2PA manifest, the on-screen disclosure design, and the platform-tagging records feed Stage 8 of the post pipeline. The records the policy plan specifies are archived alongside the project at delivery.
+
+**Beyond the workflow.** Some decisions hand off to counsel, to editorial, or to brand-standards review. The skill names the handoffs explicitly rather than absorbing them. Counsel is not a fallback when something goes wrong; counsel is a step in the workflow on any project that touches a sensitive category.
+
+## Reading a complex case
+
+A worked walk-through of a case that combines several decisions.
+
+A documentary production company is producing a piece about a historical war event. They want to include several AI-generated reconstruction shots depicting named individuals who died in the event. The platform is a streaming documentary service; the territory is global.
+
+Decision 1: not in a refused category — historical reconstruction has a long tradition in documentary and the depictions are not sexual, not defamatory, not designed to mislead. The use depicts deceased persons in events they actually participated in, in a context (historical reconstruction) that is widely understood.
+
+Decision 2: the depicted persons are deceased and identifiable. Consent regime is partly determined by jurisdiction — right-of-publicity post-mortem varies, and the depicted persons' families and estates may hold claims. The skill flags consent as counsel-and-estate-required.
+
+Decision 3: the depictions are deepfakes in the broad sense (real, identifiable persons in contexts depicted at high fidelity). Three-layer disclosure is mandatory: C2PA manifest, on-screen labelling at first appearance and reappearing during reconstruction sequences, and contextual framing in the documentary's introduction.
+
+Decision 4: C2PA manifest authored with full edit history (for evidentiary value to documentary scholars and viewers who care about provenance), AI involvement clearly named, identity assertions included only with estate authorisation.
+
+Decision 5: platform-tagging on the streaming service per its synthetic-media policy; on-screen disclosure designed for global readability (no localised idioms).
+
+Decision 6: records retained indefinitely, given documentary archival conventions.
+
+Decision 7: deceased persons fall in the sensitive-category section; the production goes through estate review, editorial review, and counsel review before generation begins.
+
+The skill's output is a policy assessment that does not refuse but does name several gates the production must clear before generation. The downstream skills (shot architect, consistency architect, post pipeline) all run after these gates are cleared, not before.
+
+## A note on platform policy evolution
+
+Platform policies on AI-generated content have evolved rapidly in 2024–2026 and continue to evolve. The skill's recommendations are written to be durable across the policy churn — defence in depth, embedded provenance plus on-screen disclosure plus accurate platform-tagging — but specific platform requirements change. Teams that publish frequently to a platform consult that platform's current policy at upload time; teams that publish occasionally do the same per upload.
+
+The skill recommends that teams maintain a short reference document per platform they publish on, with the current policy URL, the date it was last reviewed, and the relevant excerpts. The reference is updated quarterly or on any sign that the policy has changed. The document lives in the team's project archive template and is updated centrally rather than per project.
+
+A related observation: platforms' enforcement of their AI-content policies is not yet uniform. Strict policies do not always translate into strict enforcement, and lenient policies do not always translate into permissive enforcement. The skill recommends complying with the stated policy regardless of the enforcement signal, both because enforcement can tighten without notice and because the team's own standards should not be set by what platforms tolerate.
+
+## Limitations
+
+The skill is not legal counsel. The skill captures patterns and points at standards; it does not adjudicate any specific piece's legal status in any jurisdiction. Right-of-publicity, defamation, false-light, false-endorsement, election-content laws, and platform terms-of-service vary by jurisdiction and by platform and change continuously. Any commercial-distribution piece, any piece depicting a real person, any politically-adjacent piece, any piece in a regulated category must be reviewed by qualified counsel for the distribution jurisdiction before publication. The skill's refusals are not negotiable; teams that need a different policy framework should engage their legal and ethics functions directly and not route through this skill.
+
+## The disclosure design itself
+
+The on-screen disclosure is a piece of design work and deserves design attention.
+
+**Placement.** First few seconds of the piece, and either persistent or recurring. Persistent placement is a small corner watermark; recurring placement is a larger label that fades in and out at intervals. Both are valid; persistent is more conservative.
+
+**Typography.** Legible at the smallest playback context the piece will appear in (mobile, often). Sans-serif faces at a size that survives downscaling. Contrast against the underlying image is sufficient; light text on bright video benefits from a subtle scrim or a stroke.
+
+**Language.** Plain, durable phrasings — "AI-generated", "Synthetic media", "This footage was generated by AI". Avoid euphemisms ("AI-enhanced", "computer-assisted") for content that is wholly synthetic; the euphemism is a defence of last resort that does not survive viewer scrutiny.
+
+**Localisation.** Pieces distributed in multiple language territories carry localised disclosures. The disclosure is treated like any other on-screen text — translated by a competent translator, reviewed for clarity, formatted to match the localised typography.
+
+**End-card credit.** A more detailed disclosure in the end card complements the on-screen label. The end card may name the AI tools used (if the team chooses to disclose the tools), the human creators, and the consent or rights records. The end card disclosure is durable archive even if the on-screen label is reposted out of context.
+
+## Working with brand and client constraints
+
+Brand and client constraints on AI disclosure language are common. The skill captures them in the disclosure plan.
+
+Some brands require specific disclosure phrasings ("Created with the assistance of generative AI tools"). Some require a logo or a stamp on screen. Some require linkage to a brand-specific transparency page. The skill accepts these as overlays on top of the policy minimums — the brand's preferred phrasing is fine as long as it does not weaken the disclosure below the policy minimum.
+
+Some clients ask for disclosure to be minimised or omitted. The skill does not honour requests below the policy minimum. The conversation with the client is that the minimum is not negotiable, that the alternative is not making the piece, and that the brand or platform-policy risk of under-disclosure is greater than the perceived cost of clear disclosure. Where a client insists on under-disclosure, the project does not proceed.
+
+Some clients ask for over-disclosure — more aggressive labelling than the policy minimum requires. The skill accommodates this without objection; over-disclosure is always safe.
+
+## Sources reviewed
+
+- https://spec.c2pa.org/specifications/specifications/2.4/explainer/Explainer.html (open specification)
+- https://spec.c2pa.org/specifications/specifications/2.2/explainer/_attachments/Explainer.pdf (open specification)
+- https://contentauthenticity.org/how-it-works (CAI methodology reference)
+- https://contentcredentials.org/ (open standard reference)
+- https://c2pa.wiki/ (open standard reference)
+- https://github.com/hpcaitech/Open-Sora (Apache-2.0)
+- https://github.com/genmoai/mochi (Apache-2.0)
+- https://github.com/Stability-AI/generative-models (Stability AI Community License — limited commercial use, disclose)

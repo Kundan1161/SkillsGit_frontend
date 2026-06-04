@@ -1,0 +1,170 @@
+<mxfile host="app.diagrams.net" agent="skillsgit-arch" version="24.7.17" type="device">
+  <diagram name="deployment-target" id="skg-deploy-target">
+    <mxGraphModel dx="2400" dy="1600" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="3000" pageHeight="2600" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <mxCell id="title" value="Production deployment target&#10;Source: prompts/01-tech-stack-and-repo.md §Infra (target). Nothing in this diagram is live yet — every node is &lt;&lt;target&gt;&gt;." style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=none;fontSize=16;fontStyle=1;align=left;" vertex="1" parent="1">
+          <mxGeometry x="40" y="20" width="2800" height="60" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== Edge layer ===== -->
+        <mxCell id="g-edge" value="Edge layer &lt;&lt;target&gt;&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0EA5E9;strokeColor=#0369A1;fontColor=#FFFFFF;verticalAlign=top;fontSize=14;fontStyle=1;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="100" width="1180" height="200" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-E1" value="E1: DNS: skillsgit.com&#10;(provider TBD —&#10;Cloudflare DNS likely&#10;since R2 is in play)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#0369A1;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="60" y="140" width="540" height="140" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-E2" value="E2: CDN: Vercel Edge + Cloudflare&#10;(static asset caching;&#10;image optimization)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#0369A1;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="620" y="140" width="580" height="140" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== Frontend ===== -->
+        <mxCell id="g-fe" value="Frontend hosting &lt;&lt;target&gt;&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;verticalAlign=top;fontSize=14;fontStyle=1;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="330" width="1180" height="280" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-FE1" value="FE1: web-marketplace&#10;Next.js app router&#10;Vercel deploy&#10;marketplace.skillsgit.com" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="60" y="370" width="380" height="140" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-FE2" value="FE2: web-creator&#10;Next.js app router&#10;Vercel deploy&#10;creator.skillsgit.com" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="460" y="370" width="380" height="140" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-FE3" value="FE3: env: NEXT_PUBLIC_API_URL&#10;= https://api.skillsgit.com" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="860" y="370" width="340" height="140" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== Backend ===== -->
+        <mxCell id="g-be" value="Backend hosting &lt;&lt;target&gt;&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;verticalAlign=top;fontSize=14;fontStyle=1;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="1260" y="100" width="1700" height="510" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-BE1" value="BE1: FastAPI (apps/api)&#10;Fly.io OR Railway&#10;api.skillsgit.com" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;dashed=1;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1280" y="140" width="800" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-BE2" value="BE2: Container image:&#10;python:3.12-slim base&#10;uv-managed venv&#10;uvicorn workers" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="2100" y="140" width="840" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-BE3" value="BE3: Health: /healthz&#10;(includes GIT_COMMIT for&#10;deploy verification)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="1280" y="290" width="800" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-BE4" value="BE4: Arq worker(s):&#10;separate process or container&#10;same image, different command&#10;(uv run arq capture.jobs.WorkerSettings;&#10;uv run arq vault.jobs.WorkerSettings)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="2100" y="290" width="840" height="160" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== Managed services ===== -->
+        <mxCell id="g-ms" value="Managed services &lt;&lt;target&gt;&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;verticalAlign=top;fontSize=14;fontStyle=1;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="640" width="1880" height="300" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-MSPG" value="MS_PG: Postgres on Neon&#10;(or equivalent — RDS,&#10;Supabase, etc.)&#10;asyncpg driver" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="60" y="680" width="440" height="140" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-MSRD" value="MS_RD: Redis on Upstash&#10;(or equivalent —&#10;Redis Cloud, ElastiCache)&#10;redis-py asyncio client" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="520" y="680" width="440" height="140" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-MSR2" value="MS_R2: Object store on Cloudflare R2&#10;(S3-API-compatible;&#10;zero egress fee)&#10;bucket: skillsgit (TBD)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="980" y="680" width="440" height="140" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-MSMAIL" value="MS_MAIL: Email: SES / Postmark /&#10;Resend (TBD)&#10;replaces Mailhog" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="1440" y="680" width="440" height="140" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== External SaaS ===== -->
+        <mxCell id="g-ext" value="External SaaS (prod credentials) &lt;&lt;target&gt;&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fce7f3;strokeColor=#be185d;verticalAlign=top;fontSize=14;fontStyle=1;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="1960" y="640" width="1000" height="300" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-EXSTR" value="EX_STR: Stripe&#10;STRIPE_SECRET_KEY = sk_live_…&#10;STRIPE_WEBHOOK_SECRET = whsec_…&#10;Stripe Connect for creator payouts" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#be185d;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="1980" y="680" width="460" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-EXANT" value="EX_ANT: Anthropic API&#10;ANTHROPIC_API_KEY = prod key&#10;used by:&#10;- capture LLM (1 call per draft; 10/mo per creator)&#10;- demo CLI (live runs only; BYOK comes in Cycle 2)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#be185d;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="2460" y="680" width="480" height="160" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-EXOBS" value="EX_OBS: Observability:&#10;logs → provider TBD&#10;(Logtail / Axiom / Datadog)&#10;traces → Sentry (likely)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#be185d;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="1980" y="820" width="960" height="100" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== Secrets ===== -->
+        <mxCell id="g-sec" value="Secrets management &lt;&lt;target&gt;&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;verticalAlign=top;fontSize=14;fontStyle=1;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="970" width="1880" height="280" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-SEC1" value="SEC1: Fly.io secrets OR&#10;Railway env vars OR&#10;Doppler / Infisical" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;dashed=1;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="60" y="1010" width="600" height="220" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-SEC2" value="SEC2: JWT_SECRET, PLATFORM_HMAC_KEY:&#10;≥32 random chars each;&#10;NEVER 'dev-*-change-me-*' in prod" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="680" y="1010" width="600" height="220" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-SEC3" value="SEC3: DB credentials, Stripe keys,&#10;Anthropic keys: distinct&#10;per environment (staging vs prod)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="1300" y="1010" width="600" height="220" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== CI/CD ===== -->
+        <mxCell id="g-cd" value="CI/CD &lt;&lt;target&gt;&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;verticalAlign=top;fontSize=14;fontStyle=1;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="1960" y="970" width="1000" height="500" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-CD1" value="CD1: GitHub Actions:&#10;on push to main,&#10;after ci.yml passes" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#666666;dashed=1;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1980" y="1010" width="960" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-CD2" value="CD2: Deploy step:&#10;flyctl deploy --remote-only&#10;OR railway up&#10;(Cycle-2 work — no workflow yet)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#666666;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="1980" y="1130" width="460" height="160" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-CD3" value="CD3: Frontend:&#10;Vercel auto-deploys from main&#10;(Vercel-GitHub integration)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#666666;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="2460" y="1130" width="480" height="160" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-CD4" value="CD4: DB migrations:&#10;uv run alembic upgrade head&#10;as a release-step in the&#10;deploy command (pre-server-start)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#666666;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="1980" y="1310" width="960" height="140" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== Principle ===== -->
+        <mxCell id="g-princ" value="Spec principle" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;verticalAlign=top;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="1290" width="1880" height="380" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-P1" value="P1: From prompts/01-tech-stack-and-repo.md §Infra:&#10;'Don't bake in cloud-specific bindings;&#10;the deploy target is replaceable.'" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="60" y="1330" width="600" height="320" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-P2" value="P2: Concrete consequences:&#10;- S3 wrapper takes endpoint_url&#10;  (MinIO 'http://localhost:9000'&#10;  or R2 'https://….r2.cloudflarestorage.com')&#10;- DATABASE_URL is a string —&#10;  no Neon-specific SDK&#10;- REDIS_URL is a string —&#10;  no Upstash-specific SDK&#10;- No Fly/Railway-specific code&#10;  in the container image" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="680" y="1330" width="600" height="320" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-P3" value="P3: Result: any of the four can be&#10;swapped for an equivalent without&#10;code changes — only env values move." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="1300" y="1330" width="600" height="320" as="geometry"/>
+        </mxCell>
+
+        <!-- Edges -->
+        <mxCell id="e-e1e2" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-E1" target="n-E2"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-e2fe1" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-E2" target="n-FE1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-e2fe2" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-E2" target="n-FE2"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-fe1fe3" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-FE1" target="n-FE3"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-fe2fe3" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-FE2" target="n-FE3"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-fe3be1" value="HTTPS" style="endArrow=classic;html=1;dashed=1;" edge="1" parent="1" source="n-FE3" target="n-BE1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-be12" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-BE1" target="n-BE2"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-be13" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-BE1" target="n-BE3"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-be24" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-BE2" target="n-BE4"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <mxCell id="e-be1pg" value="DATABASE_URL" style="endArrow=classic;html=1;dashed=1;" edge="1" parent="1" source="n-BE1" target="n-MSPG"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-be4pg" value="DATABASE_URL" style="endArrow=classic;html=1;dashed=1;" edge="1" parent="1" source="n-BE4" target="n-MSPG"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-be1rd" value="REDIS_URL" style="endArrow=classic;html=1;dashed=1;" edge="1" parent="1" source="n-BE1" target="n-MSRD"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-be4rd" value="REDIS_URL" style="endArrow=classic;html=1;dashed=1;" edge="1" parent="1" source="n-BE4" target="n-MSRD"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-be1r2" value="S3_ENDPOINT" style="endArrow=classic;html=1;dashed=1;" edge="1" parent="1" source="n-BE1" target="n-MSR2"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-be4r2" value="S3_ENDPOINT" style="endArrow=classic;html=1;dashed=1;" edge="1" parent="1" source="n-BE4" target="n-MSR2"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-be1mail" value="SMTP" style="endArrow=classic;html=1;dashed=1;" edge="1" parent="1" source="n-BE1" target="n-MSMAIL"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <mxCell id="e-be1str" value="HTTPS" style="endArrow=classic;html=1;dashed=1;" edge="1" parent="1" source="n-BE1" target="n-EXSTR"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-be1ant" value="HTTPS" style="endArrow=classic;html=1;dashed=1;" edge="1" parent="1" source="n-BE1" target="n-EXANT"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-be4ant" value="HTTPS" style="endArrow=classic;html=1;dashed=1;" edge="1" parent="1" source="n-BE4" target="n-EXANT"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-strbe1" value="stripe webhooks&#10;POST /v1/webhooks/stripe" style="endArrow=classic;html=1;dashed=1;" edge="1" parent="1" source="n-EXSTR" target="n-BE1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-be1obs" value="stderr/stdout" style="endArrow=classic;html=1;dashed=1;" edge="1" parent="1" source="n-BE1" target="n-EXOBS"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <mxCell id="e-sec1be1" value="injects" style="endArrow=classic;html=1;dashed=1;" edge="1" parent="1" source="n-SEC1" target="n-BE1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-sec1be4" value="injects" style="endArrow=classic;html=1;dashed=1;" edge="1" parent="1" source="n-SEC1" target="n-BE4"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-sec21" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-SEC2" target="n-SEC1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-sec31" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-SEC3" target="n-SEC1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <mxCell id="e-cd12" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-CD1" target="n-CD2"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-cd2be1" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-CD2" target="n-BE1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-cd13" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-CD1" target="n-CD3"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-cd3fe1" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-CD3" target="n-FE1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-cd3fe2" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-CD3" target="n-FE2"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-cd24" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-CD2" target="n-CD4"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

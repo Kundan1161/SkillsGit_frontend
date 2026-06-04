@@ -1,0 +1,145 @@
+<mxfile host="app.diagrams.net" agent="skillsgit-arch" version="24.7.17" type="device">
+  <diagram name="component-map" id="skg-component-map">
+    <mxGraphModel dx="2400" dy="1600" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2400" pageHeight="1000" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <mxCell id="title" value="Component map — apps/api/src/* (Cycle-1 complete)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=none;fontSize=18;fontStyle=1;align=left;" vertex="1" parent="1">
+          <mxGeometry x="40" y="20" width="1000" height="40" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="g-Core" value="Core (src/core/)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;verticalAlign=top;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="80" width="700" height="540" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-config" value="config.py&#10;Settings, get_settings()" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="60" y="130" width="200" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-db" value="db.py&#10;Base, get_db,&#10;write_audit, uuid7" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="280" y="130" width="200" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-deps" value="deps.py&#10;FastAPI dependencies" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="500" y="130" width="200" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-errors" value="errors.py&#10;AppError, ErrorResponse,&#10;install_exception_handlers" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="60" y="220" width="200" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-logging_mod" value="logging.py&#10;TraceIdMiddleware,&#10;configure_logging" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="280" y="220" width="200" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-pagination" value="pagination.py&#10;PageInfo, decode_cursor" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="500" y="220" width="200" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-rate_limits" value="rate_limits.py&#10;slowapi Limiter" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="60" y="320" width="200" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-cache" value="cache.py&#10;Redis cache + in-memory facade" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="280" y="320" width="200" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-anthropic" value="anthropic.py&#10;shared Claude SDK client" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="500" y="320" width="200" height="60" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="g-Existing" value="Existing modules &lt;&lt;existing&gt;&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;verticalAlign=top;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="780" y="80" width="1580" height="540" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-auth" value="auth/&#10;service, deps, tokens, email,&#10;router, schemas, models" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="800" y="130" width="240" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-users" value="users/&#10;User, CreatorProfile, ApiToken&#10;router + creators_router" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="1060" y="130" width="240" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-skills" value="skills/&#10;Skill, SkillVersion, Category,&#10;validator, parser, service,&#10;router + creator_skills_router" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="1320" y="130" width="260" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-catalog" value="catalog/&#10;EditorialPick, SearchAlert,&#10;router + skill_detail_router" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="1600" y="130" width="240" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-billing" value="billing/&#10;Order, License, OrderItem,&#10;Stripe Connect helpers" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="1860" y="130" width="240" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-delivery" value="delivery/&#10;license resolution, version&#10;entitlement, watermark, presign" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="2120" y="130" width="240" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-storage" value="storage/&#10;s3.py — async S3 client" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="800" y="250" width="240" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-reviews" value="reviews/&#10;(scaffolded — list endpoint)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="1060" y="250" width="240" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-creator_mod" value="creator/&#10;(scaffolded — 501 drafts)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="1320" y="250" width="260" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-webhooks" value="webhooks/&#10;POST /v1/webhooks/stripe" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="1600" y="250" width="240" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-admin" value="admin/&#10;moderation queue,&#10;user suspend/verify" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="1860" y="250" width="240" height="70" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="g-Cycle1" value="Cycle-1 new &lt;&lt;new&gt;&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;verticalAlign=top;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="680" width="2320" height="300" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-occupations" value="occupations/&#10;Occupation, OccupationSkill,&#10;service, router, schemas" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="80" y="740" width="280" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-personas" value="personas/&#10;Persona, PersonaNeuron,&#10;service, router, schemas" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="420" y="740" width="280" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-capture" value="capture/&#10;CaptureSession, models,&#10;schemas, service, router,&#10;pii.py, llm.py, quota.py,&#10;jobs.py (Arq extract_neuron)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="780" y="740" width="380" height="160" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-vault" value="vault/&#10;VaultBuild, VaultDownload,&#10;builder.py, composer.py,&#10;manifest.py, validator.py,&#10;jobs.py, router.py" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="1240" y="740" width="380" height="160" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="e-1" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-auth" target="n-users"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-2" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-auth" target="g-Core"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-3" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-skills" target="n-users"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-4" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-skills" target="g-Core"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-5" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-catalog" target="n-skills"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-6" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-catalog" target="n-users"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-7" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-billing" target="n-skills"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-8" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-billing" target="n-users"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-9" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-billing" target="g-Core"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-10" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-delivery" target="n-billing"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-11" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-delivery" target="n-skills"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-12" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-delivery" target="n-storage"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-13" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-webhooks" target="n-billing"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-14" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-webhooks" target="n-delivery"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-15" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-admin" target="n-skills"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-16" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-admin" target="n-users"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-17" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-reviews" target="n-skills"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-18" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-creator_mod" target="g-Core"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <mxCell id="e-19" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-occupations" target="n-skills"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-20" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-occupations" target="n-users"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-21" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-occupations" target="g-Core"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-22" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-occupations" target="n-vault"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-23" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-personas" target="n-skills"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-24" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-personas" target="n-users"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-25" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-personas" target="n-occupations"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-26" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-personas" target="g-Core"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-27" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-personas" target="n-vault"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-28" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-capture" target="n-personas"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-29" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-capture" target="n-skills"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-30" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-capture" target="n-users"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-31" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-capture" target="n-storage"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-32" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-capture" target="n-anthropic"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-33" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-capture" target="g-Core"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-34" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-vault" target="n-skills"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-35" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-vault" target="n-occupations"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-36" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-vault" target="n-personas"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-37" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-vault" target="n-billing"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-38" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-vault" target="n-storage"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-39" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-vault" target="n-cache"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-40" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-vault" target="g-Core"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <mxCell id="e-41" value="persona-kind 409 gate" style="endArrow=classic;html=1;dashed=1;" edge="1" parent="1" source="n-billing" target="n-personas">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

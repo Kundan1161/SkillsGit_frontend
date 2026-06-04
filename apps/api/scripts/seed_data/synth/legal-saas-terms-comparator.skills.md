@@ -1,0 +1,224 @@
+---
+id: skillsgit-curated/legal-saas-terms-comparator
+version: 1.0.0
+name: SaaS Terms Comparator
+description: Compare a vendor's SaaS subscription terms against the customer's standard expectations across uptime SLA, data residency, sub-processors, deletion on termination, and security commitments.
+authors:
+  - name: skillsgit Curated
+    handle: skillsgit-curated
+    role: author
+category: legal
+tags: [niche:contract-review, saas, comparison, sla, sub-processors, data-residency, vendor-onboarding]
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6, gpt-4o]
+  tools_required: []
+  tools_optional: [file_io, web_search]
+  min_context_tokens: 64000
+  estimated_tokens_per_invocation: 10000
+trigger_keywords:
+  - compare saas terms
+  - saas vendor terms review
+  - subscription agreement compare
+  - check uptime sla
+  - sub-processor list review
+  - data residency check
+  - saas security commitments
+  - deletion on termination
+  - vendor terms diff
+  - saas onboarding legal
+example_invocations:
+  - "Compare this vendor's SaaS terms against our customer standard and tell me the gaps."
+  - "Check whether this subscription agreement meets our minimum SLA, sub-processor disclosure, and data-deletion expectations."
+  - "Run a vendor-onboarding legal screen on these SaaS terms and tell me whether we can proceed."
+inputs:
+  - name: vendor_terms_text
+    type: text
+    required: true
+    description: Full text of the vendor's SaaS subscription terms, including any incorporated SLA, AUP, and security exhibits.
+  - name: customer_standard_text
+    type: text
+    required: false
+    description: The user's organization's standard SaaS terms or vendor-onboarding checklist defining minimums. If omitted, the skill applies a balanced baseline and flags this as a degraded analysis.
+  - name: data_profile
+    type: json
+    required: false
+    description: What data the customer expects to put into the vendor — categories (none/internal/personal/sensitive/regulated), volume (small/medium/large), jurisdictions of data subjects (e.g. ["EU", "US-CA"]), regulatory hooks (e.g. ["GDPR", "HIPAA"]). Calibrates which gaps matter.
+  - name: criticality
+    type: choice
+    required: false
+    description: How critical the service is to the customer's operations. Calibrates the SLA and termination findings.
+    choices: [non_critical, business_important, mission_critical, life_safety]
+outputs:
+  - name: comparison_report
+    type: markdown
+    description: A category-by-category comparison with a clear status (meets/partial/fails/missing), the vendor's current position, the customer's expectation, the gap, and the recommended action.
+  - name: comparison_json
+    type: json
+    description: Machine-readable comparison fields for routing into a vendor-risk register — verdict_per_category, overall_verdict, blocking_gaps, advisory_gaps, recommended_action, confidence.
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Initial release.
+---
+
+# SaaS Terms Comparator
+
+## When to use
+
+**Important non-legal-advice notice.** This skill produces a structured comparison of vendor SaaS terms against a customer's stated expectations. It is not legal advice and does not establish a lawyer-client relationship. The output is a routing signal for a vendor-onboarding workflow — meets / partial / fails / missing per category — that a qualified attorney, security reviewer, and procurement owner should weigh together before signing or rejecting the vendor. Treat the output as a triage that scopes what humans need to look at, not as a sign-off.
+
+Invoke this skill at the point where a vendor's standard subscription agreement, "terms of service," or "master subscription agreement" has arrived as part of a vendor-onboarding workflow and the user needs to know, quickly, where the gaps are versus the user's organization's standard expectations. Typical entry points: a vendor-risk analyst screening a new SaaS purchase under a procurement policy that requires a legal pre-read; a security reviewer checking sub-processor and residency disclosures before a DPA negotiation; a deputized non-lawyer reviewer at a small company doing the initial pass before kicking the document to outside counsel; an in-house counsel who already has a customer-side SaaS playbook and wants a first-pass diff before scheduling a negotiation call.
+
+The skill assumes the user is the customer of the SaaS service. If the user is the SaaS vendor reviewing their own terms — for example, evaluating whether a competitor's terms set a market norm worth matching — the polarity inverts, and the skill should be invoked with that context made explicit; the agent will note the inversion but the methodology was designed customer-side.
+
+Do not invoke this skill for: SaaS terms attached to a free-tier or trial product where the contractual exposure is limited and the time investment is not warranted (run a quicker red-flag scan instead); on-premise software licenses (the residency and sub-processor framing does not apply cleanly); embedded SaaS that ships inside a hardware product (the framing is hybrid and deserves bespoke review); regulated cloud services (banking core systems, defense systems, healthcare-EHR systems) where industry-specific frameworks dominate and a generic SaaS comparison will miss the load-bearing terms.
+
+The skill is also not appropriate as the only document review before signature — at minimum, the DPA should be reviewed separately (use the DPA reviewer skill in this set), and the SLA should be examined for measurement methodology, not just the headline number.
+
+## How to apply
+
+Treat SaaS-terms comparison as a category-by-category gap analysis. For each category, the methodology is: extract the vendor's current position from the document, compare to the customer's standard (or to a balanced baseline if no standard was provided), classify the result as one of four states, and recommend a next action. Five categories are load-bearing; another four are secondary. Walk them in order.
+
+1. **Identify the document set in scope.** The vendor's "SaaS terms" frequently consist of: a main subscription agreement; an SLA, sometimes embedded and sometimes a separate document; an Acceptable Use Policy; a Data Processing Addendum; a Security Exhibit; a Sub-Processor List; sometimes an AI Addendum. If only the main agreement was provided, flag the others as out-of-scope and acknowledge them explicitly in the report. The most common quality problem with vendor-terms review is silently ignoring the SLA or DPA because they were not pasted.
+
+2. **Establish polarity and data profile.** Use `data_profile` to set the bar. A vendor that processes anonymous web-analytics data needs to clear a much lower bar than a vendor that processes EU personal data on behalf of a HIPAA-covered customer. Findings are scored relative to the data profile, not in absolute terms.
+
+3. **Step through the load-bearing categories.**
+
+   **Category A — Uptime SLA.**
+   - Extract: the committed uptime percentage (99.9%, 99.95%, 99.99%); the measurement window (monthly is standard; quarterly is hostile); the calculation methodology (raw minutes versus the "scheduled-maintenance-excluded" calculation, which can hide most outages); the credits regime (typically a percentage of the monthly fee per percentage point below target).
+   - Compare to: the customer's stated SLA expectation, or a baseline (99.9% monthly with credits at 5%/10%/25% tiers for non-critical; 99.95–99.99% with credits and termination right for mission-critical).
+   - Classify: `meets` if the committed uptime, window, and exclusions match the expectation; `partial` if uptime is fine but exclusions are aggressive (large scheduled-maintenance windows, third-party-dependency carve-outs); `fails` if the committed uptime is below the customer's minimum; `missing` if there is no SLA in the document at all.
+   - Pay particular attention to: the "sole and exclusive remedy" language attached to service credits, which limits the customer to the credit regime even for prolonged outages — for mission-critical services, push for a termination right after a defined number of consecutive credit-eligible months.
+
+   **Category B — Data residency and cross-border transfer.**
+   - Extract: where the vendor stores customer data at rest; where it processes data; whether the vendor commits to a specific region (EU, US, "your region"); the cross-border transfer mechanisms invoked (Standard Contractual Clauses, adequacy decision reliance, Data Privacy Framework participation); whether sub-processors are in the same region.
+   - Compare to: the customer's residency requirements based on `data_profile`. EU personal data typically requires either EU storage or a documented transfer mechanism. Some customers (UK public sector, EU regulated industries, certain government contractors) require strict regional storage with no cross-border processing.
+   - Classify: `meets` if residency matches; `partial` if residency matches but sub-processors are not constrained; `fails` if residency is wrong or transfer mechanisms are inadequate; `missing` if residency is silent.
+   - Watch for: "the Vendor may transfer Customer Data anywhere in the world as needed to provide the Services" — this is unacceptable for any regulated data profile, regardless of how the rest of the document looks.
+
+   **Category C — Sub-processors.**
+   - Extract: whether a sub-processor list is published or attached; the cadence of notification of new sub-processors; the customer's right to object; the consequences of objection (typically a termination right with proration, sometimes a more constrained suspension right); flow-down terms (do sub-processors commit to terms substantially equivalent to the vendor's terms with the customer?).
+   - Compare to: the customer's expectations. A list is the baseline; thirty-day notice of changes with right to object is standard; right to object only with a termination remedy is normal; flow-down equivalence is mandatory for any regulated data profile.
+   - Classify: `meets` / `partial` / `fails` / `missing` per the criteria above.
+   - Watch for: "Vendor may engage additional sub-processors at its discretion" with no notice obligation — fails for any regulated data profile; vendor lists that exclude key categories (CDN, log-management provider, AI/ML processor) — partial; flow-down language that says "vendor shall require sub-processors to maintain reasonable security" without specifying the actual data-protection commitments — partial.
+
+   **Category D — Deletion and return on termination.**
+   - Extract: what happens to customer data on termination; the deadline for return (typical: a defined window of thirty to ninety days during which the customer can export); the deadline for deletion (typical: thirty to ninety days after the export window); the format of return (machine-readable, structured, including metadata); residual retention (backup deletion, often on a rolling thirty-to-ninety-day cycle); a deletion certificate on request.
+   - Compare to: the customer's expectations. Mission-critical or regulated data profiles typically require: structured export in a defined format; deletion within thirty days of termination; deletion certificate on request; explicit treatment of backups.
+   - Classify per criteria.
+   - Watch for: silent deletion provisions (the vendor's silence on deletion implies indefinite retention — `fails` for any data profile beyond `internal`); "we will delete data in accordance with our retention policy" with no commitment to *what* the policy says — `partial`; export only in unstructured formats — `partial`.
+
+   **Category E — Security commitments.**
+   - Extract: certifications (SOC 2 Type II, ISO 27001, ISO 27017/27018, FedRAMP, HITRUST); encryption commitments (at rest, in transit, key management); incident notification window (committed time after confirmed breach to notify the customer); access controls (MFA, least privilege); availability of third-party audit reports; bug bounty / vulnerability disclosure programs.
+   - Compare to: the customer's expectations driven by `data_profile`. SOC 2 Type II is the de facto baseline for B2B SaaS; ISO 27001 adds international credibility; HITRUST or HIPAA controls are non-optional for healthcare; FedRAMP is non-optional for federal government workloads.
+   - Classify per criteria.
+   - Watch for: certifications referenced but not provided on request (the SOC 2 report should be available under NDA); aspirational language ("we follow industry best practices") with no specifics — `partial`; absence of an incident notification window — `fails` for personal-data profiles; the difference between "we will notify the customer of a security breach" (good) and "we will notify the customer of a security breach affecting customer data" (better).
+
+4. **Step through the secondary categories.**
+
+   **F. Support tiers and response.** What support is included in the standard price? What is the response-time commitment for severity 1 / severity 2 / severity 3 issues? Is there a dedicated technical contact at higher tiers? Severity definitions matter as much as the response times.
+
+   **G. AI use, including training on customer data.** As of 2026, every SaaS agreement should explicitly state whether customer data is used to train models, and whether outputs of any AI features are owned by the customer. A silence here is itself a `fails` for any sensitive data profile.
+
+   **H. Audit rights.** The right to receive the most recent third-party audit report (SOC 2 Type II, ISO 27001) on request under NDA is the baseline. Beyond that, in-person audits are rare and typically conditioned on regulator request.
+
+   **I. Price changes and renewal terms.** Examine the auto-renewal mechanic (notice window, default behavior), price-escalation cap on renewal, and any "true-up" or usage-based components.
+
+5. **Apply a per-category status of `meets`, `partial`, `fails`, or `missing`.** Be precise. `partial` means the vendor has the right idea but the specifics fall short; `fails` means the vendor's position is below the customer's expectation in a way that matters; `missing` means the vendor's terms simply do not address the category and that silence creates exposure given the data profile.
+
+6. **Synthesize an overall verdict.**
+   - `proceed_clean` — every load-bearing category is `meets`; secondary categories are `meets` or `partial`. Onboard.
+   - `proceed_with_negotiation` — one or more load-bearing categories are `partial` or `fails`, but the gaps are negotiable. Engage the vendor.
+   - `pause_for_dpa` — the main agreement is broadly acceptable but the DPA and Security Exhibit must be reviewed before onboarding. Common outcome for personal-data deals.
+   - `do_not_proceed` — one or more load-bearing categories are `fails` in a way the vendor's business model will not change (e.g., a vendor whose architecture transfers data globally cannot offer EU-only residency without re-architecting).
+
+7. **List blocking gaps and advisory gaps separately.** Blocking gaps prevent signing as drafted; advisory gaps should be raised but can be deferred or accepted with documented risk acknowledgment. This split is the entire point of the skill — without it, the user is left with a long undifferentiated list.
+
+8. **Recommend specific next actions.** For each blocking gap, name the document (subscription terms, SLA, DPA) and the section where the change is needed. For each advisory gap, name the risk owner who should be made aware (security, privacy, finance, business owner).
+
+9. **Score confidence.** A float between 0.0 and 1.0. Reduce confidence if: the document references exhibits that were not provided; the customer standard was not provided; the data profile was not provided; the document is heavily edited or otherwise non-standard in shape.
+
+10. **Self-check before returning.** Verify that the overall verdict aligns with the per-category statuses (a `proceed_clean` verdict with any `fails` finding is inconsistent); the recommended actions point to the right document (a SLA edit is recommended on the SLA, not the main agreement); the data profile actually drove the calibration (a `non_critical` deal should not generate the same blocking-gap list as a HIPAA deal).
+
+11. **Be explicit about what is out of scope.** The DPA is almost always out of scope of this skill — flag it. The Security Exhibit details (control mappings, penetration-test cadence) need a security review, not a legal review — flag that as well.
+
+## Inputs
+
+- `vendor_terms_text` (required, text) — the subscription terms. Include the SLA inline if it is incorporated; otherwise note its absence.
+- `customer_standard_text` (optional, text) — the user's organization's vendor standard. Without it, the skill applies a balanced commercial baseline.
+- `data_profile` (optional, JSON) — calibrates findings. Even a one-line profile materially improves output quality.
+- `criticality` (optional, choice) — `non_critical` / `business_important` / `mission_critical` / `life_safety`. Affects SLA and termination expectations.
+
+## Outputs
+
+- `comparison_report` (markdown) — overall verdict; per-category table with `meets/partial/fails/missing`, vendor position, customer expectation, gap, recommended action; consolidated blocking gaps; advisory gaps; out-of-scope acknowledgments; confidence and rationale.
+- `comparison_json` (JSON) — `verdict_per_category` (object keyed by category), `overall_verdict`, `blocking_gaps` (array), `advisory_gaps` (array), `recommended_action`, `confidence`, `confidence_reason`, `data_profile_assumed` (the profile the agent applied if input was missing), `out_of_scope` (array).
+
+## Examples
+
+### Example 1 — EU personal-data SaaS, business-important
+
+**Input data_profile:** `{"categories": ["personal"], "volume": "medium", "jurisdictions": ["EU"], "regulatory_hooks": ["GDPR"]}`
+
+**Input criticality:** `business_important`
+
+**Output comparison_report (excerpt):**
+
+> **Overall verdict: pause_for_dpa.** Subscription terms are broadly acceptable but a DPA review is required before onboarding, and two load-bearing gaps need fixing in the subscription agreement itself.
+>
+> **Uptime SLA (§9):** `partial`. Vendor commits to 99.9% monthly availability. Calculation excludes "any scheduled maintenance," with no cap on scheduled-maintenance hours. Push for a cap (e.g., no more than four hours per month of scheduled maintenance, with at least seven days' notice).
+>
+> **Data residency (§5.4):** `partial`. Vendor offers an "EU region" but reserves the right to use US-based sub-processors for "operational support." Push for sub-processor flow-down of regional commitments, or accept a documented Standard Contractual Clauses chain via the DPA.
+>
+> **Sub-processors (§5.5):** `meets`. Public list available; thirty-day notice of changes; right to object with termination remedy.
+>
+> **Deletion on termination (§12.3):** `fails`. Vendor commits to "deletion in accordance with vendor's retention policy" with no specified deletion window. Critical for GDPR. Push for: thirty-day export window, sixty-day deletion deadline, deletion certificate on request, explicit treatment of backups.
+>
+> **Security commitments (§14):** `meets`. SOC 2 Type II and ISO 27001 referenced and provided on request. Seventy-two-hour breach notification.
+>
+> **Blocking gaps (must fix before signature):**
+> - Deletion on termination — §12.3.
+> - DPA must be reviewed separately and contain SCCs, sub-processor flow-down, and audit cooperation.
+>
+> **Out of scope of this review:** the DPA (run through the DPA reviewer skill), the Security Exhibit (route to InfoSec).
+
+### Example 2 — non-critical analytics tool, no personal data
+
+**Input data_profile:** `{"categories": ["none"], "volume": "small"}`
+
+**Input criticality:** `non_critical`
+
+**Output comparison_report (excerpt):**
+
+> **Overall verdict: proceed_clean.** All load-bearing categories meet a baseline appropriate for a non-critical, no-personal-data deployment.
+>
+> Uptime 99.9% with monthly window — `meets`. Residency unconstrained but no personal data involved — `meets` per profile. Sub-processor list available — `meets`. Deletion within sixty days on termination — `meets`. SOC 2 Type II referenced — `meets` for this profile.
+>
+> No blocking gaps. Two advisory items for the business owner: standard auto-renewal with sixty-day notice, and a five percent annual price-escalation cap. Both are within market norms.
+
+## Limitations
+
+- **Not legal advice.** Output is a routing signal for vendor onboarding, not a legal opinion. Final go/no-go decisions should involve a qualified attorney, a security reviewer, and the procurement owner.
+- **Calibration depends on inputs.** Without a data profile and a customer standard, the analysis applies a generic baseline that may be too strict or too lax for the specific deal. Findings flagged `fails` are confident when the data profile is provided; otherwise they are educated guesses.
+- **DPA-blind.** This skill explicitly does not review the DPA. Many of the most important data-protection commitments — SCCs, sub-processor flow-down, processor obligations under GDPR Article 28 — live in the DPA. Always run the DPA through a dedicated review.
+- **Security-exhibit-blind.** The skill notes the presence of certifications but does not assess the substance of security controls. A vendor with SOC 2 Type II and a scope that excludes the actual product being purchased has a meaningless certification — only a security review catches that.
+- **No vendor diligence.** The agent does not check the vendor's financial health, breach history, sub-processor reputation, or AI-training practices beyond what the terms say. A vendor with clean terms and a recent unreported breach is still a hazard.
+- **Jurisdiction-blind.** Specific regulatory frameworks (HIPAA, GDPR, CCPA, sectoral) have requirements that go beyond the categories listed here. Sufficient compliance under one framework is not sufficient under another.
+- **AI provisions are evolving.** As of 2026, the market norms for AI training on customer data and customer ownership of AI outputs are still moving. The agent flags presence/absence but cannot tell the user what the right industry norm is for a specific use case.
+
+## Sources reviewed
+
+The methodology synthesized here is informed by reviewing public, permissively-licensed contract-workflow and legal-tooling repositories on GitHub. **Source thinness disclosure:** open-source SaaS subscription templates under MIT/Apache/Unlicense terms are rare — most well-known industry SaaS standards (Common Paper Cloud Service Agreement, Bonterms Cloud Terms) are released under Creative Commons (CC BY 4.0) and were therefore excluded from primary methodology sourcing. The methodology below leans on MIT-licensed workflow tooling and clause-taxonomy projects; statutory and supervisory references (GDPR, CCPA, ICO guidance) are cited via official URLs only.
+
+- https://github.com/Open-Source-Legal/OpenContracts
+- https://github.com/open-agreements/open-agreements
+- https://github.com/tollwerk/data-processing-agreements
+- https://github.com/accordproject/template-archive
+- https://github.com/Ro5s/Startup-Starter-Pack
+- https://github.com/ankane/awesome-legal

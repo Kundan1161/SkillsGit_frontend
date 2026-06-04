@@ -1,0 +1,215 @@
+---
+id: skillsgit-curated/meeting-summarizer
+version: 1.0.0
+name: Meeting Summarizer
+description: Turn a raw transcript or rough notes into a tight stakeholder-ready summary — decisions, action items with owners and dates, open questions, and the next checkpoint — sized for someone who did not attend.
+authors:
+  - name: skillsgit Curated
+    handle: skillsgit-curated
+    role: author
+category: productivity
+tags: [meetings, notes, action-items, summary, transcript, decisions, internal-comms]
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6, claude-haiku-4-5, gpt-4o]
+  tools_required: []
+  min_context_tokens: 32000
+  estimated_tokens_per_invocation: 4000
+trigger_keywords:
+  - summarize meeting
+  - meeting summary
+  - action items
+  - decisions
+  - meeting notes
+  - transcript summary
+  - recap
+  - debrief
+  - post-meeting
+  - share with team
+  - follow-up email
+  - team update
+example_invocations:
+  - "Summarize this transcript for the team — include action items with owners and dates."
+  - "Turn these messy notes into a stakeholder update for the people who missed the call."
+  - "I have a Zoom transcript from our planning meeting. Give me the recap and the open questions."
+  - "Pull the decisions and next steps out of this call."
+inputs:
+  - name: source
+    type: text
+    required: true
+    description: The raw transcript, the rough notes, or a mix. Speaker labels and timestamps help but are not required.
+  - name: meeting_context
+    type: text
+    required: false
+    description: One or two sentences describing the meeting — title, purpose, attendees, and what the team was trying to decide.
+  - name: audience
+    type: text
+    required: false
+    description: Who the summary is for. Defaults to "team members and stakeholders who did not attend." Pass an executive descriptor if the summary needs to be tighter.
+  - name: known_owners
+    type: text
+    required: false
+    description: Optional list of attendees and their handles or email addresses so action items get clean owner attribution.
+  - name: today
+    type: text
+    required: false
+    description: ISO date for "today" so relative deadlines ("by next Friday") resolve correctly. Defaults to the call date if it can be inferred from the source.
+outputs:
+  - name: summary
+    type: markdown
+    description: The structured summary — header block, decisions, action items table, open questions, next checkpoint, and a one-paragraph TL;DR.
+  - name: follow_up_email
+    type: markdown
+    description: Optional shorter version formatted as a follow-up email to attendees, plus a one-paragraph version for an executive cc.
+  - name: extraction_log
+    type: markdown
+    description: A list of the source lines that backed each decision and each action item, plus anything flagged as ambiguous.
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Initial release.
+---
+
+# Meeting Summarizer
+
+## When to use
+
+Use this skill when the asker has just left a meeting — or is reading someone else's transcript — and needs a written artifact that another human can act on without watching the recording. The output is for two audiences at once: people who missed the call and need the gist, and the people on the hook for next steps.
+
+It is **not** the right tool when:
+
+- The asker wants a verbatim cleanup of a transcript. Use a transcript-cleaning skill — this one drops everything that is not load-bearing.
+- The asker wants a meeting *agenda*, not a recap. Use an agenda-drafting skill.
+- The asker wants therapy-style processing of a difficult conversation. Be a person, not a tool.
+- The source is a one-on-one private conversation and the resulting summary is meant to be shared without the other party knowing. Decline politely.
+
+Engage when the source is recognizably a meeting artifact — a transcript with speaker turns, a page of bulleted notes with names, a chat log of a video call, or the output of a transcription service — and the asker wants something they can paste into a follow-up channel.
+
+## How to apply
+
+Run the methodology in five phases. Each phase removes a class of summary defect.
+
+### Phase 1 — Frame the meeting
+
+1. **Detect the meeting shape.** Read the first ~100 lines of the source and classify: planning, status, decision, brainstorm, retro, 1:1, demo, all-hands, customer call, or interview. Each shape has different load-bearing content. A decision meeting cares most about decisions and dissent; a status meeting cares most about blockers; a brainstorm cares most about preserving promising ideas without prematurely picking one.
+2. **Name the goal.** What was the meeting trying to do? Pull it from `meeting_context` if supplied; otherwise infer from the opening minutes of the transcript. If you cannot tell, capture the meeting's *outcome* instead and say so explicitly in the TL;DR.
+3. **List the attendees.** Pull speaker labels from the source. Where speakers are anonymous ("Speaker 1"), keep them anonymous in the output unless `known_owners` lets you map them confidently. Never guess attribution; an action item with the wrong owner is worse than one marked "owner TBD."
+4. **Anchor the date.** If `today` is supplied, use it. Otherwise check the transcript metadata or the first few minutes for a date cue. Fix relative deadlines ("by Friday") against this anchor, and convert to ISO format (`YYYY-MM-DD`) in the output. State the anchor at the top so a reader can verify.
+5. **Decide the summary length.** Default is 250–450 words plus the structured blocks. For executive-only audiences, drop to 120–200. For decision-heavy meetings, allow up to 700 if necessary — but trim aggressively first.
+
+### Phase 2 — Extract the load-bearing content
+
+6. **Walk the source linearly and tag each chunk.** Use one of these tags per chunk: *decision*, *action*, *question*, *risk*, *context*, *opinion*, *off-topic*. Everything tagged *context* or *opinion* is summary-only material; everything tagged *off-topic* gets dropped silently.
+7. **Pull decisions verbatim where possible.** A decision is "we will X" or "we won't Y" or "X is the path." If the source says "yeah I think we should X" without confirmation from another participant, mark it as a proposed decision, not a decided one. The distinction matters; readers act on decided items and not on proposed ones.
+8. **Pull action items with the four-part shape.** Each item gets: *what* (a verb-led sentence), *who* (a named owner or "TBD"), *when* (ISO date or "no date set"), and *for whom* (the requester, if different from the meeting). Reject any item missing the verb; "Q2 planning" is not an action, "Draft Q2 planning brief by 2026-06-01" is.
+9. **Pull open questions distinctly from action items.** An open question is something the meeting could not answer and that no one has agreed to chase. Putting open questions inside the action-items list pollutes both. Keep them in a separate section.
+10. **Pull risks and blockers.** These are sentences like "this is going to be hard if X" or "we are stuck on Y." They are not action items; they are inputs to the next decision. Surface them in their own section so a reader scanning for risk can find them.
+11. **Note dissent.** If two attendees disagreed audibly and the meeting moved on without resolving the disagreement, name the disagreement and both positions. Hiding dissent in a summary is the second-most-common defect, after attribution errors.
+12. **Resist over-quoting.** Quote only when the exact words carry meaning that paraphrase cannot — a commitment, a number, a name. Otherwise paraphrase in your own crisp voice.
+
+### Phase 3 — Resolve attribution and time
+
+13. **Match speakers to owners.** Where the transcript uses display names that do not match the asker's roster, normalize using `known_owners`. "Alex K." and "Alexandra Kim" are the same person; pick one form and use it everywhere.
+14. **Refuse to invent owners.** If a chunk says "someone should look at this" with no follow-up, the owner is "TBD" and the item goes in the action list with a recommendation that the asker assign before sending. Inventing an owner is a fast way to put a colleague in an awkward position.
+15. **Resolve relative dates.** "Next Tuesday" with a Monday anchor of 2026-05-11 is 2026-05-19, not 2026-05-12. "End of week" means the *coming* Friday by default; if the meeting was late-week, flag it as ambiguous.
+16. **Flag deadline conflicts.** If an action item's deadline lands before a known dependency, surface it as a risk, not a deadline. "Ship the launch post by 2026-05-20" with "QA cycle finishes 2026-05-22" is a contradiction the reader needs to see.
+17. **Resolve pronoun ambiguity.** "He'll handle it" — who is "he"? If the antecedent is unambiguous in the transcript, fix it inline. If it is ambiguous, mark the action item's owner as "TBD" and note the ambiguity in `extraction_log`.
+
+### Phase 4 — Compose the summary in the canonical layout
+
+18. **Lead with a TL;DR paragraph.** Two to four sentences. Answer: what was the meeting about, what did the group decide, what happens next, and when. A reader who reads only this paragraph should know whether they need to keep reading. Front-load this; do not put the meeting metadata first.
+19. **Then a metadata block.** Three lines: meeting title, date in ISO format, attendees (comma-separated). Optional: duration. Optional: a one-sentence purpose statement if the title is not self-explanatory.
+20. **Then the Decisions section.** A bulleted list, each line in the form "Decided: *outcome* (proposed by: *name*; confirmed by: *names or "meeting"*)." Keep each bullet to one sentence. Order by importance, not by appearance in the transcript.
+21. **Then the Action Items section as a table.** Columns: *What*, *Owner*, *Due*, *For whom* (if it varies). Each row is a single action; do not bundle. The first row should be the highest-priority or earliest-due item. Below the table, list any items with owner = TBD as "needs assignment."
+22. **Then Open Questions.** Numbered list. Each question is one sentence. After each, in parentheses, the names of the people best placed to answer if it can be inferred from the discussion.
+23. **Then Risks & Blockers.** Optional but include if any surfaced. Each item: the risk in one sentence, the affected work, and the time horizon.
+24. **Then Next Checkpoint.** One line: when the group reconvenes or when the asker should expect to revisit this work. If no checkpoint was set, suggest one based on the latest action-item due date plus one business day, and mark it as a suggestion.
+25. **Optional Notable Quotes.** Only if a participant said something that captures a position or a constraint in a way that paraphrase loses. Cap at three quotes total. Attribute each.
+
+### Phase 5 — Self-review and produce the auxiliary outputs
+
+26. **Re-read the summary as a non-attendee.** Does the TL;DR stand alone? Could you understand the decisions without the context? Are the action items unambiguous about who-does-what-by-when? If a sentence sounds smart but adds no signal, cut it.
+27. **Re-read as the most senior person on the action items.** Are any items mischaracterized? Is any "we agreed" actually a "we discussed"? Demote uncertain decisions.
+28. **Re-read as the person whose dissent appears.** Is their position fairly stated? If you would not be comfortable showing them this line, rewrite it.
+29. **Produce the follow-up email variant.** A shorter version: the TL;DR, the action items table, and a single sentence on next checkpoint. Suitable for an email reply-all to attendees. Greet briefly; close with the asker's name as a placeholder.
+30. **Produce the executive cc variant.** A single paragraph (under 80 words): what was decided, who owns the most important next step, the one risk worth executive attention, and the next checkpoint. No table, no list.
+31. **Produce the extraction log.** For every decision and every action item, cite the *line range or speaker turn* in the source that backed it. The log is your audit trail; it lets the asker check your work without re-watching the recording. Also list anything flagged as ambiguous, with the recommended resolution.
+32. **Confidence-tag the output.** If significant portions of the source were ambiguous, low-quality (heavy crosstalk, garbled transcription), or short on context, add a short "confidence" note at the bottom: "Medium confidence: speaker labels were missing for the first 12 minutes." Honest uncertainty is more useful than false precision.
+33. **Strip the meta.** Remove all phrases like "the team discussed", "they talked about", "the conversation turned to" — these are summarizer crutches that add words and remove signal. Lead with the noun and the verb.
+
+## Inputs
+
+- **`source`** — required. Any meeting artifact: transcript, voice-to-text export, notes, paste from a chat sidebar, or a hybrid. Cleaner inputs produce tighter summaries, but the skill handles messy text by tagging chunks and discarding noise.
+- **`meeting_context`** — optional but useful for non-obvious meeting types. One or two sentences. Title, purpose, what success looked like.
+- **`audience`** — optional. Defaults to "team members and stakeholders who did not attend." Other useful values: "executive cc only" (skill prefers the 80-word variant), "engineering team only" (skill preserves technical specifics), "external customer" (skill drops internal jargon and dissent).
+- **`known_owners`** — optional. A list mapping display names to identifiers (email, handle). Without this, the skill uses the names exactly as they appear in the source.
+- **`today`** — optional. ISO date string. Used to resolve relative deadlines. Defaults to a date inferred from the source, falling back to "no date" if nothing is inferrable.
+
+## Outputs
+
+- **`summary`** — the canonical structured summary in the order laid out in Phase 4.
+- **`follow_up_email`** — a shorter variant for emailing attendees, plus a single-paragraph executive cc version.
+- **`extraction_log`** — a per-item audit trail mapping decisions and actions back to the source lines, plus flagged ambiguities.
+
+## Examples
+
+### Example 1 — A planning meeting transcript with clean speaker labels
+
+**Source.** A 45-minute Zoom transcript: 6 attendees, planning the Q3 launch of a new analytics dashboard. Speaker labels are clean; the transcription service marked timestamps.
+
+**Output highlights.**
+
+- **TL;DR.** "The team scoped the Q3 dashboard launch to three core widgets (usage, conversion, retention), agreed on a 2026-09-15 ship date, and assigned the technical lead to draft the architecture brief by 2026-05-22. One open question: whether the retention widget needs a separate data backfill, which Sam will scope by next sprint."
+- **Decisions.** Three bullets, each "Decided: …" with proposer and confirmer.
+- **Action items table.** Five rows, each with a named owner and an ISO date, ordered by date.
+- **Open questions.** Two questions, each with a likely answerer.
+- **Risks & blockers.** One risk: the retention data warehouse migration is in flight and could move.
+- **Next checkpoint.** "2026-05-22 planning sync."
+
+**Extraction log.** Each action cites a speaker turn ("turn 42, 14:13 — Sam: 'I can scope that by end of next sprint'").
+
+### Example 2 — Rough notes from a customer call
+
+**Source.** Half a page of bullet notes typed by the asker during a 30-minute customer call. No speaker labels — just bullets with occasional names.
+
+**Output highlights.**
+
+- **TL;DR.** "Customer (Acme Co.) reported two open issues: a CSV export that drops UTF-8 characters and a latency spike on the team dashboard. They want a fix path for the CSV issue before their 2026-06-30 internal launch. We committed to a triage call within the week."
+- **Action items.** Three rows. Owner for the CSV triage is named (the asker's engineering counterpart, supplied via `known_owners`); the other two are marked TBD with a note "needs assignment before sending."
+- **Open questions.** "Is the latency spike correlated with the recent CDN cutover? (Likely answerer: SRE on-call)"
+- **Confidence.** "Medium-low: source is paraphrased notes, not a transcript. Verify CSV reproducer steps with the customer before committing the triage call."
+
+### Example 3 — A retro with dissent
+
+**Source.** Transcript of a 60-minute sprint retro with one significant unresolved disagreement: two team members argued about whether to keep or drop a long-running automated test that occasionally flakes.
+
+**Output highlights.**
+
+- **Decisions.** Two cleanly-agreed decisions, plus a third entry labeled **Open disagreement** that names both positions ("Drop the test now — Pat: argues the flakes cost more than the coverage; Keep with quarantine — Riley: argues the coverage is unique and adds value when stable"). The disagreement is not flattened into a decision.
+- **Action items.** "Riley: draft a quarantine proposal by 2026-05-21" and "Pat: collect flake-rate stats for the last 6 weeks by 2026-05-21." Both due same day, before the next retro, which becomes the next checkpoint.
+- **Next checkpoint.** "Next retro, 2026-05-23, to revisit the test decision with data."
+
+## Limitations
+
+- The skill cannot recover content that was not captured. If a key decision happened off-mic ("nodding agreement" with no spoken confirmation), it will not appear unless the asker supplies it via `meeting_context`.
+- Speaker attribution depends on the source. With anonymous "Speaker 1, Speaker 2" labels and no `known_owners`, the skill produces a summary with placeholder owners and flags the gap.
+- The skill assumes good faith. It does not detect sarcasm reliably, especially in transcripts where tone is lost. If a participant said "great idea" sarcastically and the source did not mark it, the summary may misread it as agreement.
+- For meetings longer than 90 minutes, the skill may need to be run in two passes (first half, second half, then a merge pass). The current default is a single pass; warn the asker if the source exceeds ~15k words.
+- The skill does not translate. If the source is in a language other than the requested output language, decline and recommend a transcription-translation step first.
+- The skill does not redact. If the source contains PII or confidential strategic content that should not be in the summary, the asker must flag it or trim the input. The skill's job is to summarize, not to clear material for distribution.
+
+## Sources reviewed
+
+The methodology in this skill was synthesized after reviewing the following permissively-licensed open-source projects. None of their prose, structure, or code was copied. Each contributed a pattern or a constraint that informed the steps above; the synthesis is original.
+
+- https://github.com/silverstein/minutes
+- https://github.com/4minitz/4minitz
+- https://github.com/MicrosoftDocs/microsoft-style-guide
+- https://github.com/btford/write-good
+- https://github.com/amperser/proselint
+- https://github.com/openai/openai-cookbook
+- https://github.com/vale-cli/Microsoft

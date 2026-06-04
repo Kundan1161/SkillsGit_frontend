@@ -1,0 +1,326 @@
+---
+id: skillsgit-curated/slam-failure-mode-investigator
+version: 1.0.0
+name: SLAM Failure Mode Investigator
+description: Diagnose why a visual-inertial SLAM stack is failing in a specific environment and recommend layered mitigations across calibration, front-end, back-end, and operational policy.
+authors:
+  - name: skillsgit Curated
+    handle: skillsgit-curated
+    role: author
+category: robotics
+tags:
+  - niche:visual-inertial-slam
+  - debugging
+  - failure-analysis
+  - texture-poor
+  - dynamic-objects
+  - low-light
+  - fast-motion
+  - drift
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models:
+    - claude-opus-4-7
+  compatible_models:
+    - claude-sonnet-4-6
+    - gpt-4o
+  tools_required: []
+  min_context_tokens: 32000
+  estimated_tokens_per_invocation: 6000
+trigger_keywords:
+  - slam failure
+  - vio diverges
+  - slam drift
+  - tracking lost
+  - texture poor slam
+  - dynamic scene slam
+  - low light slam
+  - fast motion slam
+  - slam debug
+  - imu saturation
+  - loop closure fails
+  - feature track collapse
+example_invocations:
+  - "Our VIO loses tracking through a long featureless corridor — what changes the system?"
+  - "The robot's pose diverges every time forklifts move through the aisle. How do we mitigate?"
+  - "Drone SLAM fails on aggressive yaw turns. What's the most likely cause?"
+  - "Indoor mapping rig drifts vertically over a 30-minute run. Help me investigate."
+inputs:
+  - name: failure_description
+    type: text
+    required: true
+    description: Concrete description of the failure — what fails, when, how operators noticed, and any reproduction steps.
+  - name: stack_summary
+    type: text
+    required: true
+    description: One-paragraph summary of the current stack — sensors, coupling style, front-end class, back-end class, loop-closure presence, key library or framework if known.
+  - name: environment
+    type: text
+    required: true
+    description: Where the failure happens — texture, structure, lighting, motion regime, dynamic-actor density, time-of-day patterns.
+  - name: telemetry
+    type: text
+    required: false
+    description: Available signals — feature counts, residual chi-squared, innovation magnitudes, bias estimates over time, frame-drop rate, IMU saturation flags. The more, the better.
+  - name: recent_changes
+    type: text
+    required: false
+    description: Anything that changed before the failure appeared — firmware updates, mechanical work, optics replacement, environment changes, code or config changes.
+outputs:
+  - name: investigation_report
+    type: markdown
+    description: A structured diagnosis covering hypotheses, evidence-gathering plan, prioritized mitigations across calibration, front-end, back-end, and operational policy, plus a validation plan.
+  - name: hypotheses_json
+    type: json
+    description: Machine-readable list of hypotheses with weight, evidence required, mitigation candidates, and validation rubric.
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Initial release.
+---
+
+# SLAM Failure Mode Investigator
+
+## When to use
+
+Use this skill when a visual-inertial SLAM stack is **failing in a specific environment** and the team needs a structured diagnosis before reaching for code changes. Typical triggers:
+
+- The stack tracks well in a lab but degrades in deployment.
+- A new operating environment exposes a regression that was previously invisible.
+- Failures appear intermittently and the team has not been able to bracket the cause.
+- A safety review demands a written analysis of the observed failure mode and proposed mitigation.
+- A new release has degraded performance and the team needs to triage before rollback.
+
+The skill produces a structured investigation: hypotheses, evidence-gathering plan, layered mitigations, and a validation rubric. It does not rewrite the stack. It is meant to slot in upstream of code changes, so that the changes made are the ones that actually address the failure.
+
+**Safety disclaimer (mandatory):** This skill produces methodology guidance for visual-inertial SLAM diagnosis. SLAM failures cause physical harm in autonomous systems. Every recommendation must be reviewed by qualified robotics engineers, validated in simulation, and bench-tested in a safe enclosure before any deployment near people or property. Diagnosis recommendations below must be treated as hypotheses to be tested, not conclusions to be deployed.
+
+## How to apply
+
+Work the steps in order. The investigation discipline matters more than guessing the right answer on the first try.
+
+### Step 1 — Bracket the failure
+
+Before reaching for hypotheses, characterize the failure precisely.
+
+Ask:
+
+- **What is the symptom at the platform level?** Position drift, orientation drift, scale error, tracking lost and recovered, tracking lost permanently, sudden pose jumps, oscillation, slow divergence, map corruption, re-localization failure on startup, or a downstream consumer complaining.
+- **Is it deterministic or intermittent?** A deterministic failure is far easier to corner. Intermittent failures usually have an environmental trigger; finding the trigger is the first half of the work.
+- **What is the failure rate?** Once per run, once per hour, once per minute, on every restart.
+- **When did it appear?** Always there, after a config change, after a hardware change, after a software update, after a calibration cycle, after a deployment environment change.
+- **What does the operator see versus what does the system log?** Operators describe symptoms in physical terms; logs describe symptoms in signal terms. Both are needed.
+- **How is the failure currently detected?** External (operator notice), internal monitor, downstream consumer, or post-hoc trajectory comparison.
+
+The output of Step 1 is a written failure card. If the team cannot fill in this card, the next step is to instrument better and re-run, not to guess.
+
+### Step 2 — Pull a structured snapshot of the failing run
+
+Failures in SLAM are almost always more diagnosable from telemetry than from after-the-fact intuition. Pull at least:
+
+- **Front-end signals.** Per-frame feature count, mean track length, parallax to last keyframe, optical-flow residuals, RANSAC inlier ratio, frame-drop rate.
+- **Back-end signals.** Residual chi-squared, innovation magnitudes (for filter back-ends), reprojection-error statistics, IMU pre-integration uncertainty growth between keyframes, IMU bias estimates over time, keyframe addition rate.
+- **Loop-closure signals.** Candidate query count, accepted-loop count, geometric-verification reject rate.
+- **Sensor signals.** Camera exposure and gain time series, frame interval jitter, IMU saturation flags, IMU temperature, time-sync offset estimate.
+- **Platform signals.** Commanded vs estimated velocity divergence, controller error metrics.
+
+Examine these around the failure event. Look for one signal whose change leads the failure — a feature-count collapse, a sudden jump in pre-integration uncertainty, a bias estimate that has been creeping for minutes, an exposure clip that lines up with the moment tracking is lost.
+
+If the stack does not currently expose these signals, the first mitigation is to expose them. Diagnosing without telemetry is guesswork.
+
+### Step 3 — Enumerate candidate hypotheses
+
+Map the failure card to a hypothesis set drawn from the categories below. Treat the categories as a checklist; for each, decide plausible, implausible, or unknown.
+
+**A. Calibration drift.**
+
+- Camera intrinsics changed (optics shifted, focus changed, temperature has bent the lens).
+- Camera-to-IMU extrinsics changed (mechanical stress, vibration loosened a mount).
+- Time-sync offset has drifted (firmware change, clock skew on the IMU bus).
+- Tell-tales: systematic per-axis drift, error correlated with rotation, consistent scale error.
+
+**B. Insufficient visual texture or structure.**
+
+- Long featureless walls or floors, glass, repetitive patterns producing aliasing.
+- Tell-tales: feature count drops sharply, RANSAC inlier ratio collapses, pre-integration uncertainty grows, eventually tracking is lost.
+
+**C. Insufficient parallax for triangulation.**
+
+- Stationary or near-stationary platform, motion confined to a single axis, monocular system with no excitation.
+- Tell-tales: feature count is fine but landmark depth uncertainties never converge; back-end residuals are small but state covariances are large in scale or depth directions.
+
+**D. Dynamic actors in scene.**
+
+- People, vehicles, doors, conveyor belts, moving forklifts.
+- Tell-tales: RANSAC consistently rejects a large fraction of features; pose estimate jumps in the direction of a large moving body; landmark count is high but the back-end residuals show heavy tails.
+
+**E. Low light or extreme dynamic range.**
+
+- Underexposed frames, motion blur from long exposure, headlight glare, mixed indoor/outdoor transitions.
+- Tell-tales: exposure pegged at maximum, gain pegged at maximum, feature descriptors fail to match across frames, indirect front-ends collapse faster than direct ones.
+
+**F. Aggressive or unmodelled motion.**
+
+- Yaw rates beyond pre-integration linearization assumptions, sustained accelerations beyond IMU range, sharp shocks.
+- Tell-tales: pre-integration uncertainty spikes during the manoeuvre, IMU saturation flags assert, tracking lost specifically at high-rate moments.
+
+**G. Rolling-shutter or synchronization artefacts.**
+
+- Rolling-shutter cameras combined with high angular rates without rolling-shutter compensation.
+- Cross-sensor time offset that has drifted past the linearization tolerance.
+- Tell-tales: residual patterns correlated with image row, error scales with angular velocity.
+
+**H. Bias observability failure.**
+
+- Hovering, idling, or otherwise low-excitation motion regimes leave IMU biases unobservable. Bias estimates drift without correction; when motion resumes, the back-end carries a stale bias and slowly diverges.
+- Tell-tales: bias estimates wander during low-motion intervals; pose error grows after a long static period; back-end becomes responsive again only after a few seconds of varied motion.
+
+**I. Loop-closure mis-association.**
+
+- A false loop closure has injected a bad constraint into the back-end. Repeated environments (rows of identical aisles, symmetric rooms) are especially prone.
+- Tell-tales: a pose jump at the moment a loop was accepted; the trajectory shows a "tear" near a verified loop; subsequent residuals show heavy tails because the back-end is fighting a wrong constraint.
+
+**J. Numerical or implementation issues.**
+
+- Optimizer divergence under poor initialization, marginalization information loss, fixed-lag window too short for the platform's motion, single-precision arithmetic at large coordinates.
+- Tell-tales: failures correlated with absolute position magnitude, optimizer iteration counts spiking, sudden state-covariance collapses.
+
+**K. Operating outside the calibrated regime.**
+
+- The platform has moved into a temperature, lighting, or motion regime it was never calibrated or tested in.
+- Tell-tales: the system has been deployed in a new building, a new season, a new fleet configuration.
+
+### Step 4 — Rank hypotheses by evidence
+
+For each plausible hypothesis, assign:
+
+- **Weight.** Strong / moderate / weak, based on telemetry alignment and reproduction conditions.
+- **Cheap evidence.** What signals or experiments could promote or demote the hypothesis without code changes (replay a recorded run with a different config, examine specific log slices, inspect a particular image region).
+- **Expensive evidence.** What would require code or hardware work (recalibration, hardware swap, code instrumentation).
+
+Always pursue cheap evidence first. The discipline is to spend evidence-gathering budget in proportion to the cost of being wrong about a hypothesis. False conviction on an expensive hypothesis (e.g. "we need a new IMU") burns time and credibility.
+
+### Step 5 — Map hypotheses to mitigation layers
+
+Mitigations fall into four layers. Most real-world fixes combine more than one.
+
+**Layer 1 — Calibration and sensors.**
+
+- Re-run intrinsics in the actual operating temperature range.
+- Re-run camera-to-IMU extrinsics with a more aggressive excitation routine.
+- Add or improve hardware time-sync.
+- Add a temperature-sensitive IMU bias model.
+- Replace a marginal sensor with a higher-spec unit only as a last resort.
+
+**Layer 2 — Front-end.**
+
+- For texture-poor scenes: switch to a direct or hybrid front-end, add active illumination, lower the parallax threshold for keyframe creation, prefer denser feature extraction.
+- For dynamic scenes: add a learned dynamic-object mask, expand the RANSAC iteration budget, require a longer minimum track lifetime, prefer features that survive across more frames.
+- For low light: use a longer exposure with motion compensation, switch on hardware HDR if available, add infrared illumination, reduce feature count in favour of more robust features.
+- For aggressive motion: add an IMU-predicted prior to feature search windows, switch to global-shutter optics, add rolling-shutter compensation if optics cannot be changed.
+
+**Layer 3 — Back-end.**
+
+- Tighten or relax pre-integration linearization windows to match the motion regime.
+- Switch from a filter back-end with marginalization information loss to a sliding-window optimizer.
+- Add robust kernels to loop-closure factors or strengthen the consistency screen.
+- Increase the optimization iteration budget; reduce the keyframe rate to keep total compute constant.
+- For numerical issues at large absolute coordinates, anchor the optimization to a local frame and pass world-frame transforms downstream.
+
+**Layer 4 — Operational policy.**
+
+- Refuse to begin a session until a calibration self-check has passed.
+- Refuse to accept a re-localization with confidence below a threshold; require operator confirmation.
+- Add a slow-halt response when health monitors degrade; surface the cause to the operator.
+- Restrict deployment to environments inside the validated operational envelope; document the envelope explicitly.
+- Schedule re-calibration cadence based on observed bias drift in the field, not on a fixed time table.
+
+### Step 6 — Plan the experiment
+
+Translate the top one or two hypotheses into a written experiment.
+
+A good experiment specifies:
+
+- The hypothesis under test, stated in falsifiable terms.
+- The change being applied (config, code, hardware).
+- The control case (current stack on a comparable run).
+- The metric that will distinguish success from failure (e.g. mean feature count across the failing segment, residual chi-squared at the failure moment, drift over the full run).
+- The pass criterion (a numeric threshold or a qualitative criterion stated up front).
+- The risk-mitigation plan during the experiment (where will it run, who will be present, what is the abort condition).
+
+Bad experiments change too many things at once and produce results that cannot be attributed. One change per experiment is the default; combine changes only when each has independently been tested.
+
+### Step 7 — Validation rubric for any fix
+
+A proposed mitigation is not done until it has been validated. Refuse to close out the investigation without:
+
+1. **Reproduction.** Confirm the original failure reproduces reliably before applying any change. If it does not reproduce, the investigation is not done — the trigger has not been pinned down.
+2. **Targeted regression.** Replay a recorded dataset of the failing run through the modified stack; verify the failure no longer occurs.
+3. **Broader regression.** Run the full regression suite on the modified stack to verify no other behaviour regressed.
+4. **Field check.** Run on the actual platform in the actual environment, with operators briefed and monitoring.
+5. **Documented residual risk.** Even after the fix, record what is still possible to go wrong, what the monitors would catch, and what the operational policy is.
+
+### Step 8 — Write the report
+
+The output is a structured document with:
+
+- The failure card (Step 1).
+- The telemetry snapshot (Step 2).
+- The full hypothesis list with weights and evidence requirements (Steps 3 and 4).
+- The mitigation layers prioritized (Step 5).
+- The next-experiment specification (Step 6).
+- The validation rubric (Step 7).
+- The open questions and residual risks.
+
+The discipline of writing the report is itself part of the investigation; many gaps in reasoning become obvious only when committed to paper.
+
+## Inputs
+
+The skill expects:
+
+- A failure description in operator and signal terms.
+- A summary of the current stack.
+- An environment description.
+- Whatever telemetry is available; if none is available, the first recommendation will be to instrument.
+- A list of recent changes preceding the failure.
+
+When inputs are sparse, the skill must enumerate what is missing and ask before producing a confident diagnosis. A confident-sounding diagnosis on weak inputs is a hazard, not a help.
+
+## Outputs
+
+A markdown investigation report containing the failure card, telemetry summary, hypothesis ranking, prioritized mitigation plan, the next-experiment specification, the validation rubric, and a list of open questions. A parallel JSON document captures the hypothesis set in structured form for downstream tooling.
+
+## Examples
+
+> **"Tracking is lost every time the robot enters the long aisle past the loading bay."**
+>
+> The skill's diagnosis would likely centre hypotheses B (insufficient texture) and possibly C (insufficient parallax if the robot is moving straight down the aisle). Cheap evidence: replay a recorded run and inspect feature count and parallax around the entry to the aisle. Mitigations span the front-end (denser features, hybrid direct mode, optional active illumination) and operational policy (require slowing through the aisle to give IMU-only segments shorter duration). Validation requires recording the aisle traverse with the modified stack and verifying feature count never collapses below a threshold for more than a bounded interval.
+
+> **"Drone yaws hard, comes out of the turn, pose has slipped by a metre."**
+>
+> Hypotheses centre on F (aggressive motion), G (rolling-shutter or sync), and H (bias observability if the drone was hovering before the manoeuvre). Cheap evidence: examine IMU saturation flags during the turn, inspect residual patterns across image rows, check bias estimates before and after the turn. Mitigations might include adding rolling-shutter compensation, expanding feature search regions with the IMU-predicted prior, and tightening keyframe rate during high-rate intervals. Validation requires replaying the manoeuvre in simulation with the modified stack and checking pose error stays bounded.
+
+## Limitations
+
+- The skill diagnoses; it does not fix. A diagnosis without disciplined experimentation cannot be trusted to be correct.
+- Without telemetry the skill can only produce ranked candidates; deep root causing requires signals.
+- Some failure modes (numerical issues at high absolute coordinates, optimizer linearization breakdowns) require implementation-level inspection that exceeds the methodology scope here; engage a specialist.
+- The skill does not replace formal hazard analysis for any safety-critical deployment.
+
+## Sources reviewed
+
+The diagnosis structure above was informed by reading project pages, issues, and READMEs of the following open repositories. No source text, code, or close paraphrase has been incorporated.
+
+- https://github.com/UZ-SLAMLab/ORB_SLAM3 (GPL-3)
+- https://github.com/MIT-SPARK/Kimera-VIO (BSD-2)
+- https://github.com/rpng/open_vins (GPL-3)
+- https://github.com/HKUST-Aerial-Robotics/VINS-Fusion (GPL-3)
+- https://github.com/HKUST-Aerial-Robotics/VINS-Mono (GPL-3)
+- https://github.com/hku-mars/FAST_LIO (GPL-2)
+- https://github.com/TixiaoShan/LIO-SAM (BSD-3)
+- https://github.com/MIT-SPARK/Ouroboros (BSD-2)
+- https://github.com/SpectacularAI/HybVIO (Apache-2.0)
+- https://github.com/stella-cv/stella_vslam (BSD-2)

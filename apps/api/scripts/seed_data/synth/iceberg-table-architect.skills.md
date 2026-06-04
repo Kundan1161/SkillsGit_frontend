@@ -1,0 +1,246 @@
+---
+id: skillsgit-curated/iceberg-table-architect
+version: 1.0.0
+name: Iceberg Table Architect
+description: Design Apache Iceberg tables — partitioning, sort order, snapshot retention, compaction, and branching — for a stated workload.
+authors:
+  - name: Wave-3 Data Synth
+    handle: wave3-data
+    role: author
+category: data
+tags:
+  - niche:lakehouse-architecture
+  - iceberg
+  - partitioning
+  - compaction
+  - snapshots
+  - branching
+  - data-modeling
+license_type: free
+ai:
+  required_models:
+    - claude-opus-4-7
+    - claude-sonnet-4-6
+  compatible_models:
+    - gpt-4o
+  min_context_tokens: 32000
+  estimated_tokens_per_invocation: 7500
+trigger_keywords:
+  - iceberg
+  - iceberg table
+  - hidden partitioning
+  - partition spec
+  - sort order
+  - snapshot expiration
+  - iceberg compaction
+  - iceberg branching
+  - nessie
+example_invocations:
+  - "Design an Iceberg table for our event stream, 5 TB/day."
+  - "How should I partition an Iceberg fact table joined often on user_id?"
+  - "Our Iceberg metadata.json is 80 MB — what now?"
+  - "Set up snapshot retention and compaction for Iceberg."
+inputs:
+  - name: workload
+    type: text
+    required: true
+    description: Table purpose, volume per day, primary read patterns, write engine.
+  - name: query_predicates
+    type: text
+    required: true
+    description: Most common WHERE clauses and JOIN keys.
+  - name: write_pattern
+    type: text
+    required: false
+    description: Append-only, upsert (equality deletes), batch overwrite, or mixed.
+  - name: retention_window
+    type: text
+    required: false
+    description: Required time-travel window and any compliance deletes.
+outputs:
+  - name: design
+    type: markdown
+    description: Partition spec, sort order, retention/compaction plan, and DDL.
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Initial release.
+---
+
+# Iceberg Table Architect
+
+## When to use
+
+Use this skill when a user has chosen Apache Iceberg and now needs to design a specific table — choosing **partition spec**, **sort order**, **compaction strategy**, **snapshot retention**, and (optionally) **branches/tags**. The default outputs of `CREATE TABLE` rarely survive contact with real data; this skill makes the irreversible decisions explicit.
+
+Trigger phrases include:
+
+- "design an Iceberg table for..."
+- "partition my Iceberg table"
+- "Iceberg sort order"
+- "Iceberg compaction strategy"
+- "snapshot expiration / `expire_snapshots`"
+- "metadata.json is huge"
+- "branching / tagging Iceberg"
+
+Do **not** use when the user has not yet chosen a format — route to `lakehouse-table-format-picker`.
+
+## How to apply
+
+Work the user through six design decisions. Produce DDL only after **all** decisions are nailed down.
+
+### 1. Partition spec — exploit hidden partitioning
+
+Iceberg's killer feature is **hidden partitioning**: the partition is a deterministic transform of a column, not a separate column the user must filter on. Iceberg also lets the spec **evolve** without rewriting old data.
+
+Guidelines:
+
+- For time-series tables, partition by `days(ts)` or `hours(ts)` — never store a derived `dt` column. Pick the **coarsest** granularity that still gives reasonable partition pruning. Rule of thumb: target **100 MB – 1 GB compressed Parquet per partition file**.
+- High-cardinality categorical keys (e.g., `user_id`): use `bucket(N, user_id)` where N is roughly `total_rows / target_file_rows`. Buckets are the only safe way to partition by a high-cardinality dimension without producing millions of tiny partitions.
+- Combine sparingly. `(days(ts), bucket(32, user_id))` is fine; three transforms is almost always wrong.
+- Start with the **smallest reasonable spec**; you can add transforms later via partition evolution without rewriting.
+- Never partition by a column whose values change after insert. Equality-delete tombstones for late updates are cheaper than re-partitioning.
+
+Anti-patterns to flag aggressively:
+
+- Partitioning by raw timestamps (one partition per row).
+- Partitioning by user-supplied free text.
+- Partitioning by columns that aren't in 80%+ of queries' WHERE clauses.
+
+### 2. Sort order — speed up the inner loop
+
+Iceberg supports table-level **sort order** that writers honor when emitting files. Files are then min/max-indexed per column at the manifest level, enabling efficient **file-skipping** at query time.
+
+- Set `WRITE ORDERED BY (high_selectivity_col, secondary_col)` for columns that appear in equality or range filters but aren't partitions.
+- If a single column (e.g., `event_id`, `user_id`) appears in nearly every `WHERE`, put it first.
+- Use **Z-order** (via Spark rewrite procedures) for two or three columns commonly filtered together.
+- Sort order does not need to match partition spec; in fact, it usually shouldn't.
+
+### 3. File and metadata sizing
+
+- Target Parquet file size: **256–512 MB** for warehouse-style queries, **128 MB** for high-concurrency interactive queries.
+- Set `write.target-file-size-bytes`, `write.parquet.row-group-size-bytes`, and `write.parquet.page-size-bytes` explicitly. Do not rely on defaults across engines — Spark and Flink defaults differ.
+- Manifests: tune `commit.manifest.target-size-bytes` (default 8 MB) and `commit.manifest-merge.enabled=true`. After many small commits (streaming), you will accumulate manifests faster than you accumulate data.
+
+### 4. Snapshot retention and expiration
+
+Every commit creates a snapshot. Without expiration, `metadata.json` and the manifest tree grow forever.
+
+- Run `expire_snapshots` on a schedule (daily for streaming tables, weekly otherwise).
+- Default keep window: **7 days for hot tables, 30 days for tables with regulatory replay**, longer only if the storage cost is justified.
+- Always combine with `remove_orphan_files` (run less often — weekly — and with a lookback that's longer than any in-flight commit, e.g., 72h).
+- Track `metadata.json` size as an SLO. If it exceeds ~10 MB on a frequently-read table, you'll feel it in cold-start latency; rewrite metadata more aggressively.
+
+### 5. Compaction strategy
+
+Compaction merges small files into target-sized files and rewrites manifests.
+
+- **Streaming ingest tables**: rewrite data files **at least daily** for the most-recent partitions. Trigger when partition file count exceeds target threshold (e.g., > 32 files per active partition).
+- **Equality-delete-heavy tables (CDC sinks)**: schedule `rewrite_data_files` with `delete-file-threshold` low (e.g., 5) so query-time merge cost stays bounded.
+- **Append-batch tables**: compact opportunistically; less critical.
+- Run rewrites on a **separate compute pool** from query engines — compaction is heavy, predictable, and steals memory.
+- Sort during rewrite (`STRATEGY=sort` or `zorder`) so compaction also improves file-skipping, not just file count.
+
+### 6. Branching and tagging (optional but powerful)
+
+Iceberg supports git-style branches and tags on the table.
+
+- **Tags**: name a specific snapshot id for regulatory replay, audit, or model-training reproducibility. Tag retention is independent of `expire_snapshots`.
+- **Branches**: write to a branch for "what-if" backfills or zero-downtime schema migrations; fast-forward the main branch when validated.
+- Use Nessie catalog for **cross-table branches** (multi-table transactions and rollbacks). Native Iceberg branches are per-table.
+- Always set a `max-ref-age-ms` and `min-snapshots-to-keep` on branches to prevent unbounded retention.
+
+### Worked DDL example
+
+```sql
+CREATE TABLE warehouse.events (
+  event_id     BIGINT,
+  user_id      BIGINT,
+  event_type   STRING,
+  payload      STRING,
+  occurred_at  TIMESTAMP,
+  ingested_at  TIMESTAMP
+)
+USING ICEBERG
+PARTITIONED BY (days(occurred_at), bucket(32, user_id))
+TBLPROPERTIES (
+  'write.target-file-size-bytes'         = '268435456',
+  'write.parquet.row-group-size-bytes'   = '134217728',
+  'write.metadata.delete-after-commit.enabled' = 'true',
+  'write.metadata.previous-versions-max' = '50',
+  'commit.manifest.target-size-bytes'    = '16777216',
+  'commit.manifest-merge.enabled'        = 'true',
+  'format-version'                       = '2'
+);
+
+ALTER TABLE warehouse.events
+  WRITE ORDERED BY (user_id, occurred_at);
+```
+
+Scheduled maintenance (Spark procedures):
+
+```sql
+CALL system.rewrite_data_files(
+  table => 'warehouse.events',
+  strategy => 'sort',
+  sort_order => 'user_id ASC, occurred_at ASC',
+  options => map('partial-progress.enabled', 'true',
+                 'target-file-size-bytes',  '268435456',
+                 'delete-file-threshold',   '5'));
+
+CALL system.expire_snapshots(
+  table => 'warehouse.events',
+  older_than => TIMESTAMP '...',
+  retain_last => 10);
+
+CALL system.remove_orphan_files(
+  table => 'warehouse.events',
+  older_than => TIMESTAMP '...');
+```
+
+## Inputs
+
+- **workload** (required): purpose, expected daily volume (rows + bytes), write engine (Spark/Flink/Trino), peak concurrency, freshness SLA.
+- **query_predicates** (required): the three to five most common WHERE/JOIN columns and their cardinality.
+- **write_pattern** (optional): append-only, MERGE INTO, CDC equality-delete, full overwrite, mixed.
+- **retention_window** (optional): time-travel SLA, regulatory holds, GDPR delete SLA.
+
+## Outputs
+
+- Partition spec + rationale.
+- Sort order + rationale.
+- File-size + manifest-size targets.
+- DDL (`CREATE TABLE` + `ALTER TABLE WRITE ORDERED BY`).
+- Scheduled-maintenance plan: compaction cadence, `expire_snapshots`, `remove_orphan_files`.
+- Optional branch/tag policy.
+- A "what to monitor" list: manifest count, average file size, snapshot count, metadata.json size, equality-delete file count.
+
+## Examples
+
+> "Clickstream events, 5 TB/day, Flink writer, Trino readers, queries filter by `user_id` 80% of the time and a date range."
+
+Partition: `days(occurred_at), bucket(64, user_id)`. Sort: `(user_id, occurred_at)`. File target: 256 MB. Expire snapshots after 7 days; compact hot partitions hourly with sort strategy. Branch policy: single `main`, weekly tag for ML reproducibility.
+
+> "CDC sink from MySQL via Debezium, 30 GB/day, heavy updates, read from Trino."
+
+Format v2 with equality deletes. Partition: `days(updated_at)` only (no bucket — equality deletes don't pair well with bucketing). Sort: `(primary_key)`. Aggressive compaction: rewrite if `delete-file-threshold >= 5` on any partition; daily `expire_snapshots`. Plan to evaluate position deletes after Iceberg position-delete reader stabilizes.
+
+> "Slowly-changing dimension, 50 GB total, rare updates, read from Spark and DuckDB."
+
+Single un-partitioned Iceberg table is fine. Sort by the natural primary key. Weekly compaction. 30-day snapshot retention. No branches needed.
+
+## Limitations
+
+- This skill does not write the ingestion pipeline; it stops at table design and maintenance ops.
+- Position deletes vs equality deletes tradeoffs change with engine support — verify what your writer emits.
+- Compaction procedures are Spark-centric; for non-Spark shops, point to managed services (Tabular-style auto-compaction, AWS Glue auto-compaction) or write a scheduled Spark job.
+- Branching/tagging APIs are still maturing in some engines; verify your reader supports reading non-main refs before designing around them.
+
+## Sources
+
+- https://github.com/apache/iceberg
+- https://iceberg.apache.org/docs/latest/partitioning/
+- https://iceberg.apache.org/docs/latest/maintenance/
+- https://iceberg.apache.org/docs/latest/spark-procedures/
+- https://github.com/projectnessie/nessie
+- https://github.com/apache/polaris

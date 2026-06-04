@@ -1,0 +1,95 @@
+%% Local development stack — infra/docker-compose.yml.
+%% Three apps (apps/api, apps/web-marketplace, apps/web-creator) run on
+%% the host (not in containers) and dial the dockerised services via
+%% the published host ports. Canonical "uv run + pnpm dev" setup.
+
+graph TB
+    %% Host-side apps
+    subgraph hostApps["Host-side apps (uv run / pnpm dev)"]
+        API["apps/api (FastAPI)<br/>port 8000<br/>uv run uvicorn src.main:app"]
+        MKT["apps/web-marketplace (Next.js)<br/>port 3000<br/>pnpm --filter @skillsgit/web-marketplace dev"]
+        CRE["apps/web-creator (Next.js)<br/>port 3001<br/>pnpm --filter @skillsgit/web-creator dev"]
+        ARQ["apps/api Arq worker<br/>uv run arq capture.jobs.WorkerSettings<br/>(separate process, same .env)"]
+    end
+
+    %% Docker network: skillsgit (bridge)
+    subgraph network["docker network: skillsgit (bridge driver)"]
+
+        %% Postgres
+        subgraph pg["postgres — image postgres:16-alpine"]
+            PG1["container: skillsgit-postgres<br/>restart: unless-stopped"]
+            PG2["host 5433 to container 5432<br/>(remapped to avoid colliding<br/>with locally-installed Postgres)"]
+            PG3["env:<br/>POSTGRES_USER=skillsgit<br/>POSTGRES_PASSWORD=skillsgit<br/>POSTGRES_DB=skillsgit"]
+            PG4["volume: pgdata to /var/lib/postgresql/data"]
+            PG5["healthcheck: pg_isready<br/>(5s interval, 10 retries)"]
+        end
+
+        %% Redis
+        subgraph rd["redis — image redis:7-alpine"]
+            RD1["container: skillsgit-redis<br/>restart: unless-stopped"]
+            RD2["host 6379 to container 6379"]
+            RD3["healthcheck: redis-cli ping<br/>(5s interval, 10 retries)"]
+            RD4["No volume — ephemeral by design.<br/>Used for capture quota counters,<br/>compose cache, billing idempotency,<br/>auth lockout counters and JWT denylist,<br/>Arq job queue."]
+        end
+
+        %% MinIO
+        subgraph mn["minio — image minio/minio"]
+            MN1["container: skillsgit-minio<br/>restart: unless-stopped"]
+            MN2["host 9000 to S3 API<br/>host 9001 to web console"]
+            MN3["env:<br/>MINIO_ROOT_USER=skillsgit<br/>MINIO_ROOT_PASSWORD=skillsgit"]
+            MN4["volume: miniodata to /data"]
+            MN5["healthcheck: GET /minio/health/live<br/>(10s interval)"]
+            MN6["Bucket auto-created at startup<br/>via S3Storage.ensure_bucket<br/>(no manual bucket setup required)"]
+        end
+
+        %% Mailhog
+        subgraph mh["mailhog — image mailhog/mailhog"]
+            MH1["container: skillsgit-mailhog<br/>restart: unless-stopped"]
+            MH2["host 1025 to SMTP<br/>host 8025 to web UI"]
+            MH3["Captures all outbound email in dev<br/>(verification, password reset, etc.)<br/>— no real delivery."]
+        end
+    end
+
+    %% Connections (host -> container ports)
+    API -.->|"DATABASE_URL: postgresql+asyncpg://skillsgit:skillsgit@localhost:5433"| PG2
+    API -.->|"REDIS_URL: redis://localhost:6379/0"| RD2
+    API -.->|"S3_ENDPOINT: http://localhost:9000"| MN2
+    API -.->|"SMTP_HOST: localhost:1025"| MH2
+
+    ARQ -.->|"shares all 4 services via same .env"| PG2
+    ARQ -.->|"capture.jobs worker"| RD2
+    ARQ -.->|"vault.jobs worker"| MN2
+
+    MKT -.->|"NEXT_PUBLIC_API_URL: http://localhost:8000"| API
+    CRE -.->|"NEXT_PUBLIC_API_URL: http://localhost:8000"| API
+
+    %% Top-level docker-compose entities
+    subgraph topLevel["docker-compose top-level"]
+        TL1["name: skillsgit"]
+        TL2["volumes:<br/>  pgdata: (named)<br/>  miniodata: (named)"]
+        TL3["networks:<br/>  skillsgit:<br/>    name: skillsgit<br/>    driver: bridge"]
+    end
+
+    classDef app fill:#0EA5E9,color:#fff,stroke:#0369A1;
+    classDef pgCls fill:#DBEAFE,color:#1E40AF,stroke:#1D4ED8;
+    classDef rdCls fill:#FEE2E2,color:#7F1D1D,stroke:#B91C1C;
+    classDef mnCls fill:#FEF3C7,color:#92400E,stroke:#B45309;
+    classDef mhCls fill:#D1FAE5,color:#065F46,stroke:#059669;
+    classDef meta fill:#F1F5F9,color:#334155,stroke:#475569;
+
+    class API,MKT,CRE,ARQ app;
+    class PG1,PG2,PG3,PG4,PG5 pgCls;
+    class RD1,RD2,RD3,RD4 rdCls;
+    class MN1,MN2,MN3,MN4,MN5,MN6 mnCls;
+    class MH1,MH2,MH3 mhCls;
+    class TL1,TL2,TL3 meta;
+
+    %% Notes:
+    %% - Apps run on the host, not in containers — this keeps the
+    %%   Python + Node toolchains close to the developer's IDE.
+    %% - Dev stack is sufficient for full integration tests locally.
+    %%   CI uses a leaner equivalent via services: in team-smoke.yml
+    %%   (Postgres + Redis only — tests fall back to InMemoryStorage
+    %%   and StubAnthropicClient).
+    %% - The 5433 host port for Postgres is the most common gotcha:
+    %%   .env's DATABASE_URL must match (not the default 5432).

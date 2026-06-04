@@ -1,0 +1,131 @@
+---
+id: skillsgit-curated/imported-anthropic-brand-guidelines
+version: 1.0.0
+name: "Brand Guidelines"
+description: "Applies Anthropic's official brand colors and typography to any sort of artifact that may benefit from having Anthropic's look-and-feel. Use it when brand colors or style guidelines, visual formatting, or company design standards apply."
+authors:
+  - name: "Anthropic (original)"
+    handle: anthropic
+    role: author
+  - name: "skillsgit Curated"
+    handle: skillsgit-curated
+    role: maintainer
+category: design
+tags: [imported, source-anthropics-skills, anthropic-brand, typography, color-palette, visual-identity]
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6]
+  tools_required: []
+  min_context_tokens: 32000
+  estimated_tokens_per_invocation: 6000
+trigger_keywords:
+  - brand
+  - guidelines
+  - applies
+  - anthropic
+  - official
+  - colors
+  - typography
+  - sort
+  - artifact
+  - benefit
+example_invocations:
+  - "Use the brand guidelines skill on this."
+  - "Apply brand guidelines guidance to my work."
+inputs: []
+outputs: []
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: "Imported from anthropics/skills under Apache-2.0."
+---
+## When to use
+
+Use this skill when: Applies Anthropic's official brand colors and typography to any sort of artifact that may benefit from having Anthropic's look-and-feel. Use it when brand colors or style guidelines, visual formatting, or company design standards apply.
+
+_Note: this section was added during import to satisfy the marketplace validator. The original Anthropic skill expresses its trigger conditions throughout the body below._
+
+## How to apply
+
+Follow the instructional content in the sections below. The original skill body (preserved verbatim) contains the step-by-step guidance. Read it top-to-bottom, treat any `## Overview` / introductory paragraphs as orientation, then execute the numbered or sub-headed procedures as written.
+
+_Note: this section was added during import to satisfy the marketplace validator._
+
+# Anthropic Brand Styling
+
+## Overview
+
+To access Anthropic's official brand identity and style resources, use this skill.
+
+**Keywords**: branding, corporate identity, visual identity, post-processing, styling, brand colors, typography, Anthropic brand, visual formatting, visual design
+
+## Brand Guidelines
+
+### Colors
+
+**Main Colors:**
+
+- Dark: `#141413` - Primary text and dark backgrounds
+- Light: `#faf9f5` - Light backgrounds and text on dark
+- Mid Gray: `#b0aea5` - Secondary elements
+- Light Gray: `#e8e6dc` - Subtle backgrounds
+
+**Accent Colors:**
+
+- Orange: `#d97757` - Primary accent
+- Blue: `#6a9bcc` - Secondary accent
+- Green: `#788c5d` - Tertiary accent
+
+### Typography
+
+- **Headings**: Poppins (with Arial fallback)
+- **Body Text**: Lora (with Georgia fallback)
+- **Note**: Fonts should be pre-installed in your environment for best results
+
+## Features
+
+### Smart Font Application
+
+- Applies Poppins font to headings (24pt and larger)
+- Applies Lora font to body text
+- Automatically falls back to Arial/Georgia if custom fonts unavailable
+- Preserves readability across all systems
+
+### Text Styling
+
+- Headings (24pt+): Poppins font
+- Body text: Lora font
+- Smart color selection based on background
+- Preserves text hierarchy and formatting
+
+### Shape and Accent Colors
+
+- Non-text shapes use accent colors
+- Cycles through orange, blue, and green accents
+- Maintains visual interest while staying on-brand
+
+## Technical Details
+
+### Font Management
+
+- Uses system-installed Poppins and Lora fonts when available
+- Provides automatic fallback to Arial (headings) and Georgia (body)
+- No font installation required - works with existing system fonts
+- For best results, pre-install Poppins and Lora fonts in your environment
+
+### Color Application
+
+- Uses RGB color values for precise brand matching
+- Applied via python-pptx's RGBColor class
+- Maintains color fidelity across different systems
+
+## Attribution
+
+This skill was imported from the public `anthropics/skills` repository under the Apache-2.0 license. Original content authored by Anthropic. Modifications by skillsgit: frontmatter normalization to fit marketplace spec, addition of attribution and sources sections. The original LICENSE and NOTICE files are preserved at the source repository.
+
+## Sources reviewed
+- https://github.com/anthropics/skills/tree/main/skills/brand-guidelines (Apache-2.0)

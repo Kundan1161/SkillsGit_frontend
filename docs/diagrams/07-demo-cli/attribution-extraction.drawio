@@ -1,0 +1,149 @@
+<mxfile host="app.diagrams.net" agent="skillsgit-arch" version="24.7.17" type="device">
+  <diagram name="attribution-extraction" id="skg-attr-extract">
+    <mxGraphModel dx="2400" dy="1600" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2600" pageHeight="3000" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <mxCell id="title" value="Consulted-neuron attribution extraction&#10;Source: apps/api/scripts/demo_devops_agent.py:_parse_consulted_block + _CONSULTED_FENCE_RE + _SYSTEM_PREAMBLE + _print_consulted_table" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=none;fontSize=16;fontStyle=1;align=left;" vertex="1" parent="1">
+          <mxGeometry x="40" y="20" width="2400" height="50" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== 1. Contract ===== -->
+        <mxCell id="g-contract" value="1. System-prompt contract (CLI → Claude)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;verticalAlign=top;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="90" width="1240" height="440" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-SC1" value="SC1: _SYSTEM_PREAMBLE includes:&#10;'After your prose answer, append a&#10;fenced block exactly like this ...'" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="60" y="130" width="380" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-SC2" value="SC2: Example block (literal in the preamble):&#10;fence consulted&#10;domains/ci-cd/devops-ci-pipeline-architect.md&#10;personas/jane-devops-demo/incident-veteran/&#10;neurons/2024-08-flaky-tests-after-redis-upgrade.md&#10;fence end" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="460" y="130" width="400" height="160" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-SC3" value="SC3: Rules:&#10;- One vault_path per line, no whitespace&#10;- Use ONLY paths from the neuron index&#10;- 1-8 paths&#10;- Do NOT include the block before prose" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="880" y="130" width="380" height="160" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-SC4" value="SC4: Neuron index (one line per file):&#10;'- (kind) vault_path: summary'&#10;(sorted alphabetically by vault_path&#10;for determinism)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="60" y="310" width="1200" height="120" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== 2. LLM response ===== -->
+        <mxCell id="g-resp" value="2. Claude's response (raw)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fce7f3;strokeColor=#be185d;verticalAlign=top;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1320" y="90" width="1240" height="440" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-R1" value="R1: Prose answer&#10;(markdown — covers the user's question,&#10;may freely reference vault_paths in prose)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#be185d;" vertex="1" parent="1">
+          <mxGeometry x="1340" y="130" width="1200" height="140" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-R2" value="R2: fence consulted&#10;domains/ci-cd/devops-ci-pipeline-architect.md&#10;personas/jane-devops-demo/incident-veteran/neurons/2024-08-...md&#10;fence end" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#be185d;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1340" y="290" width="1200" height="200" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== 3. Regex ===== -->
+        <mxCell id="g-regex" value="3. _parse_consulted_block(raw_text)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;verticalAlign=top;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="570" width="2520" height="640" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-RX1" value="RX1: _CONSULTED_FENCE_RE = re.compile pattern matches&#10;triple-backtick consulted block&#10;flags: re.DOTALL or re.IGNORECASE" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="60" y="610" width="640" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-RX2" value="RX2: match = _CONSULTED_FENCE_RE.search(raw_text)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="720" y="610" width="640" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-RX3" value="RX3: match is None?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="720" y="690" width="640" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-RX3Y" value="RX3Y: return (raw_text.strip(), [])&#10;(no attribution provided —&#10;not a hard error; renderer&#10;shows a friendly warning)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="1400" y="690" width="540" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-RX4" value="RX4: body = match.group('body')" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="60" y="830" width="640" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-RX5" value="RX5: for line in body.splitlines():&#10;strip whitespace, lstrip leading dashes,&#10;strip backticks and quotes,&#10;append non-empty to paths" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="720" y="830" width="640" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-RX6" value="RX6: prose = raw_text before match + raw_text after match&#10;(strip the fenced block from prose)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="60" y="970" width="1300" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-RX7" value="RX7: return (prose, paths)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="60" y="1080" width="1300" height="80" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== 4. Manifest intersection ===== -->
+        <mxCell id="g-inter" value="4. Manifest intersection (validates each path)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;verticalAlign=top;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="1250" width="2520" height="480" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-IN1" value="IN1: lookup = _load_vault_lookup(composed_zip)&#10;keys: every vault.json files[].vault_path" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="60" y="1290" width="600" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-IN2" value="IN2: known: list[str] = []&#10;unknown: list[str] = []" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="680" y="1290" width="600" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-IN3" value="IN3: for p in reply.consulted_paths:&#10;if p in lookup: known.append(p)&#10;else: unknown.append(p)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="1300" y="1290" width="600" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-IN4" value="IN4: Why drop unknowns from the table:&#10;Claude can hallucinate paths. The CLI&#10;refuses to attribute work to a file&#10;that does not exist in the buyer's&#10;composed vault." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="60" y="1420" width="2480" height="120" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== 5. Renderer ===== -->
+        <mxCell id="g-render" value="5. _print_consulted_table(known, lookup)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;verticalAlign=top;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="1770" width="2520" height="600" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-RN1" value="RN1: For each known path:&#10;rec = lookup[p] = (vault_path, kind,&#10;creator_handle, version)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="60" y="1810" width="600" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-RN2" value="RN2: Compute column widths from row data&#10;(tight-fit table — ASCII only —&#10;no Unicode box characters for&#10;Windows cp1252 console safety)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="680" y="1810" width="600" height="140" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-RN3" value="RN3: Header row:&#10;vault_path - kind - creator - version&#10;(dashes underline)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="1300" y="1810" width="600" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-RN4" value="RN4: Data rows aligned to widths." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="1920" y="1810" width="620" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-RN5" value="RN5: After table — if unknown[]:&#10;'(Claude also cited N unknown&#10;path(s) — dropped from the table):'&#10;+ bullet list of unknown paths" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="60" y="2160" width="2480" height="160" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== 6. Final assembly ===== -->
+        <mxCell id="g-asm" value="6. Final stdout assembly" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0EA5E9;strokeColor=#0369A1;verticalAlign=top;fontSize=14;fontStyle=1;fontColor=#FFFFFF;" vertex="1" parent="1">
+          <mxGeometry x="40" y="2410" width="2520" height="280" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-AS1" value="AS1: -- Answer --&#10;{answer_md}&#10;(prose only — consulted block stripped)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#0369A1;" vertex="1" parent="1">
+          <mxGeometry x="60" y="2450" width="800" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-AS2" value="AS2: -- Consulted neurons --&#10;{table}" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#0369A1;" vertex="1" parent="1">
+          <mxGeometry x="880" y="2450" width="800" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-AS3" value="AS3: -- Model: claude-sonnet-4-6&#10;input_tokens=N output_tokens=M --" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#0369A1;" vertex="1" parent="1">
+          <mxGeometry x="1700" y="2450" width="840" height="120" as="geometry"/>
+        </mxCell>
+
+        <!-- Edges -->
+        <mxCell id="e-1" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-SC1" target="n-SC2"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-2" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-SC1" target="n-SC3"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-3" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-SC1" target="n-SC4"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-4" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-R1" target="n-R2"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-5" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-R2" target="n-RX1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-6" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-RX1" target="n-RX2"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-7" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-RX2" target="n-RX3"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-8" value="yes" style="endArrow=classic;html=1;fontStyle=1;" edge="1" parent="1" source="n-RX3" target="n-RX3Y"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-9" value="no" style="endArrow=classic;html=1;fontStyle=1;" edge="1" parent="1" source="n-RX3" target="n-RX4"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-10" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-RX4" target="n-RX5"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-11" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-RX5" target="n-RX6"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-12" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-RX6" target="n-RX7"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-13" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-RX7" target="n-IN1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-14" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-IN1" target="n-IN2"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-15" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-IN2" target="n-IN3"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-16" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-IN3" target="n-IN4"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-17" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-IN3" target="n-RN1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-18" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-RN1" target="n-RN2"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-19" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-RN2" target="n-RN3"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-20" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-RN3" target="n-RN4"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-21" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-RN4" target="n-RN5"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-22" value="prose" style="endArrow=classic;html=1;dashed=1;" edge="1" parent="1" source="n-RX6" target="n-AS1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-23" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-RN5" target="n-AS2"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-24" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-AS2" target="n-AS3"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

@@ -1,0 +1,274 @@
+---
+id: skillsgit-curated/support-kb-article-synthesizer
+version: 1.0.0
+name: Support KB Article Synthesizer
+description: Turn a resolved ticket thread into a publishable knowledge-base article — Problem, Cause, Solution, Workarounds, Related — in your help center's voice, with a strong title and searchable keywords.
+authors:
+  - name: skillsgit Curated
+    handle: skillsgit-curated
+    role: author
+category: customer-support
+tags: [support, knowledge-base, documentation, help-center, deflection, kb, article]
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6, claude-haiku-4-5, gpt-4o]
+  tools_required: []
+  tools_optional: []
+  min_context_tokens: 16000
+  estimated_tokens_per_invocation: 4000
+trigger_keywords:
+  - write a kb article
+  - turn this ticket into documentation
+  - help center article
+  - knowledge base article from ticket
+  - publish this resolution
+  - deflection article
+  - faq from support thread
+  - synthesize kb article
+  - article draft from resolved ticket
+  - support article writer
+  - kb entry
+  - help article generator
+example_invocations:
+  - "Turn this resolved ticket thread into a help-center article."
+  - "Write a KB article from the chat transcript so the next person can find it."
+  - "Synthesize an FAQ entry from these three similar tickets."
+inputs:
+  - name: ticket_thread
+    type: text
+    required: true
+    description: One or more resolved ticket threads, transcripts, or summaries that describe the problem and how it was solved.
+  - name: audience
+    type: choice
+    required: false
+    description: Who reads the article. Adjusts vocabulary and depth.
+    choices: [end-user, admin, developer, support-agent-internal, mixed]
+  - name: product_context
+    type: text
+    required: false
+    description: A short note about the product, the surface (web, mobile, API), and any naming conventions to honor.
+  - name: house_style
+    type: text
+    required: false
+    description: Voice, sentence-length norms, person ("we"/"you"/"the user"), and any forbidden words.
+  - name: existing_articles
+    type: text
+    required: false
+    description: Titles or summaries of existing KB articles to avoid duplicating and to link to as "Related" entries.
+outputs:
+  - name: article_markdown
+    type: markdown
+    description: A complete KB article with title, metadata block, sections (Problem, Cause, Solution, Workarounds, Related), and a short summary suitable for search snippets.
+  - name: article_metadata
+    type: json
+    description: Title, slug, summary, audience, suggested tags, search keywords, related slugs, and a "freshness" hint (when the article should be reviewed again).
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Initial release.
+---
+
+# Support KB Article Synthesizer
+
+## When to use
+
+Use this skill when a ticket has been resolved and the resolution is worth keeping for the next person who hits the same problem. The intent is deflection: convert a one-off conversation into an article that a future searcher (customer or agent) finds in the help center and uses without filing a ticket.
+
+Good triggers: a tricky setup workflow that took back-and-forth to nail, a non-obvious cause for a common symptom, a known workaround for a defect that will not be fixed soon, a change in product behavior that prompts a wave of similar questions, or a recurring billing question whose answer is stable enough to publish. Even better: when three or more tickets in the last month share a symptom, the agent should be invoked across all three threads at once so the article reflects more than a single customer's framing.
+
+Skip the skill for: tickets whose resolution depended on customer-specific data (account-specific edge case), tickets whose "fix" was actually a one-off operator action that should not be advertised, and tickets where the resolution is "we shipped a fix and the symptom no longer occurs" — those become release notes or postmortems, not KB articles.
+
+## How to apply
+
+The skill produces a single output: a publishable KB article. The work is in not producing a low-quality one. Run the following steps in order.
+
+1. **Read every thread end-to-end.** Resist summarizing while reading. The temptation to extract bullet points as you scan loses the second-order reasons the resolution worked — and those second-order reasons are usually what the article needs to convey.
+
+2. **Identify the actual problem.** Strip the customer's first framing if a better framing emerged during the conversation. "Reports aren't exporting" might really be "PDF exports fail when the workspace has more than 500 rows and a date filter applied." Lead with the precise problem, not the original symptom, but mention the original symptom in keywords so search still finds it.
+
+3. **Identify the cause.** Be honest about depth. There are three useful levels:
+   - **Surface cause** — what the system did (e.g. "the PDF renderer timed out").
+   - **Underlying cause** — why the system did that (e.g. "the renderer's memory budget didn't account for tables over 500 rows").
+   - **Contributing factors** — things that made the cause more likely to be hit (e.g. "users on the new dashboard hit this more because of the wider default date range").
+
+   For most articles, surface plus underlying is the right depth. Contributing factors belong only when they affect the user's behavior (e.g. "applying a tighter date range prevents this").
+
+4. **Identify the solution.** A KB solution has three properties:
+   - It is specific enough that someone can follow it without further questions.
+   - It does not depend on internal-only knowledge (no internal tool names, no engineer's first names, no Slack channels).
+   - It is reproducible — anyone reading should arrive at the same outcome.
+
+   If the resolution in the ticket was "support team toggled a backend flag for the customer," that is not a publishable solution. Translate it: either document the user-facing way to achieve the same outcome, or, if there is no user-facing way, write a workaround and a clear "contact support" call-to-action.
+
+5. **Identify workarounds.** Workarounds are the second-most-valuable thing in a KB article (after the solution itself). They are also the most-skipped section, which is a mistake. Workarounds exist for two situations:
+   - The solution is being worked on and is not yet shipped.
+   - The solution exists but is gated (paid plan, specific permission, region).
+
+   Document workarounds even if they feel embarrassing. A customer would rather see "export to CSV and convert" in the article today than wait two weeks for the official fix.
+
+6. **Identify related articles.** Use `existing_articles` if provided. Otherwise list the related topics the article should be linked to once a human reviewer maps them: parent feature documentation, sibling articles for adjacent symptoms, FAQ entries for the broader category. Do not invent slugs; surface "Related: [export], [permissions]" as topic hints if real slugs are unavailable.
+
+7. **Write the title.** A KB title has three jobs at once: surface in search, set context within five words, and disambiguate from sibling articles. Heuristics:
+   - Lead with the symptom or task, not the product feature. "Why aren't my reports exporting" beats "About the export engine."
+   - Use the user's words, not the team's words. If users say "invoice" and the product UI says "billing statement," prefer "invoice" or include both.
+   - Avoid clickbait framing ("The surprising reason..."). Help-center readers are mid-task and resent it.
+   - Aim for 5-10 words. Two-word titles under-disambiguate; titles over 12 words read as headlines, not entries.
+
+8. **Pick the audience.** The `audience` input drives vocabulary, assumed prior knowledge, and tone:
+   - **end-user**: shortest sentences, no command-line, no jargon. Define any internal-feeling term inline.
+   - **admin**: assume product-admin literacy; permissions, settings, and webhooks are fair game.
+   - **developer**: API names, code blocks, status codes, and request examples are expected.
+   - **support-agent-internal**: more candid; internal tool references allowed if they materially help; mark the article as internal in metadata.
+   - **mixed**: write for end-user as the floor and add a small "for admins/developers" callout if needed.
+
+9. **Apply house style.** If `house_style` was provided, treat as constraints. Common ones to watch:
+   - Person: "you" is conversational and almost always right for end-user articles. "The user" is for product specs, not KB.
+   - Sentence length: most teams converge on 12-22 words per sentence; bias short.
+   - Forbidden words: respect the list. The most commonly forbidden phrases in mature help-center voice guides are "simply," "just," "easily," and "obviously" — all of which condescend to readers who, by definition, did not find it simple.
+
+10. **Structure the article.** Use this skeleton; deviate only with reason:
+    - **One-sentence summary** at the top (also used as the meta-description for search snippets).
+    - **Problem** — what symptom the reader is searching for, stated in their words.
+    - **Cause** — short, honest explanation. Do not pretend to know more than the team does. If the cause is genuinely unknown, say "We are still investigating the underlying cause" and continue to the solution or workaround.
+    - **Solution** — numbered steps if procedural; prose if conceptual. Bias toward steps.
+    - **Workarounds** — only if applicable. Heading is plural even with one item, for SEO.
+    - **Related** — three to five links or topic hints.
+
+11. **Write the summary last, not first.** A summary written after the article is grounded in what the article actually says; a summary written first tends to over-promise and forces the body to chase it.
+
+12. **Search-optimize without keyword-stuffing.** Two principles:
+    - Use the customer's words at least once in the body verbatim. The phrase that brought them to the article should appear in the article.
+    - Include synonyms naturally in surrounding prose, not in a hidden "keywords" paragraph. The `article_metadata.search_keywords` field captures additional terms for the help-center's search index.
+
+13. **Inline product names sparingly.** Repeating the product name in every paragraph reads as marketing. Use it in the title and the first paragraph; after that, generic terms ("the dashboard," "the export feature") are fine.
+
+14. **Use code blocks for code and only for code.** A common failure mode is using code-block formatting for UI labels (`Settings > Billing`) — that is a UI-path convention, not code. Prefer `Settings > Billing` formatted as inline italics or bold per house style.
+
+15. **Show, not tell, for visual workflows.** When the resolution involves a multi-step UI flow, write the steps as text and mark "(screenshot here)" placeholders for the human reviewer to fill. Do not invent screenshots; do not pretend the agent rendered an image. A placeholder is honest and gets filled in editing.
+
+16. **Honesty and humility.** Several anti-patterns to refuse:
+    - Do not write "in rare cases" if the source tickets indicate the issue is common; the customer reading the article is one of those cases and the wording is alienating.
+    - Do not promise that the underlying bug "will be fixed soon" unless the source material explicitly says so.
+    - Do not include legal claims, compliance assertions, or refund policies in a KB article. Those belong in policy docs.
+    - Do not include the customer's name, account ID, or any identifying detail from the source threads in the published article.
+
+17. **PII and confidentiality scrub.** Pass the draft through a final check before emitting:
+    - Strip names, email addresses, account IDs, organization names, screenshots that contain identifying UI.
+    - Strip references to specific internal teammates by name.
+    - Strip references to internal tools, jira tickets, or feature flags that are not customer-visible.
+    - If a screenshot placeholder was used, append a note in the metadata that screenshots need PII scrub before publish.
+
+18. **Set a freshness hint.** In metadata, emit a `review_in_days` value:
+    - 30 for articles that document an active workaround for an unfixed bug.
+    - 90 for articles about recently-shipped features.
+    - 180 for stable how-to content.
+    - 365 for foundational conceptual articles.
+    Help centers without a review cadence rot. Surfacing a target review date is cheap insurance.
+
+19. **Self-check before returning.**
+    - Does the title match what the customer originally typed into search? If not, adjust.
+    - Are the Solution steps complete enough that an unaided reader can follow them?
+    - Do the Workarounds appear when applicable and are they actually workable?
+    - Is the audience and vocabulary consistent throughout? (No mid-article slip from `you` to `the user`.)
+    - Are there any internal-only references that slipped through scrub?
+
+20. **Return two outputs.** The `article_markdown` is the publishable draft. The `article_metadata` is the structured fields the help-center CMS expects on import: title, slug, summary, audience, tags, search_keywords, related_slugs, review_in_days, status (default "draft"), and notes.
+
+## Inputs
+
+- `ticket_thread` (required) — one or more resolved threads. Multiple threads should be passed when synthesizing across recurring tickets; the agent triangulates the problem statement across them.
+- `audience` (optional, choice) — defaults to `end-user` if omitted.
+- `product_context` (optional, text) — short note about product, surface, naming.
+- `house_style` (optional, text) — voice and style constraints.
+- `existing_articles` (optional, text) — titles or summaries of nearby KB entries; the agent avoids duplicating these and proposes them as "Related."
+
+## Outputs
+
+- `article_markdown` (markdown) — full KB article: title, one-sentence summary, Problem / Cause / Solution / Workarounds / Related sections. Includes screenshot placeholders where applicable.
+- `article_metadata` (JSON) — fields: `title`, `slug`, `summary`, `audience`, `tags`, `search_keywords`, `related_slugs`, `review_in_days`, `status`, `notes`. The `notes` field surfaces any human-review actions (PII scrub of screenshots, fact-check of cause section, mapping of related_slugs).
+
+## Examples
+
+### Example 1 — single resolved ticket about export failure
+
+**Input ticket_thread (resolved):**
+
+> Customer: PDF export hangs forever for me — never completes.
+> Support: Hi — we tracked this to an issue with PDF exports when the report has over 500 rows and a date filter is applied. Workaround for now: switch to CSV export (in the same Export menu) and convert externally. We've shipped a fix for the underlying timeout; you should see PDF working again by end of week.
+> Customer: That worked, thanks.
+
+**Input audience:** `end-user`
+
+**Output article_markdown (excerpt):**
+
+```
+# Why a PDF export never finishes
+
+Some PDF exports time out silently — the button spins and no file downloads. This article explains when it happens and how to work around it.
+
+## Problem
+You click **Export as PDF** on a report. The button shows a loading state for around 30 seconds, then nothing happens — no file, no error.
+
+## Cause
+PDF exports can time out when a report contains more than 500 rows and a date filter is applied at the same time. The render exceeds its time budget and silently aborts.
+
+## Solution
+We shipped a fix for the underlying timeout. If you're still seeing the issue after refreshing the page, follow the workaround below and let us know.
+
+## Workarounds
+1. Open the same report.
+2. Click **Export** and choose **CSV** instead of **PDF**.
+3. Open the CSV in your spreadsheet tool and export from there as PDF if needed.
+
+Tightening the date range to fewer rows also avoids the timeout if PDF is required directly from the product.
+
+## Related
+- Exporting reports overview
+- Report performance and row limits
+```
+
+**Output article_metadata (excerpt):**
+
+```json
+{
+  "title": "Why a PDF export never finishes",
+  "slug": "pdf-export-never-finishes",
+  "summary": "PDF exports can time out on large reports with a date filter. Use CSV export or tighten the range as a workaround.",
+  "audience": "end-user",
+  "tags": ["export", "pdf", "reports"],
+  "search_keywords": ["pdf export hangs", "export stuck", "report won't download", "csv workaround"],
+  "related_slugs": [],
+  "review_in_days": 90,
+  "status": "draft",
+  "notes": "Confirm fix shipped before publishing. Replace 'we shipped a fix' with current state if not yet released."
+}
+```
+
+### Example 2 — synthesizing across three billing tickets
+
+When multiple ticket_threads describe variants of "I was charged twice this month," the article should reflect the canonical cause (delayed retry from a failed initial charge that succeeded later) rather than any single customer's framing. The Problem section should lead with the symptom phrase customers actually use ("I was charged twice"), the Cause should explain the retry behavior plainly, the Solution should describe how to check whether the second charge is real or pending-reversed, and the Workarounds section should describe how to request a manual reversal. The article should not mention any of the three customers by name or account.
+
+## Limitations
+
+- Article quality depends on the resolution being actually correct. If the source ticket resolved by accident (issue self-resolved, customer stopped responding), the synthesized article will document a non-solution. The agent should flag low-confidence Cause sections in `notes` so a human verifies before publishing.
+- Multi-thread synthesis works well for 2-5 related threads. Past that, the variance in framing typically requires a human to pick the canonical problem statement. The skill will still produce an article but bias toward the most-recent thread; flag in `notes`.
+- The skill does not check whether a similar article already exists in the help center unless `existing_articles` is supplied. A complete duplicate-detection step would require help-center API access, which is out of scope.
+- Screenshot placeholders are honest stubs, not generated images. Articles that depend on screenshots for clarity should not be published until the placeholders are filled by a human editor.
+- The skill does not translate. Multilingual help centers need an additional translation pass after the source-language article is published; the metadata `notes` field will flag this when the source thread was in a non-English language.
+- KB articles age. Even with a `review_in_days` hint, the team needs a process to actually review. The skill cannot enforce that.
+
+## Sources reviewed
+
+The methodology synthesized here was informed by public, permissively-licensed knowledge-base and help-center repositories. No documentation was reproduced.
+
+- https://github.com/BookStackApp/BookStack
+- https://github.com/facebook/docusaurus
+- https://github.com/chatwoot/chatwoot
+- https://github.com/helpyio/helpy
+- https://github.com/polonel/trudesk
+- https://github.com/papercups-io/papercups
+- https://github.com/deepset-ai/haystack

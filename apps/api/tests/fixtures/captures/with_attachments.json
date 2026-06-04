@@ -1,0 +1,28 @@
+{
+  "name": "with_attachments",
+  "description": "Session references 2 S3 attachment keys (uploaded via the multipart endpoint).",
+  "title": "Blue/green rollback at 3am",
+  "situation_md": "Our blue/green deploy started routing traffic to the new fleet at 02:45 UTC. Five percent of requests immediately returned 502s; the new fleet had a misconfigured upstream timeout that only manifested under real prod load.",
+  "decision_md": "I executed the rollback within 12 minutes — flipped the LB back to the old fleet, then rolled the new fleet's deploy. Then I documented every step in a public runbook so the next person can hit the button without an oncall escalation.",
+  "outcome_md": "Customer-visible impact: 15 minutes of partial 502s. The new runbook has been used three times since with no SEV escalation.",
+  "context_md": "Cloud: AWS. LB: ALB. Old fleet: m5.xlarge x 12. New fleet: m6i.large x 16.",
+  "attachments": [
+    {
+      "filename": "alb-graphs-pre-rollback.png",
+      "content_type": "image/png",
+      "size_bytes": 12345,
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    {
+      "filename": "runbook-rollback.md",
+      "content_type": "text/markdown",
+      "size_bytes": 4321,
+      "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    }
+  ],
+  "candidate_link_targets": [
+    "base/incident-response/ops-incident-commander",
+    "base/incident-response/ops-runbook-generator"
+  ],
+  "expected_pii_severities": []
+}

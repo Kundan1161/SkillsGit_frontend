@@ -1,0 +1,258 @@
+---
+id: skillsgit-curated/data-dbt-model-reviewer
+version: 1.0.0
+name: dbt Model Reviewer
+description: Audits a dbt project — or a single proposed model — for naming, ref/source usage, materialization fit, test coverage, documentation, and DAG health. Returns a ranked findings list with concrete fixes.
+authors:
+  - name: skillsgit Curated
+    handle: skillsgit-curated
+    role: author
+category: data
+tags: [dbt, code-review, sql, lint, data-quality, testing, documentation, analytics-engineering]
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6, gpt-4o]
+  tools_required: []
+  tools_optional: [code_execution]
+  min_context_tokens: 32000
+  estimated_tokens_per_invocation: 8000
+trigger_keywords:
+  - dbt review
+  - dbt model
+  - audit dbt
+  - dbt best practices
+  - dbt project structure
+  - dbt naming
+  - dbt tests
+  - sqlfluff
+  - dbt-project-evaluator
+  - dbt lint
+  - analytics engineering review
+  - dag review
+  - dbt documentation
+example_invocations:
+  - "Review this dbt model SQL before I merge it."
+  - "Audit my dbt project against community best practices."
+  - "Find the test-coverage gaps in my marts layer."
+  - "Why does this model feel wrong? Here's the SQL and the schema.yml."
+inputs:
+  - name: dbt_model_sql
+    type: text
+    required: false
+    description: A single model's SQL (the contents of a .sql file). Provide this for a single-model review.
+  - name: schema_yml
+    type: text
+    required: false
+    description: The relevant schema.yml fragment with tests, descriptions, and column definitions.
+  - name: dbt_project_yml
+    type: text
+    required: false
+    description: The dbt_project.yml file. Useful for full-project audits to evaluate materialization defaults and folder configs.
+  - name: dag_listing
+    type: text
+    required: false
+    description: A list of model file paths (e.g. output of `find models -name "*.sql"`) for full-project structure review.
+  - name: review_scope
+    type: choice
+    required: true
+    description: Whether to review a single model or the whole project.
+    choices: [single-model, whole-project]
+outputs:
+  - name: findings
+    type: markdown
+    description: Numbered findings each tagged with severity (blocker / major / minor / nit) and category.
+  - name: suggested_fixes
+    type: markdown
+    description: Concrete code or YAML changes for each finding.
+  - name: coverage_summary
+    type: markdown
+    description: For project-scope reviews, a coverage table for tests, descriptions, and materialization fit.
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Initial release.
+---
+
+## When to use
+
+Use this skill in any of the following situations:
+
+- A pull request adds or modifies a dbt model and the author wants a second pair of eyes before merging.
+- A team is onboarding a new dbt project and wants a baseline audit to plan refactoring work.
+- Production data quality issues trace back to a model and the team wants to know whether the model itself is at fault (missing tests, wrong materialization, bad ref).
+- A team is migrating dbt versions and wants to surface deprecated patterns.
+- A reviewer wants the same checks SQLFluff, dbt-checkpoint, and dbt-project-evaluator perform, but framed as a narrative review with prioritized fixes.
+
+Do not use this skill to design a new dbt project from scratch — pair it with the dimensional design skill for that. Do not use it for performance tuning of a specific warehouse engine (it flags obviously inefficient patterns but does not produce engine-specific execution plans).
+
+## How to apply
+
+Work the checks in the order below. The order matters: early checks catch problems that make later checks meaningless (a model that references a non-existent source has bigger problems than its column naming).
+
+### 1. Establish scope and read everything once
+
+1. **Confirm the review scope.** If the user provided one SQL file, this is a single-model review. If they provided `dbt_project.yml` and a model listing, this is a project review. If both, do the single-model review first and then the project review.
+2. **Read every provided file completely before commenting.** Do not start emitting findings while still reading. Build a mental model of the project shape first.
+3. **Note the dbt version and the adapter.** Look for clues in `dbt_project.yml` (`require-dbt-version`), in macros (`adapter.dispatch`), and in the SQL (Snowflake `QUALIFY`, BigQuery `STRUCT`, Postgres `::` casts). Findings that depend on adapter behavior must be flagged as adapter-specific.
+4. **Identify the project's layer convention.** Most projects use staging / intermediate / marts (or staging / intermediate / fct+dim). Note the actual folder names so findings reference them correctly.
+
+### 2. Source and ref hygiene
+
+5. **Reject `from raw.schema.table` literals.** Every reference to a raw source must go through `{{ source('source_name', 'table_name') }}`. Every reference to another model must go through `{{ ref('model_name') }}`. Bare table names break the DAG, dev/prod separation, and `dbt run --select +model`.
+6. **Reject `ref()` to a staging model from a non-staging-adjacent model.** Only staging models should `source()`. Intermediate and mart models should `ref()` other models, never sources. If a mart model references a source directly, it has a staging gap — flag and recommend creating the staging layer.
+7. **Watch for circular references.** If model A refs B and B refs A (possibly through an intermediate), the DAG is broken. Trace the ref graph manually for any suspicious chain.
+8. **Watch for orphan models.** A model that is never `ref`ed from anywhere and is not exposed via `exposures` is a candidate for deletion or for promotion to a documented exposure.
+9. **Watch for fan-in sources.** A source table referenced by more than one staging model duplicates effort and risks divergent definitions. Recommend a single staging model per source table.
+
+### 3. Layer discipline
+
+10. **Staging models should be thin.** A staging model's responsibilities are: rename columns to the project's casing convention, cast types to canonical types, light cleanup (trim, null defaulting), and surface columns. It should not aggregate, join, or filter business logic. Flag staging models that contain `GROUP BY` (other than for deduplication) or non-staging joins.
+11. **Intermediate models should be reusable.** An intermediate that is referenced by only one downstream model is a candidate to be inlined as a CTE. Conversely, complex logic repeated across mart models should be extracted into an intermediate.
+12. **Mart models should be business-facing.** They expose facts and dimensions or wide aggregate tables consumed by BI tools. They should have clear grain, descriptive column names, and complete documentation.
+13. **Flag layer-skipping joins.** A mart joining directly to staging (skipping intermediate) is acceptable if no intermediate transformation is needed, but if the join logic is non-trivial, recommend extracting an intermediate.
+
+### 4. Naming
+
+14. **Check file-name consistency.** Staging files: `stg_<source>__<entity>.sql`. Intermediate: `int_<entity>__<verb>.sql` (e.g., `int_orders__joined`). Marts: `fct_<event>.sql` and `dim_<entity>.sql`, or `<entity>__<period>.sql` for aggregates. Note deviations as nits — projects that are internally consistent get a pass even if their convention differs from the canonical one.
+15. **Check column casing.** All columns should be snake_case. Mixed-case or camelCase columns are a finding.
+16. **Check key column naming.** Surrogate keys end in `_sk` or `_id` consistently. Booleans start with `is_`, `has_`, or `was_`. Timestamps end in `_at`, dates in `_date`. Inconsistencies are minor findings; the project's own convention takes precedence.
+17. **Check model-name pluralization.** Pick singular or plural and stick with it project-wide. Mixed is a finding.
+18. **Reject reserved-word column names** without explicit quoting (`order`, `user`, `type`). They cause portability problems and are blockers in some adapters.
+
+### 5. SQL quality
+
+19. **Flag `SELECT *` in non-staging models.** Staging models that select all columns from a source are acceptable (and even encouraged for column drift detection); anywhere else, `SELECT *` is a finding because it makes downstream impact analysis impossible.
+20. **Flag implicit joins.** Comma-separated `FROM a, b WHERE a.id = b.a_id` is a blocker. Use explicit `JOIN` syntax.
+21. **Flag joins without `ON` clauses** (cartesian products) unless the model explicitly comments that the cross product is intentional.
+22. **Flag missing `WHERE` clauses on incremental models.** An incremental model that re-selects the full source on every run is not actually incremental. The model body must reference `is_incremental()` and a high-water-mark column.
+23. **Flag string concatenation for surrogate keys.** Use `dbt_utils.generate_surrogate_key(['col1', 'col2'])` or its equivalent; ad-hoc `col1 || '-' || col2` is fragile to NULL handling.
+24. **Flag `DISTINCT` used to mask duplicate-row bugs.** A `DISTINCT` at the top of a CTE usually indicates a join produced fan-out that the author didn't understand. Ask the reviewer to confirm the join cardinality.
+25. **Flag CTEs named `tmp`, `t1`, `subq`.** CTEs are named for readability; meaningless names defeat the purpose.
+26. **Recommend lowercase keywords if the project mixes cases.** Pick one and apply consistently. SQLFluff-style projects favor lowercase keywords; some teams prefer uppercase. The finding is consistency, not the choice itself.
+27. **Flag `NOT IN` against nullable columns.** It silently returns zero rows when any value on the right side is NULL. Recommend `NOT EXISTS` or an explicit NULL filter.
+28. **Flag `BETWEEN` on dates that crosses time-zone boundaries** without an explicit cast to a canonical zone.
+29. **Flag `DATEDIFF` / `DATE_DIFF` confusion across adapters.** Snowflake, BigQuery, and Redshift differ on argument order. Recommend dbt_utils macros or explicit comments.
+
+### 6. Materialization fit
+
+30. **Inspect every model's materialization.** Default is `view`. Materializations are: `view`, `table`, `incremental`, `ephemeral`, `materialized_view` (adapter-specific), `snapshot`.
+31. **Recommend `view` for thin staging models** unless the source is so large that a view causes downstream query pain.
+32. **Recommend `table` for intermediate models** with non-trivial joins that are referenced multiple times. Views re-execute on every reference.
+33. **Recommend `incremental` for fact tables larger than ~10M rows** that grow append-only. Verify `unique_key`, `incremental_strategy` (`append`, `merge`, `delete+insert`), and the `is_incremental()` filter are all present.
+34. **Flag incremental models without a backfill plan.** If the source schema changes, the model must be `--full-refresh`-able. Note whether the model is idempotent.
+35. **Reject `ephemeral` for models that are referenced more than two or three times** — it inlines the SQL into every reference, multiplying query complexity.
+36. **Reject `materialized_view` on adapters that do not support it.** Verify by adapter.
+37. **Verify `snapshot` blocks for Type 2 SCD** are configured correctly: `strategy` is `check` or `timestamp`, `unique_key` is set, `target_schema` is explicit.
+
+### 7. Tests
+
+38. **Every model must have at least one test.** Minimum recommended: a `not_null` and `unique` (or `dbt_utils.unique_combination_of_columns`) on the grain key.
+39. **Every foreign-key column on a fact table must have a `relationships` test** pointing to its dimension.
+40. **Every enum-like column must have an `accepted_values` test.**
+41. **Every numeric measure should have a sanity test** (`dbt_utils.expression_is_true: "amount >= 0"` for revenue) — flag the absence as a minor finding.
+42. **Verify tests are `severity: error` for blockers and `severity: warn` for advisory checks.** Tests that silently warn on grain-key duplication are worse than no tests.
+43. **Look for `dbt-expectations` or `dbt_utils` macros** the project could use to replace hand-rolled tests. Flag duplication and recommend the macro.
+44. **Verify singular tests** (custom SQL test files) are well-named and have descriptions; an opaque `test_thing.sql` is a finding.
+45. **Verify freshness checks on sources.** Every source in `sources.yml` that drives a freshness-sensitive model should have a `freshness` block with `warn_after` and `error_after`.
+
+### 8. Documentation
+
+46. **Every model needs a `description`** in schema.yml that names the grain and the primary use case. "Customer table" is not a description; "One row per customer, current state, joined to the latest active subscription" is.
+47. **Every column on a mart model needs a description.** Staging and intermediate columns may inherit via `dbt-codegen` or be undocumented if the layer is internal — flag only if the project's standard says they should be documented.
+48. **Verify `doc()` blocks are used for reusable descriptions.** A column that means the same thing across five models should have one `doc()` referenced five times.
+49. **Verify `exposures` exist** for any model consumed by a BI tool, reverse-ETL job, or external report. Without exposures, lineage stops at the model.
+50. **Verify `meta` fields conform to project conventions.** Owners, PII flags, refresh SLAs — if `meta` is used inconsistently it defeats its own purpose.
+
+### 9. DAG health (project scope)
+
+51. **Compute the longest path through the DAG** mentally from the model listing. A path longer than 6-7 hops is a smell — it usually indicates intermediate models that exist just to wrap a `ref` rather than to add transformation.
+52. **Flag fan-out from a single source.** If 30 staging models all read from the same source table, the source has too many responsibilities or the staging layer is fragmented.
+53. **Flag fan-in to a single mart.** If a mart refs 25 upstream models, it's likely doing the job of several marts.
+54. **Identify rejoined models.** Model B refs A; model C refs both A and B. This is sometimes correct (different grain) and sometimes a sign that A's columns should have been carried forward through B. Inspect the join logic.
+55. **Identify "god models".** A single SQL file longer than ~400 lines, or referenced by more than 20 downstream models, is a maintainability risk.
+56. **Check folder-config alignment.** If `dbt_project.yml` configures `+materialized: table` for `marts/` but a model inside `marts/` overrides to view, the override should have a comment explaining why.
+
+### 10. Project-level hygiene
+
+57. **Check `dbt_project.yml`** for: `name`, `version`, `profile`, `model-paths`, `seed-paths`, `test-paths`, `macro-paths`, `analysis-paths`, `snapshot-paths`. Missing paths use defaults; inconsistencies are findings.
+58. **Check `packages.yml`** for outdated packages. Pin to a known-good version range; bare `master` references are blockers.
+59. **Check seeds.** Large seed files (>1000 rows) are a misuse of seeds; flag and recommend a proper source.
+60. **Check macros.** Macros without docstrings, macros that wrap a single SQL function with no abstraction value, and macros that duplicate `dbt_utils` are findings.
+61. **Check `.sqlfluffignore`, `.gitignore`.** `target/`, `dbt_packages/`, `logs/` must be ignored. Missing entries are blockers (they bloat the repo and leak environment-specific paths).
+
+### 11. Severity and output
+
+62. **Tag every finding with a severity:**
+    - **blocker** — must be fixed before merge or production deploy. Examples: broken DAG, unsanitized SQL injection in jinja, incremental model without is_incremental filter, missing grain-key unique test on a fact.
+    - **major** — should be fixed before merge. Examples: missing documentation on a mart, missing relationships test, `SELECT *` in a mart, layer-skipping join with non-trivial logic.
+    - **minor** — fix in a follow-up. Examples: naming inconsistencies, suboptimal materialization, missing `meta` field.
+    - **nit** — optional; style preferences. Examples: CTE name verbosity, keyword casing.
+63. **For each finding, include:** category, severity, file/line reference, what's wrong, why it's wrong (one sentence), suggested fix (concrete code or YAML snippet).
+64. **Rank findings by severity descending,** then by category. Do not interleave nits with blockers; reviewers scan top-to-bottom and the most important findings must be first.
+65. **For project-scope reviews, produce a coverage summary:**
+    - % of models with descriptions
+    - % of models with at least one test
+    - % of fact-table foreign keys with relationships tests
+    - % of mart columns with descriptions
+    - distribution of materializations (view / table / incremental / snapshot / ephemeral)
+    - top 5 longest models by line count
+    - top 5 most-referenced models
+66. **End with a "first three things to fix" recommendation.** Even with 80 findings, the user wants to know what to do first. Pick three blockers (or majors if no blockers exist) that will give the highest impact for the least effort.
+
+### 12. Tone and boundaries
+
+67. **Be specific and brief in each finding.** "This model has issues" is useless; "Line 47: `SELECT *` from `ref('stg_orders')` will silently propagate column additions to all downstream marts — replace with an explicit column list" is useful.
+68. **Do not invent project conventions.** If the project mixes singular and plural model names, note the inconsistency but do not declare a winner without input.
+69. **Do not rewrite the model wholesale.** Suggest the smallest diff that fixes each finding. A wholesale rewrite is a separate request.
+70. **Acknowledge what's good.** End the review with two or three things the project does well. This is not flattery; it confirms that the reviewer actually read the code and helps the author calibrate.
+
+## Inputs
+
+- `dbt_model_sql` and `schema_yml` for a single-model review.
+- `dbt_project_yml`, `dag_listing`, and as much SQL as is reasonable for a project review.
+
+## Outputs
+
+- Numbered findings with severity, file/line, what/why/fix.
+- Coverage summary table (project-scope only).
+- Top three priority recommendations.
+- Explicit list of things the project does well.
+
+## Examples
+
+**Single-model review example**
+
+> Input: A 60-line `stg_orders.sql` and the associated `schema.yml`.
+>
+> Expected output: 8-12 findings. Likely majors: missing `not_null` on `order_id`, missing `unique` on `order_id`, missing description on the model. Likely minors: keyword casing, CTE naming. Likely nits: alignment of column lists.
+
+**Whole-project review example**
+
+> Input: `dbt_project.yml`, a listing of 60 model paths, and the SQL for 10 representative models.
+>
+> Expected output: 30-50 findings ranked by severity, a coverage table showing 72% of models have at least one test and 41% of marts columns have descriptions, top three priorities (e.g., "1. Add `unique` tests to all 6 fact tables — fact_orders is currently producing duplicate rows in prod per a recent ticket. 2. Convert `int_customer_metrics` from view to table — it is referenced 14 times. 3. Document the four mart models that are exposed to Looker."), and three observed strengths.
+
+## Limitations
+
+- The reviewer reads SQL syntactically, not semantically. It can flag a `SELECT *` but cannot tell you whether the join produces the correct grain — that requires running the model against real data.
+- Adapter-specific subtleties (Snowflake's `MERGE` semantics versus Postgres's, BigQuery partitioning, Databricks Z-ORDER) are surfaced as advisory only; full performance tuning is out of scope.
+- The reviewer assumes the project uses dbt-core conventions. dbt Cloud-only features (semantic layer, MetricFlow specifics) are acknowledged but not deeply reviewed.
+- It cannot detect logical errors in business definitions (e.g., a `revenue` column that is gross when it should be net). The reviewer can flag missing tests around such columns; it cannot infer correctness.
+- For very large projects (>1000 models), full-project review will be approximate; ask the user to sample representative models per layer.
+
+## Sources reviewed
+
+The patterns and checks above were synthesized across the following permissively licensed projects. No prose was copied or closely paraphrased from any source.
+
+- https://github.com/dbt-labs/dbt-core
+- https://github.com/dbt-labs/dbt-utils
+- https://github.com/dbt-labs/dbt-project-evaluator
+- https://github.com/dbt-checkpoint/dbt-checkpoint
+- https://github.com/sqlfluff/sqlfluff
+- https://github.com/Data-Engineer-Camp/dbt-dimensional-modelling
+- https://github.com/Datavault-UK/automate-dv
+- https://github.com/dataform-co/dataform

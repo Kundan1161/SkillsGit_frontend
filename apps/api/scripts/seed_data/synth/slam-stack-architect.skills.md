@@ -1,0 +1,240 @@
+---
+id: skillsgit-curated/slam-stack-architect
+version: 1.0.0
+name: SLAM Stack Architect
+description: Design a SLAM stack for a target sensor suite — LiDAR/visual/inertial fusion, loop closure, graph optimization, drift mitigation, map persistence, multi-session.
+authors:
+  - name: Wave-3 Methodology Synthesis
+    handle: wave3-robotics
+    role: author
+category: robotics
+tags:
+  - niche:motion-planning
+  - slam
+  - lidar
+  - visual-slam
+  - vio
+  - loop-closure
+  - mapping
+license_type: free
+ai:
+  required_models:
+    - claude-opus-4-7
+    - claude-sonnet-4-6
+  compatible_models:
+    - gpt-4o
+    - gpt-4.1
+    - gemini-1.5-pro
+  min_context_tokens: 32000
+  tools_optional:
+    - web_search
+  estimated_tokens_per_invocation: 7500
+trigger_keywords:
+  - slam
+  - lidar slam
+  - visual slam
+  - vio
+  - cartographer
+  - rtabmap
+  - sensor fusion
+  - loop closure
+  - pose graph
+  - mapping
+example_invocations:
+  - "Design a SLAM stack for an indoor delivery robot with 2D LiDAR + IMU."
+  - "We have a stereo camera + IMU on a drone — which SLAM library?"
+  - "Multi-session map persistence for a warehouse fleet, how do we structure it?"
+  - "Our pose graph diverges after long loops; how do we mitigate drift?"
+inputs:
+  - name: platform
+    type: text
+    required: true
+    description: Platform class (indoor mobile base, outdoor wheeled, aerial, handheld, legged), motion profile, expected speed, compute budget.
+  - name: sensor_suite
+    type: text
+    required: true
+    description: Sensors available (2D/3D LiDAR with specs, mono/stereo/RGB-D cameras with specs, IMU class, wheel odometry, GNSS).
+  - name: environment
+    type: text
+    required: true
+    description: Indoor/outdoor, static or dynamic, feature-rich or feature-poor (corridors, glass, snow), expected map size, single or multi-session.
+  - name: requirements
+    type: text
+    required: false
+    description: Real-time vs offline mapping, localization-only vs full SLAM, accuracy target, map persistence and multi-robot sharing requirements.
+outputs:
+  - name: stack_design
+    type: markdown
+    description: Front-end / back-end / loop-closure / map representation design with library recommendations, drift-mitigation plan, persistence strategy, and validation harness.
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Initial release.
+---
+
+# SLAM Stack Architect
+
+## When to use
+
+Use this skill when a roboticist needs to **design a SLAM stack** (Simultaneous Localization and Mapping) for a specific sensor suite, platform, and environment. Typical triggers:
+
+- Choosing between LiDAR SLAM, visual SLAM, visual-inertial odometry, and tightly-coupled multi-sensor fusion.
+- Designing a loop-closure subsystem (place recognition, geometric verification, pose-graph back-end).
+- Deciding how to persist maps across sessions and share them across a fleet.
+- Diagnosing drift, divergence, or feature-poor failure modes in an existing stack.
+- Setting expectations on accuracy, compute, and operational envelope before committing to hardware.
+
+The skill does **not** write SLAM code. It maps platform + sensor + environment to a stack architecture and a small set of permissively licensed reference implementations.
+
+**Safety disclaimer (mandatory):** This skill produces methodology guidance. Robot motion-planning failures cause physical harm. Localization or mapping errors can cause collisions, navigation off cliffs, or loss of the robot. Every recommendation must be reviewed by qualified roboticists, validated in simulation, and bench-tested in a safe enclosure before any deployment near people or valuable property. Treat all advice as a starting point — never deployment-ready.
+
+## How to apply
+
+Work the steps in order. A SLAM stack assembled by picking each component independently will fail; the layers are tightly coupled.
+
+### Step 1 — Characterize the platform and motion
+
+- **Platform class.** Indoor wheeled, outdoor wheeled, aerial, legged, handheld, automotive.
+- **Motion profile.** Max linear/angular velocity, expected acceleration, vibration spectrum (legged and aerial systems are vibration-heavy and stress IMU integration).
+- **Compute budget.** Onboard CPU + GPU? Embedded ARM? Offboard? This sets the achievable front-end frame rate.
+- **Failure cost.** A handheld 3D-scanning rig that loses tracking is annoying. A delivery robot that loses localization in a busy aisle is dangerous. Calibrate paranoia accordingly.
+
+### Step 2 — Catalogue the sensor suite
+
+For each sensor, record:
+
+- **LiDAR.** 2D vs 3D, number of beams, range, accuracy, rotation rate, FOV, motion-distortion compensation requirements.
+- **Cameras.** Mono / stereo / RGB-D, resolution, frame rate, FOV, global vs rolling shutter, exposure control.
+- **IMU.** Consumer (MEMS) / tactical / industrial; bias stability, allan deviation, sample rate; rigid-body coupling to camera/LiDAR (this matters for calibration).
+- **Wheel odometry.** Encoder resolution, drift rate.
+- **GNSS.** Single, RTK, with/without heading.
+- **Calibration state.** Intrinsics measured? Extrinsics between sensors measured? Time-synchronization established (PTP / GPIO trigger / software sync)?
+
+**Calibration is non-negotiable.** Any plan that says "we'll calibrate later" is a plan that doesn't work.
+
+### Step 3 — Characterize the environment
+
+- **Indoor vs outdoor.** Outdoor SLAM benefits from GNSS priors and sky-aware filtering of moving objects. Indoor needs strong loop closure.
+- **Geometry richness.** Long corridors and warehouse aisles are degenerate for LiDAR-only SLAM (rank-deficient). Add IMU and visual features.
+- **Visual richness.** Featureless walls, glass, polished floors, dramatic lighting changes break pure visual SLAM. Add LiDAR or depth.
+- **Dynamics.** People and forklifts moving through the scene confuse data-association. Plan for dynamic object filtering (semantic mask, motion segmentation).
+- **Scale.** Tens of meters / hundreds of meters / kilometers. Larger scale demands sub-mapping and incremental back-end optimization (iSAM2, GTSAM, g2o).
+- **Single-session vs multi-session.** Persistent fleet operation requires a map server, map merging, and re-localization on startup.
+
+### Step 4 — Pick a front-end class
+
+Map sensor + environment to a front-end:
+
+| Sensor suite | Environment | Front-end class | Reference (license) |
+|---|---|---|---|
+| 2D LiDAR + IMU + wheel | Indoor, mostly static | Scan-matching (correlative + Ceres back-end) | Cartographer (Apache-2.0) |
+| 3D LiDAR + IMU | Indoor/outdoor, mixed | Direct LiDAR odometry with IMU pre-integration | LiDAR Odometry stacks (verify license per repo) |
+| Stereo + IMU | Outdoor, sufficient texture | Tightly-coupled VIO with sliding window | Kimera-VIO (BSD-2-Clause) |
+| RGB-D + IMU | Indoor, textured | RGB-D feature SLAM with loop closure | RTAB-Map (BSD) |
+| Multi-sensor heterogeneous | General, complex | Modular graph SLAM with pluggable front-ends | RTAB-Map (BSD) |
+| 2D/3D LiDAR + RGB-D + IMU + wheel + GNSS | Outdoor + indoor | RTAB-Map with mixed odometry | RTAB-Map (BSD) |
+
+Note: ORB-SLAM3 is the most-cited visual-inertial SLAM in research but is **GPLv3** — not compatible with proprietary/marketplace use. This skill recommends Kimera-VIO and RTAB-Map for permissive-license deployments. Re-verify any library's license before vendoring.
+
+### Step 5 — Design the back-end
+
+- **Pose graph vs bundle adjustment.** Pose-graph back-ends (Cartographer, RTAB-Map) are cheaper and scale to longer sessions. Full bundle adjustment is more accurate but slower; appropriate for offline reconstruction or sliding-window VIO.
+- **Incremental solvers.** For long-running operation, use iSAM2-style incremental smoothing rather than batch re-solves.
+- **Robust kernels.** Use Huber or Cauchy kernels on loop-closure residuals; outlier loop closures are catastrophic.
+- **Switchable constraints / GNC.** For deployments where false loop closures are likely (repeated environments, symmetric corridors), add a robust outlier rejection layer (switchable constraints, graduated non-convexity).
+
+### Step 6 — Design loop closure
+
+Loop closure is the single most important component for long-term consistency.
+
+- **Place recognition.**
+  - LiDAR: scan-context descriptors, learned global descriptors.
+  - Vision: bag-of-words (DBoW2-class), learned global descriptors (NetVLAD-class). Verify per-library license.
+- **Geometric verification.** Always verify candidate loop closures with a metric registration (ICP for LiDAR, PnP / essential matrix for vision). Never trust appearance alone.
+- **Outlier rejection.** Robust kernels (Step 5) plus a consistency check (3+ mutually-consistent loop closures before accepting any).
+- **Frequency.** Run place recognition every N frames; geometric verification only on top-K candidates.
+
+### Step 7 — Design the map representation
+
+- **Occupancy grid (2D).** Good for planar mobile bases and 2D path planning. Cheap, mergeable.
+- **3D occupancy / OctoMap.** Volumetric, good for arbitrary 3D obstacles. Memory grows with map size; consider voxel hashing.
+- **Pose-graph + keyframe images / scans.** Best for re-localization; the map is the graph plus stored sensor data.
+- **Mesh / TSDF.** Best for visualization and high-resolution reconstruction; expensive to maintain online.
+- **Semantic layers.** Optional overlays for object permanence, dynamic-object masking, navigation costs.
+
+Match the representation to the downstream consumer (planner, perception, visualization). Don't pay for a TSDF if the planner only uses occupancy.
+
+### Step 8 — Plan drift mitigation
+
+- **IMU pre-integration.** Tightly couple IMU into the front-end; this is the single biggest drift-reduction win on aerial and legged platforms.
+- **Wheel odometry fusion.** Tightly couple on wheeled bases; cheap and very effective indoors when LiDAR is degenerate.
+- **GNSS priors.** When available, fuse as a low-rate global prior; reject outliers via Mahalanobis gating.
+- **Loop closure.** Step 6.
+- **Sub-mapping.** Split long sessions into sub-maps with rigid transforms between them; constrain transforms only on accepted loop closures.
+- **Health monitoring.** Track innovation magnitude, number of tracked features, IMU bias estimates. Flag and surface degradation; have a graceful degradation policy (e.g., fall back to dead-reckoning + halt).
+
+### Step 9 — Plan map persistence and multi-session
+
+- **Map server.** A persistent service that stores the pose graph, keyframes, and place-recognition index for a site.
+- **Re-localization on startup.** Robot starts, captures a few keyframes, queries the map server for the best initial pose. Validate with a geometric pass before declaring localized.
+- **Map updates.** Decide whether updates are append-only (each session adds to the graph) or merged (sessions reconcile to a canonical map). Append-only is simpler and a strong default.
+- **Multi-robot.** When fleets share maps, version the map, gate updates by quality, and never let one robot's drift corrupt the shared graph. Always keep an immutable golden baseline.
+
+### Step 10 — Validation plan
+
+Refuse to call the design done until the user commits to:
+
+1. **Trajectory benchmarks.** Run on standard datasets (KITTI / EuRoC / TUM-VI / Newer College / your-own ground-truth runs). Report APE (absolute pose error) and RPE (relative pose error).
+2. **Targeted stress tests.** Long corridors, glass, dynamic crowds, lighting changes — whichever apply.
+3. **Simulation regression.** Gazebo / Isaac / Unity with noise models for each sensor.
+4. **Hardware soak in a safe enclosure.** Drive the platform on a representative course for hours. Watch for slow divergence.
+5. **Failure-mode handlers.** What happens when tracking is lost? When a loop closure is rejected? When GNSS drops? Define explicit handlers — usually some combination of slow-halt, switch to dead-reckoning, escalate to a human, refuse new motion commands.
+
+## Inputs
+
+- **Platform.** Class, motion profile, compute.
+- **Sensor suite.** Type, spec, calibration state for each sensor.
+- **Environment.** Indoor/outdoor, geometry/texture richness, dynamics, scale, single vs multi-session.
+- **Requirements (optional).** Accuracy targets, real-time vs offline, fleet sharing.
+
+## Outputs
+
+A markdown design doc with:
+
+1. Front-end choice with library and license.
+2. Back-end design (pose graph vs full BA; solver).
+3. Loop-closure subsystem.
+4. Map representation.
+5. Drift-mitigation plan (which couplings, which sub-mapping policy).
+6. Map persistence and multi-session strategy.
+7. Validation harness with target metrics.
+8. Failure-mode handlers.
+
+## Examples
+
+> "Indoor warehouse robot, 2D LiDAR (Hokuyo), 6-axis MEMS IMU, wheel encoders, no GNSS. Operates 12h/day, glass walls in some aisles. Multi-robot fleet, single shared map."
+
+Expected sketch:
+
+- **Front-end:** Cartographer 2D (Apache-2.0) with scan-matching, IMU pre-integration, and wheel-odometry fusion.
+- **Back-end:** Pose graph with Ceres-based optimization; sub-mapping every ~30 m.
+- **Loop closure:** Scan-context-style descriptors with ICP geometric verification; reject loops near glass aisles using a learned dynamics mask or by extending the safety margin.
+- **Map:** 2D occupancy grid + pose graph for re-localization.
+- **Persistence:** Append-only map server; nightly validation pass that promotes the day's session into the canonical map only if all loop closures pass consistency checks.
+- **Validation:** 8h soak on a representative loop with ground-truth fiducials at the dock; APE target < 5 cm at the dock after a full shift.
+
+## Limitations
+
+- This skill does not cover LiDAR-Inertial-Visual tightly-coupled research stacks in detail; those evolve quickly and need fresh literature review.
+- Deep-learned end-to-end SLAM (NeRF-based, Gaussian-splatting localization) is out of scope; production maturity is not yet established.
+- Calibration procedures are referenced but not specified step-by-step; use a dedicated calibration skill or toolkit.
+- License notes are point-in-time. ORB-SLAM3 is mentioned only to flag it as **GPLv3 — not recommended** for proprietary or marketplace deployments. Re-verify any library before vendoring.
+
+## Source references (URL-only)
+
+- https://github.com/cartographer-project/cartographer
+- https://github.com/introlab/rtabmap
+- https://github.com/MIT-SPARK/Kimera-VIO
+- https://github.com/isl-org/Open3D
+- https://github.com/ros-navigation/navigation2
+- https://github.com/flexible-collision-library/fcl

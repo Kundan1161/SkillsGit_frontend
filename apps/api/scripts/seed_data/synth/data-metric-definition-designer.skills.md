@@ -1,0 +1,242 @@
+---
+id: skillsgit-curated/data-metric-definition-designer
+version: 1.0.0
+name: Metric Definition Designer
+description: Turns an ambiguous business question into a governable metric — name, owner, grain, formula, dimensions, filters, and the traps (fanouts, late binding, double-counting) that wreck it.
+authors:
+  - name: skillsgit Curated
+    handle: skillsgit-curated
+    role: author
+category: data
+tags: [niche:analytics-engineering, metrics-layer, semantic-layer, governance, kpi, metric-definition, business-intelligence]
+license_type: free
+pricing:
+  currency: USD
+  support_included: false
+ai:
+  required_models: [claude-opus-4-7]
+  compatible_models: [claude-sonnet-4-6, gpt-4o]
+  tools_required: []
+  tools_optional: [web_search]
+  min_context_tokens: 32000
+  estimated_tokens_per_invocation: 7000
+trigger_keywords:
+  - metric definition
+  - define a metric
+  - semantic layer
+  - metricflow
+  - cube metric
+  - metric spec
+  - metric grain
+  - metric owner
+  - metric governance
+  - kpi definition
+  - what is our definition of
+  - duplicate metric
+  - conflicting metric
+example_invocations:
+  - "Define 'active customer' so finance, product, and marketing stop arguing about it."
+  - "Help me write a MetricFlow metric for monthly revenue with a refund carve-out."
+  - "We have three definitions of churn — which one should be canonical?"
+  - "How do I express weekly active users as a metric in our semantic layer?"
+inputs:
+  - name: business_question
+    type: text
+    required: true
+    description: The ambiguous question that triggered the request. Examples - "what is active customer", "how do we count revenue", "what counts as a qualified lead".
+  - name: source_tables
+    type: text
+    required: false
+    description: A description of the source tables likely to feed the metric — names, grains, key columns. Sketches are fine.
+  - name: existing_definitions
+    type: text
+    required: false
+    description: Any prior definitions that exist, even informal ones (Slack threads, spreadsheets, dashboard tile names). Helps spot the conflict the metric is meant to resolve.
+  - name: stack
+    type: choice
+    required: false
+    description: The semantic-layer technology in use (so the output can be expressed in its grammar). Default - generic.
+    choices: [metricflow, cube, lookml, generic]
+outputs:
+  - name: metric_spec
+    type: markdown
+    description: A complete metric definition with name, owner, type, grain, formula, dimensions, filters, exclusions, and a history-of-change note.
+  - name: pitfalls
+    type: markdown
+    description: A list of common ways this specific metric breaks, with the test or constraint that prevents each break.
+  - name: implementation_sketch
+    type: markdown
+    description: A code sketch in the requested grammar (MetricFlow YAML, Cube cube definition, LookML measure, or generic SQL).
+changelog:
+  - version: 1.0.0
+    date: 2026-05-14
+    notes: Initial release.
+---
+
+## When to use
+
+Use this skill any time a metric is about to be defined for the first time, or any time an existing metric is being challenged because two teams disagree on the number. Specifically:
+
+- A stakeholder asks "what is our X" and the honest answer is "it depends who you ask".
+- Someone is about to write a MetricFlow `metric:` block, a Cube `measure`, a LookML `measure`, or a SQL aggregation that will be reused by more than one consumer.
+- A dashboard tile has been quietly redefined three times in a year and you want to stop the drift.
+- A new metric is being added to a semantic layer and you want a checklist before it gets committed to main.
+- An audit, a board pack, or a regulatory filing is going to consume the number and you need to be able to defend the definition.
+
+Do not use this skill to model the underlying tables — pair it with the dimensional design or dbt review skills for that. Do not use it to choose between two engines (MetricFlow versus Cube) — that is a platform decision, not a metric decision.
+
+## How to apply
+
+Work the steps in order. The order is load-bearing: most bad metrics fail at step 2 (grain) or step 5 (filter scope), and arguing about the formula before those are settled is a waste of everyone's time.
+
+### 1. Resolve the question into a single sentence
+
+1. **Force the requester to finish this sentence:** "I want to count / sum / average / measure ___ per ___ over ___, excluding ___." If they cannot, the metric is not ready to define; their request is actually a question about what to track, not how to track it. Loop on the sentence until it is complete.
+2. **Write down what would change** if the number went up by 10% and what would change if it went down by 10%. A metric that nobody would act on under either move is a vanity metric — flag it and ask the requester to confirm it is still worth governing.
+3. **Identify the audience.** Finance, ops, growth, and the executive team all need different presentations of the same underlying number. Note who the canonical owner is and who the secondary consumers are. The owner gets veto power on changes; consumers get notification.
+4. **Reject ambiguous nouns.** "Customer", "user", "order", "session", "deal" — these are not metric inputs until they are pinned to a specific table and a specific lifecycle state. Push back and get a concrete entity.
+
+### 2. Pin the grain
+
+5. **State the grain in plain English first.** "One row per customer per day", "one row per order line", "one row per user-session". Do not move on until this is unambiguous.
+6. **Confirm the grain matches a real table.** If the grain is "customer per month" but the source table is "transaction", the metric requires an aggregation upstream. Decide where that aggregation lives — in a dbt intermediate, in the semantic layer, or as a measure-side calculation. Document the choice.
+7. **Watch for mixed grains.** A metric like "average revenue per active user" requires two grains — revenue at transaction grain and active users at user-day grain. Mixed-grain metrics must be expressed as a ratio of two simple metrics, never as a single SQL aggregate, because the simple aggregate will produce fanout the moment a join is added downstream.
+8. **Watch for time grain versus entity grain.** A weekly metric over a daily table is a rollup; weekly over an event stream is a windowed aggregation; weekly over a snapshot table is a point-in-time read. They are three different operations. Pick one and document it.
+
+### 3. Choose the metric type
+
+9. **Classify the metric.** The five canonical types are: simple aggregate (sum, count, count distinct, average), ratio (numerator metric / denominator metric), derived (an arithmetic combination of other metrics), cumulative (a running window of a base metric), and conversion (the fraction of one event that produced a following event within a window). Naming this up front prevents the most common pattern failures.
+10. **Reject `count(distinct)` as a default.** It is the single most-abused aggregation in analytics. It cannot be summed across slices — `count(distinct user_id)` for Monday plus `count(distinct user_id)` for Tuesday is not `count(distinct user_id)` for the two-day period. Either commit to a pre-aggregated unique table at the lowest grain you will ever slice, or express the metric explicitly as a ratio-of-distincts that the engine knows how to recombine.
+11. **For ratios, define the numerator and denominator as their own first-class metrics.** Never bury the denominator inside the numerator's SQL. Consumers must be able to ask for either side independently, and slicing must be applied to each side before the division.
+12. **For cumulative metrics, name the window in the metric name.** `revenue_trailing_30d` is unambiguous; `revenue_cumulative` is not. Encode the window length, the anchor point (trailing, leading, calendar), and the reset behavior (resets quarterly, never resets, resets on subscription anniversary).
+13. **For conversion metrics, name the event pair and the window.** `signup_to_first_purchase_within_7d` is a complete metric name. `conversion` is not.
+
+### 4. Choose the dimensions
+
+14. **List every dimension the metric can be sliced by.** Time, geography, product, segment, channel, cohort, plan tier — write them all down. The semantic-layer config will only expose the ones you list, so omissions become invisible to consumers.
+15. **Mark each dimension as enumerable or unbounded.** Enumerable dimensions (plan tier with five values) are safe; unbounded dimensions (raw URL, user_id, free-text input) will produce dashboards with millions of rows. Either bucket them or hide them from self-serve consumers.
+16. **Identify slowly-changing dimensions.** "Plan tier" can change for a customer. The metric must specify whether a historical fact uses the plan-at-event-time or the plan-as-of-today. This is a Type 1 versus Type 2 choice and it changes the answer. Document explicitly.
+17. **Mark dimensions that produce fanout when joined.** A customer can have multiple addresses; joining a customer-grain fact to an address-grain dimension multiplies rows. Either pick a primary address upstream or restrict that dimension to address-grain metrics only.
+
+### 5. Pin the filter scope
+
+18. **State the universe.** "All customers", "active customers in the trailing 30 days", "non-internal customers excluding test accounts and refunded transactions". Be exhaustive. Every exclusion will be questioned later, so document each one with the reason.
+19. **Watch for the late-binding filter trap.** A filter applied at the dashboard layer (e.g., the consumer adds a `region = 'EU'` filter) is fundamentally different from a filter baked into the metric definition. Bake in only the filters that are universal to the metric's meaning ("excludes internal accounts"); leave business filters ("EU only") for the consumer.
+20. **Watch for the time-zone trap.** A daily metric requires an explicit time zone. "Daily active users" in UTC and "daily active users" in Pacific time produce different numbers. Pick the canonical zone and document it; if reporting requires multiple zones, define multiple metrics or expose the zone as a dimension.
+21. **Watch for the refund / reversal trap.** Revenue metrics must specify whether they include refunded transactions, whether refunds reduce the original-period number or the refund-period number, and whether disputed/charged-back transactions are counted at all. Each choice produces a defensibly different number.
+22. **Watch for the trial / freemium trap.** Sign-up counts that include trial conversions versus exclude them differ by a wide margin in some businesses. Bake the choice into the definition or split into two named metrics.
+
+### 6. Name the metric
+
+23. **Use the project's naming convention.** If the team uses `noun_verb` (e.g., `orders_placed`), follow it; if they use `verb_noun` (e.g., `placed_orders`), follow that. Inconsistency is worse than either choice.
+24. **Encode the aggregation in the name when it is not obvious.** `revenue_gross_usd`, `revenue_net_usd`, `revenue_recognized_usd`. Three metrics, three names; never overload one name with a footnote.
+25. **Avoid trademarked, branded, or vendor-specific terms.** "NPS" is fine because the scoring methodology is public; "PowerBI-style sales" is not, because it borrows a vendor name to describe a calculation.
+26. **Avoid metric names that are also column names downstream.** A metric called `revenue` and a fact column called `revenue` will be confused in every downstream join. Prefix the metric (`m_revenue`) or pluralize it (`revenues`) — pick a convention and apply it project-wide.
+
+### 7. Identify the pitfalls specific to this metric
+
+For every metric, work through this list. Surface the ones that apply, and recommend the test or constraint that prevents the failure.
+
+27. **Fanout.** Does any join in the path from grain-to-output multiply rows? If yes, either change the join to be at the right grain or express the metric as a ratio that cancels the multiplication.
+28. **Count-distinct collision.** Will consumers want to slice the metric on dimensions not present at the count grain? If yes, pre-aggregate to that grain or express the count distinct as a Bayesian estimate (HyperLogLog) flagged as approximate.
+29. **Late-arriving facts.** Will the metric be recomputed when historical data updates? Specify the recompute window. A metric that silently drifts as backfills land is worse than a metric that explicitly stops at a frozen-as-of date.
+30. **Time-zone drift.** Is the timestamp column the user's local time, the server's UTC, or the warehouse's session zone? Convert to canonical at staging and never trust the raw column.
+31. **Null handling.** What does the metric do for rows with null numerators? Null denominators? Null dimensions? Document each. A `null` revenue row treated as zero is a different metric than one treated as excluded.
+32. **Outlier policy.** Is a transaction of one billion dollars valid? In some businesses yes, in others it is a data-entry error. Decide whether the metric clips, excludes, or accepts outliers, and document the rule.
+33. **Currency.** Multi-currency metrics must specify the conversion source, the conversion date (transaction date versus reporting date), and the reporting currency. A metric called `revenue` without a currency suffix is a bug.
+34. **Versioning behaviour.** If the definition changes, do historical numbers also change? Two options exist: rebuild history under the new definition (a "restatement") or preserve old numbers under the old definition and only apply the new one going forward (a "vintage"). Choose and document.
+
+### 8. Decide ownership and governance
+
+35. **Name a single owner.** One human, not a team. Teams cannot make decisions; humans can. The owner is responsible for approving definition changes and answering "why is this number what it is" questions.
+36. **List the certified consumers.** Dashboards, BI tools, reverse-ETL syncs, AI agents, executive reports. Anything that reads the metric. Maintain the list inside the metric's `meta` block so changes can notify downstream owners.
+37. **Set a review cadence.** Every metric should be re-validated annually by the owner. Stale metrics that nobody owns are how organizations end up with three versions of "churn".
+38. **Capture the definition history.** Every change to the formula, filters, or grain gets a dated entry with the rationale. This is the audit trail that defends the number when it is challenged. Bury this in the metric file's frontmatter or `meta` block, not in a separate Confluence page.
+
+### 9. Express it in the target grammar
+
+39. **For MetricFlow:** Pick `type:` (`simple`, `ratio`, `derived`, `cumulative`, `conversion`). Reference one or more `measure:` definitions on `semantic_model:` blocks. Express filters in the `filter:` argument. Express time grain via `time_dimension:`. Slowly-changing dimensions go on the semantic model entity, not the metric.
+40. **For Cube:** Pick a `measure` type (`count`, `count_distinct`, `count_distinct_approx`, `sum`, `avg`, `min`, `max`, `runningTotal`, `number`). Reference `dimensions` for slicing. Pre-aggregations are defined separately; flag if this metric will need one (high-cardinality count-distinct, big datasets, sub-second latency requirements).
+41. **For LookML:** A `measure:` with a `type:` (`count`, `count_distinct`, `sum`, `average`, `number`, `running_total`, `period_over_period`). Filters go in the `filters:` block. Persistent derived tables host pre-aggregations.
+42. **For generic SQL:** Write a CTE that produces the metric at the lowest grain expected, then aggregate with the canonical SQL pattern. Avoid window functions inside the base CTE — they break partition pushdown in most engines.
+43. **In every grammar, write the formula in two forms:** the engine-native expression and a plain-English sentence the owner would write in a document. They must match exactly. When they drift, the document wins and the engine expression is the bug.
+
+### 10. Validate before committing
+
+44. **Compute the metric two ways.** Once in the semantic layer and once with a hand-written SQL query at the warehouse. They must produce identical numbers on at least three slices (overall, one dimension, two dimensions). If they disagree, the definition is incomplete.
+45. **Compute the metric across a date range that crosses a known event** (a product launch, a billing-system change, a refund spike). Examine whether the number behaves as expected. A metric that survives one trivial case but breaks across a known event is not validated.
+46. **Have the owner sign off in writing.** A Slack thumbs-up is not sign-off; a comment on the PR or a typed approval on the metric file is.
+47. **Notify all consumers.** Before the metric ships, email or message every dashboard owner, every BI viewer who has saved a query that touches it, and every team that has cited it in a doc. Their silence is consent; their objections become open items.
+
+### 11. Anti-patterns to surface every time
+
+Always check for these. They are the bugs that get past steps 1-10 most often.
+
+48. **The metric whose name does not say what it is.** "Engagement" is not a metric; "weekly active sessions per user" is.
+49. **The metric that is two metrics.** "Revenue and refunds" is not a metric; it is a dashboard tile. Split.
+50. **The metric expressed as a percentage without a base.** "Conversion rate" without naming the numerator event, the denominator event, and the window is not a metric.
+51. **The metric whose denominator can be zero.** Define the behavior (return null, return zero, raise) and document.
+52. **The metric whose definition depends on an external system's state at query time** (e.g., "active customer means whatever Salesforce says today"). External state means the metric is non-reproducible; either snapshot the external state or accept the non-reproducibility explicitly and disable historical comparisons.
+53. **The metric that exists only because a stakeholder asked once.** If no consumer reads it within 90 days of launch, deprecate it. Carrying dead metrics is how the catalog rots.
+54. **The metric that was renamed without restating downstream consumers.** Renames are breaking changes. Treat them like database column renames: add the new, dual-publish, deprecate the old.
+
+### 12. Output discipline
+
+55. **Write the metric spec in the exact section order:** name, owner, type, grain, formula (plain English), formula (engine), dimensions, filter universe, exclusions, pitfalls, validation queries, change history.
+56. **Show, do not tell.** Every example in the spec uses a concrete number and a concrete date. "Revenue in May 2026 for the EU segment is $X" beats "revenue varies by segment".
+57. **Keep the implementation sketch small.** Twenty lines of YAML or SQL is enough. The spec is the contract; the implementation will evolve.
+58. **End with one line stating what this metric is NOT.** Constraining the negative space prevents future drift.
+
+## Inputs
+
+- A business question. The vaguer it is, the more value step 1 produces.
+- A description of source tables, even rough.
+- Any prior definitions, even contradictory ones.
+- The target semantic layer, if known.
+
+## Outputs
+
+- A complete metric specification with the section order above.
+- A pitfall list specific to this metric.
+- An implementation sketch in the target grammar.
+- A short list of validation queries the owner runs before sign-off.
+
+## Examples
+
+**Example 1 — "Active customer"**
+
+> Input: "Marketing says we have 50k active customers, finance says 32k, product says 71k. What is the right number?"
+>
+> Expected output: A single metric, `customers_active_monthly`, defined as count-distinct of customer_id from the orders_fact table where order_at falls in the trailing 30 days as of report_date, in UTC, excluding internal-test accounts and customers with status = 'churned'. Grain: one row per month per dimension slice. Owner: VP Customer. Pitfalls flagged: count-distinct cannot be summed across months (must be pre-aggregated per slice); the trailing-30 window means a customer who orders on March 1 and again on March 31 is one active customer in March but two events; finance's 32k uses a billing-active definition (paid in the last 30 days) which is a different metric (`customers_paying_monthly`) — both should exist with clear names.
+
+**Example 2 — "Weekly revenue"**
+
+> Input: "Define weekly revenue. We have a transactions table and a refunds table."
+>
+> Expected output: Two metrics, `revenue_gross_weekly_usd` and `revenue_net_weekly_usd`. Both at week grain (ISO weeks, weeks start Monday in UTC). Gross is sum of transactions.amount converted to USD at transaction date. Net is gross minus same-period refunds. Pitfalls flagged: a refund recorded in week N+1 of a transaction from week N reduces N+1 net revenue, not N — document this explicitly; multi-currency conversion must use a daily FX snapshot, not transaction-time spot, to avoid spurious variance; week boundaries near time-zone edges produce off-by-one disputes. Implementation: MetricFlow `simple` metric over a sum measure for gross, `derived` metric (gross - refunds) for net.
+
+**Example 3 — "Trial-to-paid conversion"**
+
+> Input: "What is our trial-to-paid conversion rate?"
+>
+> Expected output: A `conversion` metric, `trial_to_paid_within_14d`. Numerator event: subscription_started where plan_type != 'trial'. Denominator event: trial_started. Window: 14 days from trial_started. Grain: cohort by trial_started week. Pitfalls flagged: a user can start multiple trials — define whether to dedupe at user level or count all; trials that convert after the 14-day window are not in the numerator (document this and consider also publishing `trial_to_paid_within_30d` and `trial_to_paid_within_90d` for the long-tail audience); cohort interpretation requires holding the denominator fixed at trial date even when slicing by conversion date.
+
+## Limitations
+
+- The skill produces a definition, not a number. Validation against real data is the owner's job.
+- It does not choose between semantic-layer technologies. Pair with an architecture review for that.
+- It does not refactor existing pipelines to fit the new definition; that is a separate migration task (see the schema migration planner).
+- For metrics that depend on external state (CRM enrichment, billing-system flags), the skill flags the dependency but cannot remove it. Some metrics are intrinsically coupled to a vendor system.
+- It assumes the underlying data quality is sufficient. A perfectly-defined metric over dirty data is still wrong; pair with the dbt review skill if data quality is suspected.
+
+## Sources reviewed
+
+The patterns and checks above were synthesized across the following permissively licensed projects. No prose was copied or closely paraphrased from any source.
+
+- https://github.com/dbt-labs/metricflow
+- https://github.com/dbt-labs/dbt-semantic-interfaces
+- https://github.com/cube-js/cube
+- https://github.com/lightdash/lightdash
+- https://github.com/apache/superset
+- https://github.com/evidence-dev/evidence
+- https://github.com/rittmananalytics/ra_data_warehouse

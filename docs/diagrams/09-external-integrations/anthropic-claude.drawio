@@ -1,0 +1,240 @@
+<mxfile host="app.diagrams.net" agent="skillsgit-arch" version="24.7.17" type="device">
+  <diagram name="anthropic-claude" id="skg-ant-claude">
+    <mxGraphModel dx="2400" dy="1600" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="3000" pageHeight="2600" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <mxCell id="title" value="Anthropic Claude integration — every Claude call in the platform&#10;Source: apps/api/src/core/anthropic.py + apps/api/src/capture/llm.py + apps/api/scripts/demo_devops_agent.py:_call_claude — ADR-008 (platform-managed key MVP, BYOK Cycle 2) + ADR-018" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=none;fontSize=14;fontStyle=1;align=left;" vertex="1" parent="1">
+          <mxGeometry x="40" y="20" width="2900" height="60" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== Caller sites ===== -->
+        <mxCell id="g-callers" value="Caller sites" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0EA5E9;strokeColor=#0369A1;fontColor=#FFFFFF;verticalAlign=top;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="100" width="2920" height="160" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-CA1" value="CA1: Capture LLM&#10;(neuron-draft extraction)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#0369A1;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="60" y="140" width="1420" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-CA2" value="CA2: Demo CLI&#10;(one-shot answer with attribution)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#0369A1;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1500" y="140" width="1440" height="100" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== Capture LLM path ===== -->
+        <mxCell id="g-cap" value="Capture LLM — capture/llm.py" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fce7f3;strokeColor=#be185d;verticalAlign=top;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="300" width="1440" height="1000" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-CP1" value="CP1: capture/router.py:&#10;POST /v1/capture/sessions/{id}/extract" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#be185d;" vertex="1" parent="1">
+          <mxGeometry x="60" y="340" width="660" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-CP2" value="CP2: capture/service.py:enqueue_extract" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#be185d;" vertex="1" parent="1">
+          <mxGeometry x="740" y="340" width="720" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-CP3" value="CP3: SKG_CAPTURE_LLM_STUB?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="500" y="440" width="500" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-CP3Y" value="CP3Y: Run synchronously in request&#10;(test path; no Arq worker needed)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="60" y="560" width="660" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-CP3N" value="CP3N: Enqueue Arq job&#10;capture.jobs.extract_neuron" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#be185d;" vertex="1" parent="1">
+          <mxGeometry x="740" y="560" width="720" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-CP4" value="CP4: capture/jobs.py:&#10;run_extract(creator, session_id,&#10;consume_quota=False)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#be185d;" vertex="1" parent="1">
+          <mxGeometry x="60" y="680" width="660" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-CP5" value="CP5: capture/llm.py:extract_draft(payload)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#be185d;" vertex="1" parent="1">
+          <mxGeometry x="740" y="680" width="720" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-CP6" value="CP6: get_client():" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#be185d;" vertex="1" parent="1">
+          <mxGeometry x="60" y="800" width="660" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-CP7" value="CP7: is_stub_enabled()" style="rhombus;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="740" y="800" width="720" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-CP7Y" value="CP7Y: StubAnthropicClient&#10;(tests/stubs/llm.py)&#10;deterministic fixture-based output" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="60" y="880" width="660" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-CP7N" value="CP7N: _RealAnthropicClient(&#10;api_key=settings.ANTHROPIC_API_KEY,&#10;model=settings.SKG_CAPTURE_LLM_MODEL&#10;// default: claude-sonnet-4-6)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#be185d;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="740" y="900" width="720" height="140" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-CP8" value="CP8: anthropic.AsyncAnthropic.messages.create(&#10;model='claude-sonnet-4-6',&#10;max_tokens=1500,&#10;system=SYSTEM_PROMPT_TEMPLATE.format(...)&#10;messages=[{role: user, content: ...}])" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#be185d;" vertex="1" parent="1">
+          <mxGeometry x="60" y="1060" width="1400" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-CP9" value="CP9: Parse JSON envelope from text block&#10;(strip ```json fences if present)&#10;→ frontmatter + body_sections + suggested_links + token_usage" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#be185d;" vertex="1" parent="1">
+          <mxGeometry x="60" y="1180" width="700" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-CP10" value="CP10: Assemble draft_md from sections&#10;(_assemble_draft_md)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#be185d;" vertex="1" parent="1">
+          <mxGeometry x="780" y="1180" width="680" height="100" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== Demo CLI path ===== -->
+        <mxCell id="g-demo" value="Demo CLI — scripts/demo_devops_agent.py" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;verticalAlign=top;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1520" y="300" width="1440" height="1000" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-DP1" value="DP1: scripts.demo_devops_agent.main()&#10;(if not --snapshot-only)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="1540" y="340" width="1400" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-DP2" value="DP2: _call_claude(prompt, system_message,&#10;max_tokens, model)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="1540" y="440" width="1400" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-DP3" value="DP3: core/anthropic.py:get_async_client()" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="1540" y="540" width="1400" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-DP4" value="DP4: ANTHROPIC_API_KEY set?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="2040" y="620" width="400" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-DP4N" value="DP4N: raise AnthropicKeyMissingError&#10;→ CLI exits 2 with friendly message&#10;('set ANTHROPIC_API_KEY or use --snapshot-only')" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="1540" y="740" width="700" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-DP4Y" value="DP4Y: return AsyncAnthropic(api_key=…)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="2260" y="740" width="680" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-DP5" value="DP5: resolve_model(args.model):&#10;--model override&#10;OR settings.SKG_CAPTURE_LLM_MODEL" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="1540" y="900" width="1400" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-DP6" value="DP6: client.messages.create(&#10;model, max_tokens,&#10;system=system_message,&#10;messages=[{role: user, content: prompt}])" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="1540" y="1020" width="1400" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-DP7" value="DP7: Join text content blocks → raw_text&#10;→ _parse_consulted_block → (prose, paths)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="1540" y="1160" width="1400" height="100" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== Shared chokepoint ===== -->
+        <mxCell id="g-shared" value="Shared chokepoint" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;verticalAlign=top;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="1330" width="1440" height="380" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-SH1" value="SH1: core/anthropic.py:get_async_client()" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="60" y="1370" width="1400" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-SH2" value="SH2: Lazy import of anthropic SDK&#10;(not loaded on app startup;&#10;only when actually used)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="60" y="1470" width="680" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-SH3" value="SH3: SecretStr.get_secret_value()&#10;on settings.ANTHROPIC_API_KEY&#10;(never logged in plain text)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="760" y="1470" width="700" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-SH4" value="SH4: Returns AsyncAnthropic(api_key=…)&#10;per call (cheap to instantiate;&#10;no event-loop sharing across pytest sessions)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="60" y="1590" width="1400" height="100" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== Anthropic API ===== -->
+        <mxCell id="n-Anthropic" value="Anthropic API&#10;messages.create endpoint&#10;(production: api.anthropic.com)" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1520" y="1330" width="1440" height="160" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== Quota ===== -->
+        <mxCell id="g-quota" value="Capture quota — Redis" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;verticalAlign=top;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1520" y="1520" width="1440" height="500" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-Q1" value="Q1: capture/quota.py:reserve(creator_id)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1540" y="1560" width="1400" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-Q2" value="Q2: Redis INCR capture:quota:{creator}:{YYYY-MM}&#10;EXPIRE 32 days" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="1540" y="1640" width="1400" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-Q3" value="Q3: Default cap: 10/month&#10;(SKG_CAPTURE_QUOTA_PER_MONTH)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="1540" y="1740" width="1400" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-Q4" value="Q4: Overflow: DECR + raise&#10;CaptureQuotaExceededError → 429" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="1540" y="1840" width="700" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-Q5" value="Q5: On LLMExtractError: quota.refund(creator)&#10;rolls back the count" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="2260" y="1840" width="680" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-Q6" value="Q6: Quota check is the gate that fires BEFORE the LLM call.&#10;CP2 calls Q1; on success the actual LLM path proceeds; on failure Q4 returns 429 to the caller." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="1540" y="1940" width="1400" height="60" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== Configuration ===== -->
+        <mxCell id="g-cfg" value="Configuration" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;verticalAlign=top;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="1740" width="1440" height="380" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-CFG1" value="CFG1: ANTHROPIC_API_KEY (SecretStr)&#10;shared across capture + demo CLI for MVP" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#666666;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="60" y="1780" width="680" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-CFG2" value="CFG2: SKG_CAPTURE_LLM_MODEL&#10;default: claude-sonnet-4-6&#10;(in ALLOWED_AI_MODELS allowlist;&#10;changing it changes both capture and demo defaults)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="760" y="1780" width="700" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-CFG3" value="CFG3: SKG_CAPTURE_LLM_STUB&#10;=1 → use tests/stubs/llm.py&#10;(legacy alias: SKG_LLM_STUB)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="60" y="1920" width="680" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-CFG4" value="CFG4: SKG_CAPTURE_QUOTA_PER_MONTH&#10;=10 (free tier)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="760" y="1920" width="700" height="120" as="geometry"/>
+        </mxCell>
+
+        <!-- ===== BYOK (deferred) ===== -->
+        <mxCell id="g-byok" value="BYOK (per-creator keys) &lt;&lt;deferred&gt;&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;verticalAlign=top;fontSize=14;fontStyle=1;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="2140" width="2920" height="340" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-BK1" value="BK1: Phase 2 (ADR-008):&#10;get_client(creator_id=…)&#10;looks up creator_api_keys table&#10;BEFORE falling back to the platform key" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="60" y="2180" width="940" height="140" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-BK2" value="BK2: Demo CLI gets a similar treatment:&#10;buyer's own ANTHROPIC_API_KEY,&#10;no platform-side billing for&#10;downstream agent calls" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="1020" y="2180" width="940" height="140" as="geometry"/>
+        </mxCell>
+        <mxCell id="n-BK3" value="BK3: For MVP both flows use the&#10;single platform key from env." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;dashed=1;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1980" y="2180" width="940" height="140" as="geometry"/>
+        </mxCell>
+
+        <!-- Edges - capture path -->
+        <mxCell id="e-ca1cp1" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-CA1" target="n-CP1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-cp1cp2" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-CP1" target="n-CP2"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-cp2cp3" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-CP2" target="n-CP3"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-cp3y" value="=1" style="endArrow=classic;html=1;fontStyle=1;" edge="1" parent="1" source="n-CP3" target="n-CP3Y"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-cp3n" value="=0" style="endArrow=classic;html=1;fontStyle=1;" edge="1" parent="1" source="n-CP3" target="n-CP3N"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-cp3ncp4" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-CP3N" target="n-CP4"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-cp3ycp5" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-CP3Y" target="n-CP5"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-cp4cp5" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-CP4" target="n-CP5"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-cp5cp6" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-CP5" target="n-CP6"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-cp6cp7" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-CP6" target="n-CP7"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-cp7y" value="yes" style="endArrow=classic;html=1;fontStyle=1;" edge="1" parent="1" source="n-CP7" target="n-CP7Y"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-cp7n" value="no" style="endArrow=classic;html=1;fontStyle=1;" edge="1" parent="1" source="n-CP7" target="n-CP7N"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-cp7ncp8" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-CP7N" target="n-CP8"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-cp8cp9" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-CP8" target="n-CP9"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-cp9cp10" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-CP9" target="n-CP10"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- Edges - demo path -->
+        <mxCell id="e-ca2dp1" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-CA2" target="n-DP1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-dp12" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-DP1" target="n-DP2"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-dp23" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-DP2" target="n-DP3"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-dp34" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-DP3" target="n-DP4"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-dp4n" value="no" style="endArrow=classic;html=1;fontStyle=1;" edge="1" parent="1" source="n-DP4" target="n-DP4N"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-dp4y" value="yes" style="endArrow=classic;html=1;fontStyle=1;" edge="1" parent="1" source="n-DP4" target="n-DP4Y"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-dp4ydp5" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-DP4Y" target="n-DP5"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-dp56" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-DP5" target="n-DP6"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-dp67" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-DP6" target="n-DP7"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- Edges - shared chokepoint -->
+        <mxCell id="e-cp7nsh2" value="uses lazy import" style="endArrow=classic;html=1;dashed=1;" edge="1" parent="1" source="n-CP7N" target="n-SH2"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-dp3sh1" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-DP3" target="n-SH1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-sh12" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-SH1" target="n-SH2"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-sh23" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-SH2" target="n-SH3"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-sh34" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-SH3" target="n-SH4"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- Edges - to Anthropic API -->
+        <mxCell id="e-cp8ant" value="HTTPS" style="endArrow=classic;html=1;dashed=1;" edge="1" parent="1" source="n-CP8" target="n-Anthropic"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-dp6ant" value="HTTPS" style="endArrow=classic;html=1;dashed=1;" edge="1" parent="1" source="n-DP6" target="n-Anthropic"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- Edges - quota -->
+        <mxCell id="e-cp2q1" value="gate before LLM" style="endArrow=classic;html=1;dashed=1;" edge="1" parent="1" source="n-CP2" target="n-Q1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-q12" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-Q1" target="n-Q2"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-q23" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-Q2" target="n-Q3"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-q34" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-Q3" target="n-Q4"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-q35" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-Q3" target="n-Q5"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- Edges - configuration -->
+        <mxCell id="e-cfg1sh3" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-CFG1" target="n-SH3"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-cfg1cp7n" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-CFG1" target="n-CP7N"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-cfg2cp7n" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-CFG2" target="n-CP7N"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-cfg2dp5" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-CFG2" target="n-DP5"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-cfg3cp7" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-CFG3" target="n-CP7"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-cfg4q3" style="endArrow=classic;html=1;" edge="1" parent="1" source="n-CFG4" target="n-Q3"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- Edges - BYOK deferred -->
+        <mxCell id="e-bk1cp7n" value="future" style="endArrow=classic;html=1;dashed=1;" edge="1" parent="1" source="n-BK1" target="n-CP7N"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-bk2dp3" value="future" style="endArrow=classic;html=1;dashed=1;" edge="1" parent="1" source="n-BK2" target="n-DP3"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e-bk3cfg1" value="current" style="endArrow=classic;html=1;dashed=1;" edge="1" parent="1" source="n-BK3" target="n-CFG1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

@@ -560,6 +560,9 @@
   filter: blur(30px);
   mix-blend-mode: soft-light;
 }
+@media (pointer: coarse) {
+  .moving-light { display: none; }
+}
 /* Elements that react to the moving light */
 [data-lit] {
   position: relative;

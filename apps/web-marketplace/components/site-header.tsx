@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { MobileMenu } from "@/components/MobileMenu";
 
 const NAV_LINKS = [
   { href: "/explore",            label: "Explore Experts" },
@@ -70,7 +71,7 @@ export function SiteHeader() {
           </Link>
           <Link
             href="/sign-up"
-            className="neu-btn-brand ripple inline-flex items-center gap-1.5 rounded-full px-5 py-2 text-sm font-bold text-white"
+            className="neu-btn-brand ripple hidden items-center gap-1.5 rounded-full px-5 py-2 text-sm font-bold text-white sm:inline-flex"
             style={{
               background: "linear-gradient(135deg, #7c3aed, #6366f1)",
               boxShadow: "4px 4px 12px rgba(124,58,237,0.4), -2px -2px 8px rgba(255,255,255,0.4)",
@@ -78,6 +79,8 @@ export function SiteHeader() {
           >
             Get started <ArrowRight className="h-3.5 w-3.5" />
           </Link>
+
+          <MobileMenu />
         </div>
       </div>
     </header>
